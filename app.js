@@ -1,4 +1,4 @@
-// Польовий Модуль — V19 Modular Base
+// Польовий Модуль — V19.1 Compact GM Panel
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1168,7 +1168,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1911`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1189,6 +1189,60 @@ function renderPlayerSpecificLinks(){
       <code>${escapeHtml(url)}</code>
     </div>`;
   }).join("");
+}
+
+
+
+function renderGmQuickPanel(){
+  const box = qs("#gmQuickPanel");
+  if(!box) return;
+  if(appSession.role !== "gm"){
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+
+  const playerIds = Object.keys(data.players || {});
+  const activePlayerId = currentPlayerId();
+  const activePlayer = data.players?.[activePlayerId] || {};
+  const visibleEnemies = getVisibleEnemies();
+  const activeEnemy = selectedTargetEnemy() || visibleEnemies[0] || null;
+  const activeEnemyId = activeEnemy?.id || "";
+
+  box.innerHTML = `
+    <div class="gm-quick-head">
+      <strong>Панель Майстра</strong>
+      <span>${data.combat?.active ? `Бій · Раунд ${data.combat.round || 1}` : "Поза боєм"}</span>
+    </div>
+
+    <div class="gm-quick-grid">
+      <label>Гравець
+        <select id="gmQuickPlayer">
+          ${playerIds.map(pid => `<option value="${escapeAttr(pid)}" ${pid === activePlayerId ? "selected" : ""}>${escapeHtml(data.players[pid]?.name || pid)}</option>`).join("")}
+        </select>
+      </label>
+
+      <label>Ворог / ціль
+        <select id="gmQuickEnemy">
+          <option value="">немає</option>
+          ${visibleEnemies.map(e => `<option value="${escapeAttr(e.id)}" ${e.id === activeEnemyId ? "selected" : ""}>${escapeHtml(e.name)} · ${escapeHtml(e.state || "стан?")}</option>`).join("")}
+        </select>
+      </label>
+    </div>
+
+    <div class="gm-quick-status">
+      <span>❤️ ${escapeHtml(activePlayer.name || activePlayerId)}: ${activePlayer.hp ?? "?"}/${activePlayer.hpMax ?? "?"}</span>
+      <span>🎒 Набої: ${activePlayer.ammo ?? "?"}</span>
+      <span>☠ ${activeEnemy ? `${escapeHtml(activeEnemy.name)}: ${escapeHtml(activeEnemy.state || "стан?")}` : "ціль не обрана"}</span>
+    </div>
+
+    <div class="gm-quick-actions">
+      <button class="metal-btn small" id="gmQuickCombatToggle">${data.combat?.active ? "Завершити бій" : "Почати бій"}</button>
+      <button class="metal-btn small" id="gmQuickNextTurn">Наступний хід</button>
+      <button class="metal-btn small" id="gmQuickRestore">Відновити сцену</button>
+      <button class="metal-btn small" id="gmQuickCopyPlayer">Посилання гравця</button>
+    </div>
+  `;
 }
 
 
@@ -1236,6 +1290,7 @@ function render(){
   renderCombatSummary();
   renderGmCombatPanel();
   fillMaster();
+  renderGmQuickPanel();
   renderPlayerSpecificLinks();
   applyRoleMode();
   refreshActionLocks();
@@ -1341,7 +1396,7 @@ function renderGmPlayers(){
     <div class="copy-mini">У цьому блоці показані параметри тільки активного персонажа. Натисни ім’я іншого гравця, щоб переключитися на нього.</div>`;
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1911`;
     return `<div class="gm-player-card ${pid === currentPlayerId() ? "active-selected" : ""}">
       <h4>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
       <div class="gm-mini-grid">
@@ -1815,6 +1870,39 @@ function randomModuleWarning(){
 }
 
 document.addEventListener("click", e => {
+
+  if(e.target.id === "gmQuickCombatToggle"){
+    if(data.combat?.active){
+      endCombat();
+    } else {
+      startCombat();
+    }
+    render();
+    return;
+  }
+
+  if(e.target.id === "gmQuickNextTurn"){
+    nextTurn();
+    render();
+    return;
+  }
+
+  if(e.target.id === "gmQuickRestore"){
+    if(confirm("Відновити базову сцену? Персонажі гравців залишаться.")){
+      restoreBaseScenePreservePlayers();
+    }
+    return;
+  }
+
+  if(e.target.id === "gmQuickCopyPlayer"){
+    const pid = currentPlayerId();
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=191`;
+    navigator.clipboard?.writeText(url);
+    showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
+    return;
+  }
+
+
   const nav = e.target.closest(".nav-btn");
   if(nav) switchScreen(nav.dataset.target);
 
@@ -1912,7 +2000,7 @@ document.addEventListener("click", e => {
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1911`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }
@@ -2145,7 +2233,7 @@ document.addEventListener("click", e => {
   }
 
   if(e.target.id === "copyGmLink"){
-    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=19`;
+    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1911`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання Майстра скопійовано.");
   }
@@ -2260,6 +2348,24 @@ document.addEventListener("input", e => {
 
 
 document.addEventListener("change", e => {
+
+  if(e.target.id === "gmQuickPlayer"){
+    data.meta = data.meta || {};
+    data.meta.activePlayerId = e.target.value;
+    render();
+    save();
+    return;
+  }
+
+  if(e.target.id === "gmQuickEnemy"){
+    data.combat = data.combat || {};
+    data.combat.targetEnemyId = e.target.value;
+    render();
+    save();
+    return;
+  }
+
+
   if(e.target.closest("[data-player]") || e.target.closest("[data-player-stat]") || e.target.closest("[data-enemy]") || e.target.closest("[data-item]")){
     save();
   }
