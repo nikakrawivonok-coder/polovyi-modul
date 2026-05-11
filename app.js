@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.8 Collapsible Player Editor Sections
+// Польовий Модуль — V19.8.2 Player Editor Collapse Fix
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -94,7 +94,7 @@ let isBootstrappingRemote = true;
 let pendingSaveTimer = null;
 let expandedStateEnemyDetails = {};
 let journalFilter = "all";
-let expandedPlayerEditorSections = { profile:false, combat:true, weapon:false, stats:false, inventory:false };
+let expandedPlayerEditorSections = { profile:false, combat:false, weapon:false, stats:false, inventory:false };
 
 const defaultRoomData = {
   schemaVersion: 5,
@@ -1169,7 +1169,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1981`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=198221`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1713,105 +1713,61 @@ function renderGmPlayers(){
   const activeId = currentPlayerId();
 
   const sectionOpen = key => !!expandedPlayerEditorSections?.[key];
-  const sectionButton = (key, title, subtitle="") => `
-    <button class="compact-section-header ${sectionOpen(key) ? "open" : ""}" data-toggle-player-section="${escapeAttr(key)}">
-      <span>${sectionOpen(key) ? "▼" : "▶"} ${escapeHtml(title)}</span>
-      ${subtitle ? `<small>${escapeHtml(subtitle)}</small>` : ""}
-    </button>
-  `;
+  const section = (key, title, subtitle, bodyHtml) => `
+    <div class="pm-collapse-section ${sectionOpen(key) ? "is-open" : ""}">
+      <div class="pm-collapse-head" data-toggle-player-section="${escapeAttr(key)}">
+        <div class="pm-collapse-main"><span class="pm-collapse-arrow">${sectionOpen(key) ? "▼" : "▶"}</span><strong>${escapeHtml(title)}</strong></div>
+        ${subtitle ? `<small>${escapeHtml(subtitle)}</small>` : ""}
+      </div>
+      <div class="pm-collapse-body" ${sectionOpen(key) ? "" : "hidden"}>${bodyHtml}</div>
+    </div>`;
 
   const switcher = `<div class="target-line"><strong>Активний персонаж Майстра:</strong> ${escapeHtml(data.players[activeId]?.name || activeId)}</div>
     <div class="player-switch-row compact-switcher">
       ${playerIds.map(pid => `<button class="metal-btn ${pid === activeId ? "active-choice" : ""}" data-select-player="${escapeAttr(pid)}">${escapeHtml(data.players[pid]?.name || pid)}</button>`).join("")}
     </div>
-    <div class="copy-mini">Секції нижче згортаються. Тапни заголовок секції, щоб відкрити її вміст.</div>`;
+    <div class="copy-mini">Нижче — компактний редактор активного персонажа. Тапни секцію, щоб розгорнути її.</div>`;
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=198`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1982`;
     const invCount = (p.inventory || []).length;
+
+    const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
+    const combatBody = `<div class="compact-form-grid combat-grid">
+        <label>HP <input type="number" data-player="${escapeAttr(pid)}" data-field="hp" value="${escapeAttr(String(p.hp ?? 0))}"></label>
+        <label>Макс. HP <input type="number" data-player="${escapeAttr(pid)}" data-field="hpMax" value="${escapeAttr(String(p.hpMax ?? 10))}"></label>
+        <label>Втома <input type="number" data-player="${escapeAttr(pid)}" data-field="fatigue" value="${escapeAttr(String(p.fatigue ?? 0))}"></label>
+        <label>Зараження <input type="number" data-player="${escapeAttr(pid)}" data-field="infection" value="${escapeAttr(String(p.infection ?? 0))}"></label>
+        <label>Набої <input type="number" data-player="${escapeAttr(pid)}" data-field="ammo" value="${escapeAttr(String(p.ammo ?? 0))}"></label>
+        <label>Броня <input type="number" data-player="${escapeAttr(pid)}" data-field="armor" value="${escapeAttr(String(p.armor ?? 0))}"></label>
+        <label>Захист <input type="number" data-player="${escapeAttr(pid)}" data-field="defense" value="${escapeAttr(String(p.defense ?? 12))}"><span class="defense-note">Поріг d20.</span></label>
+        <label>Макс. захист <input type="number" data-player="${escapeAttr(pid)}" data-field="defenseMax" value="${escapeAttr(String(p.defenseMax ?? p.defense ?? 12))}"><span class="defense-note">Для штрафів/бонусів.</span></label>
+      </div>`;
+    const weaponBody = `<div class="compact-form-grid weapon-grid">
+        <label>Зброя<select data-player="${escapeAttr(pid)}" data-field="weapon">${Object.entries(WEAPON_CATALOG).map(([key,w]) => `<option value="${escapeAttr(key)}" ${p.weapon === key ? "selected" : ""}>${escapeHtml(w.name)}</option>`).join("")}</select></label>
+        <label>Дистанція<select data-player="${escapeAttr(pid)}" data-field="range"><option value="near" ${p.range === "near" ? "selected" : ""}>близько</option><option value="mid" ${p.range === "mid" ? "selected" : ""}>середньо</option><option value="far" ${(!p.range || p.range === "far") ? "selected" : ""}>далеко</option></select></label>
+        <label>Стан зброї<select data-player="${escapeAttr(pid)}" data-field="weaponCondition">${Object.entries(WEAPON_CONDITIONS).map(([key,c]) => `<option value="${escapeAttr(key)}" ${p.weaponCondition === key ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}</select></label>
+        <label class="compact-checkbox"><input type="checkbox" data-player="${escapeAttr(pid)}" data-field="weaponJammed" ${p.weaponJammed ? "checked" : ""}> Клин</label>
+      </div>`;
+    const statsBody = `<div class="compact-form-grid stats-grid">
+        <label>Витр. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="endurance" value="${escapeAttr(String(p.stats?.endurance ?? 0))}"></label>
+        <label>Точн. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="accuracy" value="${escapeAttr(String(p.stats?.accuracy ?? 0))}"></label>
+        <label>Вправ. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="agility" value="${escapeAttr(String(p.stats?.agility ?? 0))}"></label>
+        <label>Сприйн. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="perception" value="${escapeAttr(String(p.stats?.perception ?? 0))}"></label>
+        <label>Інтуїц. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="intuition" value="${escapeAttr(String(p.stats?.intuition ?? 0))}"></label>
+        <label>Хар. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="charisma" value="${escapeAttr(String(p.stats?.charisma ?? 0))}"></label>
+      </div>`;
+    const inventoryBody = `<div class="copy-mini">${invCount ? `${invCount} позицій. Детально — у вкладці “Інвентар”.` : "Інвентар порожній."}</div>`;
+
     return `<div class="gm-player-card compact-player-editor collapsible-player-editor ${pid === currentPlayerId() ? "active-selected" : ""}">
       <h4>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
-
-      <div class="compact-editor-section collapsed-style">
-        ${sectionButton("profile", "Профіль", p.name || pid)}
-        <div class="compact-section-body ${sectionOpen("profile") ? "open" : ""}">
-          <div class="compact-form-grid profile-grid">
-            <label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label>
-            <label>ID <input value="${escapeAttr(pid)}" disabled></label>
-          </div>
-        </div>
-      </div>
-
-      <div class="compact-editor-section collapsed-style">
-        ${sectionButton("combat", "Бойові налаштування", `HP ${p.hp ?? 0}/${p.hpMax ?? 10} · Втома ${p.fatigue ?? 0} · Набої ${p.ammo ?? 0}`)}
-        <div class="compact-section-body ${sectionOpen("combat") ? "open" : ""}">
-          <div class="compact-form-grid combat-grid">
-            <label>HP <input type="number" data-player="${escapeAttr(pid)}" data-field="hp" value="${escapeAttr(String(p.hp ?? 0))}"></label>
-            <label>Макс. HP <input type="number" data-player="${escapeAttr(pid)}" data-field="hpMax" value="${escapeAttr(String(p.hpMax ?? 10))}"></label>
-            <label>Втома <input type="number" data-player="${escapeAttr(pid)}" data-field="fatigue" value="${escapeAttr(String(p.fatigue ?? 0))}"></label>
-            <label>Зараження <input type="number" data-player="${escapeAttr(pid)}" data-field="infection" value="${escapeAttr(String(p.infection ?? 0))}"></label>
-            <label>Набої <input type="number" data-player="${escapeAttr(pid)}" data-field="ammo" value="${escapeAttr(String(p.ammo ?? 0))}"></label>
-            <label>Броня <input type="number" data-player="${escapeAttr(pid)}" data-field="armor" value="${escapeAttr(String(p.armor ?? 0))}"></label>
-            <label>Захист <input type="number" data-player="${escapeAttr(pid)}" data-field="defense" value="${escapeAttr(String(p.defense ?? 12))}"><span class="defense-note">Поріг d20.</span></label>
-            <label>Макс. захист <input type="number" data-player="${escapeAttr(pid)}" data-field="defenseMax" value="${escapeAttr(String(p.defenseMax ?? p.defense ?? 12))}"><span class="defense-note">Для штрафів/бонусів.</span></label>
-          </div>
-        </div>
-      </div>
-
-      <div class="compact-editor-section collapsed-style">
-        ${sectionButton("weapon", "Зброя", `${WEAPON_CATALOG[p.weapon]?.name || p.weapon || "немає"} · ${p.weaponCondition ? (WEAPON_CONDITIONS[p.weaponCondition]?.name || p.weaponCondition) : "стан?"}`)}
-        <div class="compact-section-body ${sectionOpen("weapon") ? "open" : ""}">
-          <div class="compact-form-grid weapon-grid">
-            <label>Зброя
-              <select data-player="${escapeAttr(pid)}" data-field="weapon">
-                ${Object.entries(WEAPON_CATALOG).map(([key,w]) => `<option value="${escapeAttr(key)}" ${p.weapon === key ? "selected" : ""}>${escapeHtml(w.name)}</option>`).join("")}
-              </select>
-            </label>
-            <label>Дистанція
-              <select data-player="${escapeAttr(pid)}" data-field="range">
-                <option value="near" ${p.range === "near" ? "selected" : ""}>близько</option>
-                <option value="mid" ${p.range === "mid" ? "selected" : ""}>середньо</option>
-                <option value="far" ${(!p.range || p.range === "far") ? "selected" : ""}>далеко</option>
-              </select>
-            </label>
-            <label>Стан зброї
-              <select data-player="${escapeAttr(pid)}" data-field="weaponCondition">
-                ${Object.entries(WEAPON_CONDITIONS).map(([key,c]) => `<option value="${escapeAttr(key)}" ${p.weaponCondition === key ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}
-              </select>
-            </label>
-            <label class="compact-checkbox"><input type="checkbox" data-player="${escapeAttr(pid)}" data-field="weaponJammed" ${p.weaponJammed ? "checked" : ""}> Клин</label>
-          </div>
-        </div>
-      </div>
-
-      <div class="compact-editor-section collapsed-style">
-        ${sectionButton("stats", "Характеристики", `Витр. ${p.stats?.endurance ?? 0} · Точн. ${p.stats?.accuracy ?? 0} · Спр. ${p.stats?.perception ?? 0}`)}
-        <div class="compact-section-body ${sectionOpen("stats") ? "open" : ""}">
-          <div class="compact-form-grid stats-grid">
-            <label>Витр. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="endurance" value="${escapeAttr(String(p.stats?.endurance ?? 0))}"></label>
-            <label>Точн. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="accuracy" value="${escapeAttr(String(p.stats?.accuracy ?? 0))}"></label>
-            <label>Вправ. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="agility" value="${escapeAttr(String(p.stats?.agility ?? 0))}"></label>
-            <label>Сприйн. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="perception" value="${escapeAttr(String(p.stats?.perception ?? 0))}"></label>
-            <label>Інтуїц. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="intuition" value="${escapeAttr(String(p.stats?.intuition ?? 0))}"></label>
-            <label>Хар. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="charisma" value="${escapeAttr(String(p.stats?.charisma ?? 0))}"></label>
-          </div>
-        </div>
-      </div>
-
-      <div class="compact-editor-section collapsed-style">
-        ${sectionButton("inventory", "Інвентар", `${invCount} позицій`)}
-        <div class="compact-section-body ${sectionOpen("inventory") ? "open" : ""}">
-          <div class="copy-mini">${invCount ? `${invCount} позицій. Детально — у вкладці “Інвентар”.` : "Інвентар порожній."}</div>
-        </div>
-      </div>
-
-      <div class="button-row compact-action-row">
-        <button class="metal-btn" data-select-player="${escapeAttr(pid)}">Обрати активним</button>
-        <button class="metal-btn" data-copy-player-link="${escapeAttr(pid)}">Скопіювати посилання</button>
-        <button class="metal-btn" data-toggle-player-cover="${escapeAttr(pid)}">${p.cover ? "Без укриття" : "В укриття"}</button>
-        ${pid !== currentPlayerId() ? `<button class="metal-btn danger" data-remove-player="${escapeAttr(pid)}">Видалити</button>` : ""}
-      </div>
+      ${section("profile", "Профіль", p.name || pid, profileBody)}
+      ${section("combat", "Бойові налаштування", `HP ${p.hp ?? 0}/${p.hpMax ?? 10} · Втома ${p.fatigue ?? 0} · Набої ${p.ammo ?? 0}`, combatBody)}
+      ${section("weapon", "Зброя", `${WEAPON_CATALOG[p.weapon]?.name || p.weapon || "немає"} · ${p.weaponCondition ? (WEAPON_CONDITIONS[p.weaponCondition]?.name || p.weaponCondition) : "стан?"}`, weaponBody)}
+      ${section("stats", "Характеристики", `Витр. ${p.stats?.endurance ?? 0} · Точн. ${p.stats?.accuracy ?? 0} · Спр. ${p.stats?.perception ?? 0}`, statsBody)}
+      ${section("inventory", "Інвентар", `${invCount} позицій`, inventoryBody)}
+      <div class="button-row compact-action-row"><button class="metal-btn" data-select-player="${escapeAttr(pid)}">Обрати активним</button><button class="metal-btn" data-copy-player-link="${escapeAttr(pid)}">Скопіювати посилання</button><button class="metal-btn" data-toggle-player-cover="${escapeAttr(pid)}">${p.cover ? "Без укриття" : "В укриття"}</button>${pid !== currentPlayerId() ? `<button class="metal-btn danger" data-remove-player="${escapeAttr(pid)}">Видалити</button>` : ""}</div>
       <div class="copy-mini">${escapeHtml(playerUrl)}</div>
     </div>`;
   }).join("");
@@ -2238,13 +2194,12 @@ document.addEventListener("click", e => {
     const key = playerSectionToggle.dataset.togglePlayerSection;
     expandedPlayerEditorSections = expandedPlayerEditorSections || {};
     expandedPlayerEditorSections[key] = !expandedPlayerEditorSections[key];
-    renderGmPlayers();
+    render();
     return;
   }
 
 
-
-  const playerStep = e.target.closest("[data-player-step]");
+const playerStep = e.target.closest("[data-player-step]");
   if(playerStep){
     doCommand({
       type:"stepPlayerStat",
@@ -2362,7 +2317,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=198`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19822`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2466,7 +2421,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1981`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=198221`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }
@@ -2699,7 +2654,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   }
 
   if(e.target.id === "copyGmLink"){
-    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1981`;
+    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=198221`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання Майстра скопійовано.");
   }

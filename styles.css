@@ -1,4 +1,4 @@
-/* Польовий Модуль — V19.8 Collapsible Player Editor Sections
+/* Польовий Модуль — V19.8.2 Player Editor Collapse Fix
    Extracted from Stable V18.12.1. Functional behavior should match V18.12.1. */
 
 :root{
@@ -962,3 +962,14 @@ body.sync-online #syncLabel::before{
   line-height:1.25;
   word-break:break-all;
 }
+
+
+/* === V19.8.2 Player Editor Collapse Fix === */
+.collapsible-player-editor .compact-editor-section,
+.pm-collapse-section{margin:7px 0!important;padding:0!important;overflow:hidden!important;border:1px solid rgba(240,195,106,.22)!important;border-radius:10px!important;background:rgba(0,0,0,.16)!important}
+.pm-collapse-head{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;cursor:pointer;background:linear-gradient(180deg,#24170d,#100a06);color:#f0d49c;user-select:none}
+.pm-collapse-section.is-open .pm-collapse-head{background:linear-gradient(180deg,#2b1b0f,#120b06);border-bottom:1px solid rgba(240,195,106,.18)}
+.pm-collapse-main{display:flex;align-items:center;gap:7px;min-width:0}.pm-collapse-main strong{font-size:16px;line-height:1.05;white-space:nowrap}.pm-collapse-arrow{color:#f0d49c;font-weight:900;width:18px;display:inline-block}
+.pm-collapse-head small{color:#c9ad76;font-size:11px;font-weight:800;line-height:1.15;text-align:right}.pm-collapse-body{padding:8px}.pm-collapse-body[hidden]{display:none!important}
+.compact-section-header,.compact-section-header.open{display:none!important}.collapsible-player-editor .compact-editor-title{display:none!important}
+@media(max-width:390px){.pm-collapse-head{align-items:flex-start;flex-direction:column}.pm-collapse-head small{text-align:left}}
