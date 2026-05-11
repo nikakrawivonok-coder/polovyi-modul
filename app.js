@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.8.3 Cache Bust + Collapse Fix
+// Польовий Модуль — V19.8.4 Remove Legacy Current Player Panel
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1169,7 +1169,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1983`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1984`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1730,7 +1730,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1983`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1984`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2317,7 +2317,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1983`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1984`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2421,7 +2421,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1983`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1984`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }
@@ -2582,93 +2582,6 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   const fDelta = e.target.closest("[data-delta-fatigue]");
   if(fDelta){ const p = currentPlayer(); p.fatigue = clamp(p.fatigue + Number(fDelta.dataset.deltaFatigue), 0, 5); addLog(`${p.name}: Втома ${p.fatigue}/5.`, "public"); render(); }
-
-  if(e.target.id === "savePlayer"){
-    const p = currentPlayer();
-    p.name = qs("#gmName").value.trim() || "Сталкер";
-    p.hpMax = Math.max(1, Number(qs("#gmHpMax").value)||1);
-    p.hp = clamp(qs("#gmHp").value, 0, p.hpMax);
-    p.fatigue = clamp(qs("#gmFatigue").value, 0, 5);
-    p.infection = clamp(qs("#gmRad").value, 0, 7);
-    p.ammo = Math.max(0, Number(qs("#gmAmmo").value)||0);
-    addLog(`Майстер оновив стан персонажа: ${p.name}.`, "public");
-    showToast("Стан збережено.");
-    render();
-  }
-
-  if(e.target.id === "saveScene"){
-    data.scene.name = qs("#gmSceneName").value.trim() || "Невідома локація";
-    data.scene.description = qs("#gmSceneDescription").value.trim();
-    data.scene.sounds = qs("#gmSceneSounds").value.trim();
-    data.scene.smells = qs("#gmSceneSmells").value.trim();
-    data.scene.objects = qs("#gmSceneObjects").value.split(",").map(x=>x.trim()).filter(Boolean);
-    addLog(`Сцену оновлено: ${data.scene.name}.`, "public");
-    showToast("Сцену оновлено.");
-    render();
-  }
-
-  if(e.target.id === "addEnemy"){
-    data.enemies.push({id: makeId("enemy"), name:"Новий ворог", state:"цілий", color:"green", position:"невідомо", danger:"середня", action:"чекає", visible:true, gm:{hp:8,hpMax:8,ammo:0,morale:"невідомо"}});
-    render();
-  }
-
-  const remEnemy = e.target.closest("[data-remove-enemy]");
-  if(remEnemy){ data.enemies.splice(Number(remEnemy.dataset.removeEnemy),1); render(); }
-
-  if(e.target.id === "addItem"){
-    currentInventory().push({item:"Нова річ", count:1, note:""});
-    render();
-  }
-
-  const remItem = e.target.closest("[data-remove-item]");
-  if(remItem){ currentInventory().splice(Number(remItem.dataset.removeItem),1); render(); }
-
-
-  const journalFilterBtn = e.target.closest("[data-journal-filter]");
-  if(journalFilterBtn){
-    journalFilter = journalFilterBtn.dataset.journalFilter;
-    render();
-  }
-
-
-  if(e.target.id === "addKpkMsg") randomModuleWarning();
-
-  if(e.target.id === "clearJournal"){
-    if(confirm("Очистити журнал кімнати?")){
-      data.journal = [{id: makeId("log"), visibility:"public", time:nowTime(), text:"Журнал очищено."}];
-      render();
-    }
-  }
-
-  if(e.target.id === "exportData"){
-    qs("#exportBox").value = JSON.stringify(data, null, 2);
-    showToast("JSON кімнати підготовлено.");
-  }
-
-  if(e.target.id === "resetData"){
-    if(confirm("Скинути локальні дані цієї кімнати?")){
-      data = ensureRoomData(null);
-      addLog("Дані кімнати скинуто до стартового стану.", "public");
-      render();
-    }
-  }
-
-  if(e.target.id === "copyGmLink"){
-    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1983`;
-    navigator.clipboard?.writeText(url);
-    showToast("Посилання Майстра скопійовано.");
-  }
-
-
-  const playerSpecificBtn = e.target.closest("[data-copy-player-specific]");
-  if(playerSpecificBtn){
-    const pid = playerSpecificBtn.dataset.copyPlayerSpecific;
-    const url = playerSpecificUrl(pid);
-    navigator.clipboard?.writeText(url);
-    showToast(`Посилання гравця скопійовано: ${data.players?.[pid]?.name || pid}`);
-    return;
-  }
-
 if(e.target.id === "copyPlayerLink"){
     const pid = appSession.role === "gm" ? currentPlayerId() : appSession.player;
     const url = playerSpecificUrl(pid);

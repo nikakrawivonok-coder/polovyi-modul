@@ -1,30 +1,46 @@
-# Польовий Модуль — V19.8.3 Cache Bust + Collapse Fix
+# Польовий Модуль — V19.8.4 Remove Legacy Current Player Panel
 
-Ця версія виправляє ситуацію, коли Telegram/iPhone міг підтягувати старий `app.js` з кешу, тому V19.8.2 виглядала так, ніби нічого не змінилося.
+Версія на основі робочої V19.8.3.
 
-## Головне виправлення
+## Головна зміна
 
-В `index.html` тепер файли підключаються з cache-busting:
+З вкладки **Майстер** прибрано старий дубльований блок:
 
-```html
-<link rel="stylesheet" href="./styles.css?v=1983">
-<script src="./app.js?v=1983"></script>
-```
+- `Стан поточного персонажа`
 
-## Також збережено виправлення V19.8.2
+Він дублював:
 
-У вкладці `Майстер → Гравці`:
+- верхню Панель Майстра;
+- вкладку `Майстер → Гравці`;
+- швидке керування активним гравцем.
 
-- секції не мають виглядати як світлі сірі кнопки;
-- усі секції за замовчуванням згорнуті;
-- бойові поля сховані всередині `Бойові налаштування`;
-- поля зброї сховані всередині `Зброя`;
-- характеристики сховані всередині `Характеристики`;
-- тап по заголовку секції розгортає / згортає її.
+## Що залишилося
+
+Редагування гравців тепер має бути тільки у двох місцях:
+
+1. **Верхня Панель Майстра** — швидкі зміни під час гри.
+2. **Майстер → Гравці** — компактний редактор із розгортними секціями.
 
 ## Що не змінювалося
 
-Не змінювалися Firebase, бойова математика, вороги, Оточення, інтерфейс гравця і Command Core.
+Не змінювалися:
+
+- Firebase;
+- бойова математика;
+- вороги;
+- Оточення;
+- інтерфейс гравця;
+- Command Core;
+- Майстер → Гравці.
+
+## Cache busting
+
+В `index.html`:
+
+```html
+<link rel="stylesheet" href="./styles.css?v=1984">
+<script src="./app.js?v=1984"></script>
+```
 
 ## Файли для GitHub
 
@@ -39,10 +55,10 @@
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test1983&gmKey=zona-master&v=1983`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test1984&gmKey=zona-master&v=1984`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test1983&player=fox&v=1983`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test1984&player=fox&v=1984`
 
 Гравець Сірий:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test1983&player=grey&v=1983`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test1984&player=grey&v=1984`

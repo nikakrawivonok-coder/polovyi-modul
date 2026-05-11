@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#120d09" />
-  <title>Польовий Модуль — V19.8.3 Cache Bust + Collapse Fix</title>
-  <link rel="stylesheet" href="./styles.css?v=1983">
+  <title>Польовий Модуль — V19.8.4 Remove Legacy Current Player Panel</title>
+  <link rel="stylesheet" href="./styles.css?v=1984">
 
 </head>
 <body>
@@ -221,25 +221,6 @@
       </details>
 
       <details class="gm-panel">
-        <summary>Стан поточного персонажа</summary>
-        <div class="control-grid">
-          <label>Ім’я <input id="gmName" /></label>
-          <label>HP <input id="gmHp" type="number" min="0" /></label>
-          <label>Макс. HP <input id="gmHpMax" type="number" min="1" /></label>
-          <label>Втома <input id="gmFatigue" type="number" min="0" max="5" /></label>
-          <label>Зараження <input id="gmRad" type="number" min="0" max="7" /></label>
-          <label>ID гравця <input id="gmPlayerId" disabled /></label>
-          <label>Набої <input id="gmAmmo" type="number" min="0" /></label>
-        </div>
-        <div class="button-row">
-          <button class="metal-btn" id="savePlayer">Зберегти стан</button>
-          <button class="metal-btn danger" data-delta-hp="-1">-1 HP</button>
-          <button class="metal-btn" data-delta-hp="1">+1 HP</button>
-          <button class="metal-btn" data-delta-fatigue="1">+1 Втома</button>
-          <button class="metal-btn danger" data-delta-fatigue="-1">-1 Втома</button>
-        </div>
-      </details>
-      <details class="gm-panel">
         <summary>Сцена</summary>
         <label>Назва <input id="gmSceneName" /></label>
         <label>Опис <textarea id="gmSceneDescription" rows="4"></textarea></label>
@@ -372,6 +353,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   
-  <script src="./app.js?v=1983"></script>
+  <script src="./app.js?v=1984"></script>
 </body>
 </html>

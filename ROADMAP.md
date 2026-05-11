@@ -10,7 +10,7 @@
 - V19.5 Command Core + ROADMAP
 - V19.6 Cleaner GM Dashboard + Handler Cleanup
 - V19.7 Compact Player Editor Sections
-- V19.8.3 Cache Bust + Collapse Fix
+- V19.8.4 Remove Legacy Current Player Panel
 
 ## Головна ціль
 
@@ -335,7 +335,17 @@
 
 Виправлено ймовірну причину, через яку Telegram/iPhone показував стару версію:
 
-- `styles.css` підключено як `styles.css?v=1983`;
-- `app.js` підключено як `app.js?v=1983`;
-- внутрішні посилання очищено до `v=1983`;
+- `styles.css` підключено як `styles.css?v=1984`;
+- `app.js` підключено як `app.js?v=1984`;
+- внутрішні посилання очищено до `v=1984`;
 - збережено виправлення згортуваних секцій редактора гравця.
+
+
+### V19.8.4 — Remove Legacy Current Player Panel
+
+Виконано:
+
+- з вкладки Майстра прибрано старий блок “Стан поточного персонажа”;
+- прибрано дублювання верхньої Панелі Майстра і вкладки “Майстер → Гравці”;
+- оновлено cache-busting до `v=1984`;
+- Firebase, бойова математика, вороги, Оточення і Command Core не змінювалися.
