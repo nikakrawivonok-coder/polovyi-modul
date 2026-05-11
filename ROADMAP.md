@@ -10,7 +10,7 @@
 - V19.5 Command Core + ROADMAP
 - V19.6 Cleaner GM Dashboard + Handler Cleanup
 - V19.7 Compact Player Editor Sections
-- V19.8 Collapsible Player Editor Sections
+- V19.8.3 Cache Bust + Collapse Fix
 
 ## Головна ціль
 
@@ -329,3 +329,13 @@
 ### V19.8.2 — Player Editor Collapse Fix
 
 Виправлено недолік V19.8: секції редактора гравця більше не виглядають як зайві світлі клавіші; усі секції за замовчуванням згорнуті; бойові поля, зброя й характеристики реально сховані всередині відповідних секцій.
+
+
+### V19.8.3 — Cache Bust + Collapse Fix
+
+Виправлено ймовірну причину, через яку Telegram/iPhone показував стару версію:
+
+- `styles.css` підключено як `styles.css?v=1983`;
+- `app.js` підключено як `app.js?v=1983`;
+- внутрішні посилання очищено до `v=1983`;
+- збережено виправлення згортуваних секцій редактора гравця.
