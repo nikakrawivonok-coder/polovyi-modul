@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.3 Enemy Control Dashboard
+// Польовий Модуль — V19.4 Player Control Dashboard
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1168,7 +1168,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1931`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1941`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1201,6 +1201,7 @@ function renderGmQuickPanel(){
 
   const playerIds = Object.keys(data.players || {});
   const activePlayerId = currentPlayerId();
+  const activePlayer = data.players?.[activePlayerId] || null;
   const visibleEnemies = getVisibleEnemies();
   const activeEnemy = selectedTargetEnemy() || visibleEnemies[0] || null;
   const activeEnemyId = activeEnemy?.id || "";
@@ -1212,6 +1213,68 @@ function renderGmQuickPanel(){
       <span>HP ${escapeHtml(String(p.hp ?? "?"))}/${escapeHtml(String(p.hpMax ?? "?"))} · 🛡 ${escapeHtml(String(p.defense ?? "?"))} · 🎒 ${escapeHtml(String(p.ammo ?? "?"))}</span>
     </button>`;
   }).join("");
+
+  const playerControl = activePlayer ? `
+    <div class="gm-player-control" data-active-player-panel="${escapeAttr(activePlayerId)}">
+      <div class="gm-dashboard-title">Активний гравець: ${escapeHtml(activePlayer.name || activePlayerId)}</div>
+
+      <div class="gm-enemy-line">
+        <span>HP</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="hp" data-delta="-1">−</button>
+        <strong>${escapeHtml(String(activePlayer.hp ?? "?"))}/${escapeHtml(String(activePlayer.hpMax ?? "?"))}</strong>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="hp" data-delta="1">+</button>
+      </div>
+
+      <div class="gm-enemy-line">
+        <span>Max HP</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="hpMax" data-delta="-1">−</button>
+        <strong>${escapeHtml(String(activePlayer.hpMax ?? "?"))}</strong>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="hpMax" data-delta="1">+</button>
+      </div>
+
+      <div class="gm-enemy-line">
+        <span>Захист</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="defense" data-delta="-1">−</button>
+        <strong>${escapeHtml(String(activePlayer.defense ?? 12))}/${escapeHtml(String(activePlayer.defenseMax ?? activePlayer.defense ?? 12))}</strong>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="defense" data-delta="1">+</button>
+      </div>
+
+      <div class="gm-enemy-line">
+        <span>Max Зах.</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="defenseMax" data-delta="-1">−</button>
+        <strong>${escapeHtml(String(activePlayer.defenseMax ?? activePlayer.defense ?? 12))}</strong>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="defenseMax" data-delta="1">+</button>
+      </div>
+
+      <div class="gm-enemy-line">
+        <span>Втома</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="fatigue" data-delta="-1">−</button>
+        <strong>${escapeHtml(String(activePlayer.fatigue ?? 0))}/5</strong>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="fatigue" data-delta="1">+</button>
+      </div>
+
+      <div class="gm-enemy-line">
+        <span>Зараж.</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="infection" data-delta="-1">−</button>
+        <strong>${escapeHtml(String(activePlayer.infection ?? 0))}</strong>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="infection" data-delta="1">+</button>
+      </div>
+
+      <div class="gm-enemy-line">
+        <span>Набої</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="ammo" data-delta="-1">−</button>
+        <strong>${escapeHtml(String(activePlayer.ammo ?? 0))}</strong>
+        <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="ammo" data-delta="1">+</button>
+      </div>
+
+      <div class="gm-player-quick-row">
+        <button class="metal-btn small" data-player-quick="${escapeAttr(activePlayerId)}" data-action="heal1">+1 HP</button>
+        <button class="metal-btn small" data-player-quick="${escapeAttr(activePlayerId)}" data-action="damage1">−1 HP</button>
+        <button class="metal-btn small" data-player-quick="${escapeAttr(activePlayerId)}" data-action="restFatigue">−1 Втома</button>
+        <button class="metal-btn small" data-player-quick="${escapeAttr(activePlayerId)}" data-action="addFatigue">+1 Втома</button>
+      </div>
+    </div>
+  ` : `<div class="gm-player-control"><div class="gm-empty-line">Активного гравця немає.</div></div>`;
 
   const enemiesMini = visibleEnemies.length ? visibleEnemies.map(e => {
     const defense = typeof enemyDefenseValue === "function" ? enemyDefenseValue(e) : (e.defense || 12);
@@ -1312,6 +1375,8 @@ function renderGmQuickPanel(){
       <div class="gm-dashboard-title">Гравці</div>
       <div class="gm-mini-grid">${playersMini || `<div class="gm-empty-line">Гравців ще немає.</div>`}</div>
     </div>
+
+    ${playerControl}
 
     <div class="gm-dashboard-block">
       <div class="gm-dashboard-title">Вороги</div>
@@ -1501,7 +1566,7 @@ function renderGmPlayers(){
     <div class="copy-mini">У цьому блоці показані параметри тільки активного персонажа. Натисни ім’я іншого гравця, щоб переключитися на нього.</div>`;
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1931`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1941`;
     return `<div class="gm-player-card ${pid === currentPlayerId() ? "active-selected" : ""}">
       <h4>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
       <div class="gm-mini-grid">
@@ -1976,6 +2041,58 @@ function randomModuleWarning(){
 
 document.addEventListener("click", e => {
 
+  const playerStep = e.target.closest("[data-player-step]");
+  if(playerStep){
+    const pid = playerStep.dataset.playerStep;
+    const p = data.players?.[pid];
+    const field = playerStep.dataset.field;
+    const delta = Number(playerStep.dataset.delta || 0);
+    if(p){
+      if(field === "hp"){
+        p.hp = clamp(Number(p.hp ?? p.hpMax ?? 10) + delta, 0, Number(p.hpMax ?? 10));
+      }
+      if(field === "hpMax"){
+        p.hpMax = Math.max(1, Number(p.hpMax ?? 10) + delta);
+        p.hp = clamp(Number(p.hp ?? p.hpMax), 0, p.hpMax);
+      }
+      if(field === "defense"){
+        p.defense = Math.max(1, Number(p.defense ?? 12) + delta);
+        if(typeof p.defenseMax !== "number") p.defenseMax = Number(p.defense ?? 12);
+        p.defense = Math.min(p.defense, Number(p.defenseMax ?? p.defense));
+      }
+      if(field === "defenseMax"){
+        p.defenseMax = Math.max(1, Number(p.defenseMax ?? p.defense ?? 12) + delta);
+        p.defense = clamp(Number(p.defense ?? p.defenseMax), 1, p.defenseMax);
+      }
+      if(field === "fatigue"){
+        p.fatigue = clamp(Number(p.fatigue ?? 0) + delta, 0, 5);
+      }
+      if(field === "infection"){
+        p.infection = Math.max(0, Number(p.infection ?? 0) + delta);
+      }
+      if(field === "ammo"){
+        p.ammo = Math.max(0, Number(p.ammo ?? 0) + delta);
+      }
+      render(); save(); return;
+    }
+  }
+
+  const playerQuick = e.target.closest("[data-player-quick]");
+  if(playerQuick){
+    const pid = playerQuick.dataset.playerQuick;
+    const p = data.players?.[pid];
+    const action = playerQuick.dataset.action;
+    if(p){
+      if(action === "heal1") p.hp = clamp(Number(p.hp ?? 0) + 1, 0, Number(p.hpMax ?? 10));
+      if(action === "damage1") p.hp = clamp(Number(p.hp ?? 0) - 1, 0, Number(p.hpMax ?? 10));
+      if(action === "restFatigue") p.fatigue = clamp(Number(p.fatigue ?? 0) - 1, 0, 5);
+      if(action === "addFatigue") p.fatigue = clamp(Number(p.fatigue ?? 0) + 1, 0, 5);
+      render(); save(); return;
+    }
+  }
+
+
+
   const enemyStep = e.target.closest("[data-enemy-step]");
   if(enemyStep){
     const enemy = findEnemyById(enemyStep.dataset.enemyStep);
@@ -2102,7 +2219,7 @@ document.addEventListener("click", e => {
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=193`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=194`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2206,7 +2323,7 @@ document.addEventListener("click", e => {
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1931`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1941`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }
@@ -2439,7 +2556,7 @@ document.addEventListener("click", e => {
   }
 
   if(e.target.id === "copyGmLink"){
-    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1931`;
+    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1941`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання Майстра скопійовано.");
   }
