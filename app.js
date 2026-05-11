@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.1 Compact GM Panel
+// Польовий Модуль — V19.2 Master Control Dashboard
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1168,7 +1168,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1911`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1921`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1196,18 +1196,31 @@ function renderPlayerSpecificLinks(){
 function renderGmQuickPanel(){
   const box = qs("#gmQuickPanel");
   if(!box) return;
-  if(appSession.role !== "gm"){
-    box.hidden = true;
-    return;
-  }
+  if(appSession.role !== "gm"){ box.hidden = true; return; }
   box.hidden = false;
 
   const playerIds = Object.keys(data.players || {});
   const activePlayerId = currentPlayerId();
-  const activePlayer = data.players?.[activePlayerId] || {};
   const visibleEnemies = getVisibleEnemies();
   const activeEnemy = selectedTargetEnemy() || visibleEnemies[0] || null;
   const activeEnemyId = activeEnemy?.id || "";
+
+  const playersMini = playerIds.map(pid => {
+    const p = data.players[pid] || {};
+    return `<button class="gm-mini-card ${pid === activePlayerId ? "active" : ""}" data-gm-mini-player="${escapeAttr(pid)}">
+      <strong>${escapeHtml(p.name || pid)}</strong>
+      <span>HP ${escapeHtml(String(p.hp ?? "?"))}/${escapeHtml(String(p.hpMax ?? "?"))} · 🛡 ${escapeHtml(String(p.defense ?? "?"))} · 🎒 ${escapeHtml(String(p.ammo ?? "?"))}</span>
+    </button>`;
+  }).join("");
+
+  const enemiesMini = visibleEnemies.length ? visibleEnemies.map(e => {
+    const defense = typeof enemyDefenseValue === "function" ? enemyDefenseValue(e) : (e.defense || 12);
+    const effects = typeof enemyEffectsText === "function" ? enemyEffectsText(e) : "";
+    return `<button class="gm-mini-card enemy ${e.id === activeEnemyId ? "active" : ""}" data-gm-mini-enemy="${escapeAttr(e.id)}">
+      <strong>${escapeHtml(e.name)}</strong>
+      <span>${escapeHtml(e.state || "стан?")} · Захист ${escapeHtml(String(defense))}${effects ? " · " + escapeHtml(effects) : ""}</span>
+    </button>`;
+  }).join("") : `<div class="gm-empty-line">Видимих ворогів немає.</div>`;
 
   box.innerHTML = `
     <div class="gm-quick-head">
@@ -1230,10 +1243,14 @@ function renderGmQuickPanel(){
       </label>
     </div>
 
-    <div class="gm-quick-status">
-      <span>❤️ ${escapeHtml(activePlayer.name || activePlayerId)}: ${activePlayer.hp ?? "?"}/${activePlayer.hpMax ?? "?"}</span>
-      <span>🎒 Набої: ${activePlayer.ammo ?? "?"}</span>
-      <span>☠ ${activeEnemy ? `${escapeHtml(activeEnemy.name)}: ${escapeHtml(activeEnemy.state || "стан?")}` : "ціль не обрана"}</span>
+    <div class="gm-dashboard-block">
+      <div class="gm-dashboard-title">Гравці</div>
+      <div class="gm-mini-grid">${playersMini || `<div class="gm-empty-line">Гравців ще немає.</div>`}</div>
+    </div>
+
+    <div class="gm-dashboard-block">
+      <div class="gm-dashboard-title">Вороги</div>
+      <div class="gm-mini-grid">${enemiesMini}</div>
     </div>
 
     <div class="gm-quick-actions">
@@ -1242,9 +1259,30 @@ function renderGmQuickPanel(){
       <button class="metal-btn small" id="gmQuickRestore">Відновити сцену</button>
       <button class="metal-btn small" id="gmQuickCopyPlayer">Посилання гравця</button>
     </div>
+
+    <div class="gm-fast-tools">
+      <label>Швидкий запис
+        <textarea id="gmQuickLogText" placeholder="Наприклад: у тумані чути тріск гілки..."></textarea>
+      </label>
+      <div class="gm-fast-buttons">
+        <button class="metal-btn small" id="gmQuickAddPublicLog">У журнал гравців</button>
+        <button class="metal-btn small" id="gmQuickAddGmLog">Нотатка Майстра</button>
+      </div>
+
+      <label>Швидка подія / ускладнення
+        <select id="gmQuickComplication">
+          <option value="">обрати ускладнення...</option>
+          <option value="У повітрі наростає низький гул. Десь поруч змінюється аномальне поле.">Аномальний гул</option>
+          <option value="Чути чужі кроки. До сцени наближається невідомий.">Хтось наближається</option>
+          <option value="Зброя, спорядження або укриття дає небезпечний збій.">Технічний збій</option>
+          <option value="Ворог міняє позицію і намагається зайти з флангу.">Фланговий маневр</option>
+          <option value="Зона ніби завмирає. Наступна дія матиме наслідки.">Тиша перед ривком</option>
+        </select>
+      </label>
+      <button class="metal-btn small" id="gmQuickAddComplication">Додати ускладнення</button>
+    </div>
   `;
 }
-
 
 function render(){
   const focusState = captureFocusState();
@@ -1396,7 +1434,7 @@ function renderGmPlayers(){
     <div class="copy-mini">У цьому блоці показані параметри тільки активного персонажа. Натисни ім’я іншого гравця, щоб переключитися на нього.</div>`;
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1911`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1921`;
     return `<div class="gm-player-card ${pid === currentPlayerId() ? "active-selected" : ""}">
       <h4>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
       <div class="gm-mini-grid">
@@ -1871,6 +1909,43 @@ function randomModuleWarning(){
 
 document.addEventListener("click", e => {
 
+  const miniPlayer = e.target.closest("[data-gm-mini-player]");
+  if(miniPlayer){
+    data.meta = data.meta || {};
+    data.meta.activePlayerId = miniPlayer.dataset.gmMiniPlayer;
+    render(); save(); return;
+  }
+
+  const miniEnemy = e.target.closest("[data-gm-mini-enemy]");
+  if(miniEnemy){
+    data.combat = data.combat || {};
+    data.combat.targetEnemyId = miniEnemy.dataset.gmMiniEnemy;
+    render(); save(); return;
+  }
+
+  if(e.target.id === "gmQuickAddPublicLog"){
+    const field = qs("#gmQuickLogText");
+    const text = field?.value?.trim();
+    if(text){ addLog(text, "public"); field.value = ""; render(); save(); showToast("Запис додано в журнал гравців."); }
+    return;
+  }
+
+  if(e.target.id === "gmQuickAddGmLog"){
+    const field = qs("#gmQuickLogText");
+    const text = field?.value?.trim();
+    if(text){ addLog(text, "gm"); field.value = ""; render(); save(); showToast("Нотатку Майстра додано."); }
+    return;
+  }
+
+  if(e.target.id === "gmQuickAddComplication"){
+    const select = qs("#gmQuickComplication");
+    const text = select?.value?.trim();
+    if(text){ addLog(`Ускладнення: ${text}`, "public"); select.value = ""; render(); save(); showToast("Ускладнення додано."); }
+    return;
+  }
+
+
+
   if(e.target.id === "gmQuickCombatToggle"){
     if(data.combat?.active){
       endCombat();
@@ -1896,7 +1971,7 @@ document.addEventListener("click", e => {
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=191`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=192`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2000,7 +2075,7 @@ document.addEventListener("click", e => {
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1911`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1921`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }
@@ -2233,7 +2308,7 @@ document.addEventListener("click", e => {
   }
 
   if(e.target.id === "copyGmLink"){
-    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1911`;
+    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1921`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання Майстра скопійовано.");
   }
