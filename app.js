@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.8.4 Remove Legacy Current Player Panel
+// Польовий Модуль — V19.8.5 Hide GM Tab For Players
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1169,7 +1169,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1984`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1985`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1730,7 +1730,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1984`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1985`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2189,6 +2189,14 @@ function randomModuleWarning(){
 
 document.addEventListener("click", e => {
 
+  const forbiddenMasterNav = e.target.closest('.nav-btn[data-target="master"]');
+  if(forbiddenMasterNav && appSession.role !== "gm"){
+    showToast?.("Панель Майстра доступна тільки Майстру.");
+    return;
+  }
+
+
+
   const playerSectionToggle = e.target.closest("[data-toggle-player-section]");
   if(playerSectionToggle){
     const key = playerSectionToggle.dataset.togglePlayerSection;
@@ -2317,7 +2325,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1984`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1985`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2421,7 +2429,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1984`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1985`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }
