@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.5 Command Core + ROADMAP
+// Польовий Модуль — V19.6 Cleaner GM Dashboard + Handler Cleanup
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1168,7 +1168,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1951`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1961`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1517,19 +1517,9 @@ function renderGmQuickPanel(){
       <span>${data.combat?.active ? `Бій · Раунд ${data.combat.round || 1}` : "Поза боєм"}</span>
     </div>
 
-    <div class="gm-quick-grid">
-      <label>Гравець
-        <select id="gmQuickPlayer">
-          ${playerIds.map(pid => `<option value="${escapeAttr(pid)}" ${pid === activePlayerId ? "selected" : ""}>${escapeHtml(data.players[pid]?.name || pid)}</option>`).join("")}
-        </select>
-      </label>
-
-      <label>Ворог / ціль
-        <select id="gmQuickEnemy">
-          <option value="">немає</option>
-          ${visibleEnemies.map(e => `<option value="${escapeAttr(e.id)}" ${e.id === activeEnemyId ? "selected" : ""}>${escapeHtml(e.name)} · ${escapeHtml(e.state || "стан?")}</option>`).join("")}
-        </select>
-      </label>
+    <div class="gm-active-line">
+      <span>Активний: <strong>${escapeHtml(activePlayer?.name || activePlayerId || "немає")}</strong></span>
+      <span>Ціль: <strong>${activeEnemy ? escapeHtml(activeEnemy.name) : "немає"}</strong></span>
     </div>
 
     <div class="gm-dashboard-block">
@@ -1727,7 +1717,7 @@ function renderGmPlayers(){
     <div class="copy-mini">У цьому блоці показані параметри тільки активного персонажа. Натисни ім’я іншого гравця, щоб переключитися на нього.</div>`;
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1951`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1961`;
     return `<div class="gm-player-card ${pid === currentPlayerId() ? "active-selected" : ""}">
       <h4>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
       <div class="gm-mini-grid">
@@ -2212,25 +2202,7 @@ document.addEventListener("click", e => {
     });
     return;
   }
-
-
-  const playerQuick = e.target.closest("[data-player-quick]");
-  if(playerQuick){
-    const pid = playerQuick.dataset.playerQuick;
-    const p = data.players?.[pid];
-    const action = playerQuick.dataset.action;
-    if(p){
-      if(action === "heal1") p.hp = clamp(Number(p.hp ?? 0) + 1, 0, Number(p.hpMax ?? 10));
-      if(action === "damage1") p.hp = clamp(Number(p.hp ?? 0) - 1, 0, Number(p.hpMax ?? 10));
-      if(action === "restFatigue") p.fatigue = clamp(Number(p.fatigue ?? 0) - 1, 0, 5);
-      if(action === "addFatigue") p.fatigue = clamp(Number(p.fatigue ?? 0) + 1, 0, 5);
-      render(); save(); return;
-    }
-  }
-
-
-
-  const enemyStep = e.target.closest("[data-enemy-step]");
+const enemyStep = e.target.closest("[data-enemy-step]");
   if(enemyStep){
     doCommand({
       type:"stepEnemyStat",
@@ -2338,7 +2310,7 @@ document.addEventListener("click", e => {
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=195`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=196`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2442,7 +2414,7 @@ document.addEventListener("click", e => {
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1951`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1961`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }
@@ -2675,7 +2647,7 @@ document.addEventListener("click", e => {
   }
 
   if(e.target.id === "copyGmLink"){
-    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1951`;
+    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1961`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання Майстра скопійовано.");
   }
@@ -2801,28 +2773,7 @@ document.addEventListener("change", e => {
     });
     return;
   }
-
-
-
-
-  if(e.target.id === "gmQuickPlayer"){
-    data.meta = data.meta || {};
-    data.meta.activePlayerId = e.target.value;
-    render();
-    save();
-    return;
-  }
-
-  if(e.target.id === "gmQuickEnemy"){
-    data.combat = data.combat || {};
-    data.combat.targetEnemyId = e.target.value;
-    render();
-    save();
-    return;
-  }
-
-
-  if(e.target.closest("[data-player]") || e.target.closest("[data-player-stat]") || e.target.closest("[data-enemy]") || e.target.closest("[data-item]")){
+if(e.target.closest("[data-player]") || e.target.closest("[data-player-stat]") || e.target.closest("[data-enemy]") || e.target.closest("[data-item]")){
     save();
   }
 });
