@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.6 Cleaner GM Dashboard + Handler Cleanup
+// Польовий Модуль — V19.7 Compact Player Editor Sections
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1168,7 +1168,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1961`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1971`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1711,70 +1711,90 @@ function renderGmPlayers(){
   const playerIds = Object.keys(data.players || {});
   const activeId = currentPlayerId();
   const switcher = `<div class="target-line"><strong>Активний персонаж Майстра:</strong> ${escapeHtml(data.players[activeId]?.name || activeId)}</div>
-    <div class="player-switch-row">
+    <div class="player-switch-row compact-switcher">
       ${playerIds.map(pid => `<button class="metal-btn ${pid === activeId ? "active-choice" : ""}" data-select-player="${escapeAttr(pid)}">${escapeHtml(data.players[pid]?.name || pid)}</button>`).join("")}
     </div>
-    <div class="copy-mini">У цьому блоці показані параметри тільки активного персонажа. Натисни ім’я іншого гравця, щоб переключитися на нього.</div>`;
+    <div class="copy-mini">У цьому блоці редагується тільки активний персонаж. Для швидких бойових змін користуйся верхньою Панеллю Майстра.</div>`;
+
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1961`;
-    return `<div class="gm-player-card ${pid === currentPlayerId() ? "active-selected" : ""}">
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=197`;
+    return `<div class="gm-player-card compact-player-editor ${pid === currentPlayerId() ? "active-selected" : ""}">
       <h4>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
-      <div class="gm-mini-grid">
-        <label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label>
-        <label>HP <input type="number" data-player="${escapeAttr(pid)}" data-field="hp" value="${escapeAttr(String(p.hp ?? 0))}"></label>
-        <label>Макс. HP <input type="number" data-player="${escapeAttr(pid)}" data-field="hpMax" value="${escapeAttr(String(p.hpMax ?? 10))}"></label>
-        <label>Втома <input type="number" data-player="${escapeAttr(pid)}" data-field="fatigue" value="${escapeAttr(String(p.fatigue ?? 0))}"></label>
-        <label>Зараження <input type="number" data-player="${escapeAttr(pid)}" data-field="infection" value="${escapeAttr(String(p.infection ?? 0))}"></label>
-        <label>Набої <input type="number" data-player="${escapeAttr(pid)}" data-field="ammo" value="${escapeAttr(String(p.ammo ?? 0))}"></label>
-        <label>Зброя
-          <select data-player="${escapeAttr(pid)}" data-field="weapon">
-            ${Object.entries(WEAPON_CATALOG).map(([key,w]) => `<option value="${escapeAttr(key)}" ${p.weapon === key ? "selected" : ""}>${escapeHtml(w.name)}</option>`).join("")}
-          </select>
-        </label>
-        <label>Дистанція
-          <select data-player="${escapeAttr(pid)}" data-field="range">
-            <option value="far" ${p.range !== "near" ? "selected" : ""}>здалека</option>
-            <option value="near" ${p.range === "near" ? "selected" : ""}>зблизька</option>
-          </select>
-        </label>
-        <label>Стан зброї
-          <select data-player="${escapeAttr(pid)}" data-field="weaponCondition">
-            ${Object.entries(WEAPON_CONDITIONS).map(([key,c]) => `<option value="${escapeAttr(key)}" ${p.weaponCondition === key ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}
-          </select>
-        </label>
-        <label>Захист <input type="number" data-player="${escapeAttr(pid)}" data-field="defense" value="${escapeAttr(String(p.defense ?? 12))}"><span class="defense-note">Поріг, який ворог має зрівняти або подолати на d20.</span></label>
-        <label>Макс. захист <input type="number" data-player="${escapeAttr(pid)}" data-field="defenseMax" value="${escapeAttr(String(p.defenseMax ?? p.defense ?? 12))}"><span class="defense-note">Для тимчасових штрафів/бонусів. Не є здоров’ям.</span></label>
-        <label>Броня <input type="number" data-player="${escapeAttr(pid)}" data-field="armor" value="${escapeAttr(String(p.armor ?? 0))}"><span class="defense-note">Зменшує шкоду від атаки ворога.</span></label>
-        <label>Витривалість <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="endurance" value="${escapeAttr(String(p.stats?.endurance ?? 0))}"></label>
-        <label>Точність <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="accuracy" value="${escapeAttr(String(p.stats?.accuracy ?? 0))}"></label>
-        <label>Вправність <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="agility" value="${escapeAttr(String(p.stats?.agility ?? 0))}"></label>
-        <label>Сприйняття <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="perception" value="${escapeAttr(String(p.stats?.perception ?? 0))}"></label>
-        <label>Інтуїція <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="intuition" value="${escapeAttr(String(p.stats?.intuition ?? 0))}"></label>
-        <label>Харизма <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="charisma" value="${escapeAttr(String(p.stats?.charisma ?? 0))}"></label>
+
+      <div class="compact-editor-section">
+        <div class="compact-editor-title">Профіль</div>
+        <div class="compact-form-grid profile-grid">
+          <label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label>
+          <label>ID <input value="${escapeAttr(pid)}" disabled></label>
+        </div>
       </div>
-      <div class="quick-state-row">
-        <button class="metal-btn danger" data-player-delta="${escapeAttr(pid)}" data-stat="hp" data-delta="-1">-1 HP</button>
-        <button class="metal-btn" data-player-delta="${escapeAttr(pid)}" data-stat="hp" data-delta="1">+1 HP</button>
-        <button class="metal-btn" data-player-delta="${escapeAttr(pid)}" data-stat="fatigue" data-delta="1">+1 Втома</button>
-        <button class="metal-btn danger" data-player-delta="${escapeAttr(pid)}" data-stat="fatigue" data-delta="-1">-1 Втома</button>
-        <button class="metal-btn" data-player-delta="${escapeAttr(pid)}" data-stat="infection" data-delta="1">+1 Зараження</button>
-        <button class="metal-btn danger" data-player-delta="${escapeAttr(pid)}" data-stat="infection" data-delta="-1">-1 Зараження</button>
-        <button class="metal-btn danger" data-player-delta="${escapeAttr(pid)}" data-stat="ammo" data-delta="-1">-1 Набій</button>
-        <button class="metal-btn" data-player-delta="${escapeAttr(pid)}" data-stat="ammo" data-delta="1">+1 Набій</button>
-        <button class="metal-btn" data-toggle-player-cover="${escapeAttr(pid)}">${p.cover ? "Без укриття" : "В укриття"}</button>
+
+      <div class="compact-editor-section">
+        <div class="compact-editor-title">Бойові налаштування</div>
+        <div class="compact-form-grid combat-grid">
+          <label>HP <input type="number" data-player="${escapeAttr(pid)}" data-field="hp" value="${escapeAttr(String(p.hp ?? 0))}"></label>
+          <label>Макс. HP <input type="number" data-player="${escapeAttr(pid)}" data-field="hpMax" value="${escapeAttr(String(p.hpMax ?? 10))}"></label>
+          <label>Втома <input type="number" data-player="${escapeAttr(pid)}" data-field="fatigue" value="${escapeAttr(String(p.fatigue ?? 0))}"></label>
+          <label>Зараження <input type="number" data-player="${escapeAttr(pid)}" data-field="infection" value="${escapeAttr(String(p.infection ?? 0))}"></label>
+          <label>Набої <input type="number" data-player="${escapeAttr(pid)}" data-field="ammo" value="${escapeAttr(String(p.ammo ?? 0))}"></label>
+          <label>Броня <input type="number" data-player="${escapeAttr(pid)}" data-field="armor" value="${escapeAttr(String(p.armor ?? 0))}"></label>
+          <label>Захист <input type="number" data-player="${escapeAttr(pid)}" data-field="defense" value="${escapeAttr(String(p.defense ?? 12))}"><span class="defense-note">Поріг d20.</span></label>
+          <label>Макс. захист <input type="number" data-player="${escapeAttr(pid)}" data-field="defenseMax" value="${escapeAttr(String(p.defenseMax ?? p.defense ?? 12))}"><span class="defense-note">Для штрафів/бонусів.</span></label>
+        </div>
       </div>
-      <div class="button-row">
+
+      <div class="compact-editor-section">
+        <div class="compact-editor-title">Зброя</div>
+        <div class="compact-form-grid weapon-grid">
+          <label>Зброя
+            <select data-player="${escapeAttr(pid)}" data-field="weapon">
+              ${Object.entries(WEAPON_CATALOG).map(([key,w]) => `<option value="${escapeAttr(key)}" ${p.weapon === key ? "selected" : ""}>${escapeHtml(w.name)}</option>`).join("")}
+            </select>
+          </label>
+          <label>Дистанція
+            <select data-player="${escapeAttr(pid)}" data-field="range">
+              <option value="near" ${p.range === "near" ? "selected" : ""}>близько</option>
+              <option value="mid" ${p.range === "mid" ? "selected" : ""}>середньо</option>
+              <option value="far" ${(!p.range || p.range === "far") ? "selected" : ""}>далеко</option>
+            </select>
+          </label>
+          <label>Стан зброї
+            <select data-player="${escapeAttr(pid)}" data-field="weaponCondition">
+              ${Object.entries(WEAPON_CONDITIONS).map(([key,c]) => `<option value="${escapeAttr(key)}" ${p.weaponCondition === key ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}
+            </select>
+          </label>
+          <label class="compact-checkbox"><input type="checkbox" data-player="${escapeAttr(pid)}" data-field="weaponJammed" ${p.weaponJammed ? "checked" : ""}> Клин</label>
+        </div>
+      </div>
+
+      <div class="compact-editor-section">
+        <div class="compact-editor-title">Характеристики</div>
+        <div class="compact-form-grid stats-grid">
+          <label>Витр. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="endurance" value="${escapeAttr(String(p.stats?.endurance ?? 0))}"></label>
+          <label>Точн. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="accuracy" value="${escapeAttr(String(p.stats?.accuracy ?? 0))}"></label>
+          <label>Вправ. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="agility" value="${escapeAttr(String(p.stats?.agility ?? 0))}"></label>
+          <label>Сприйн. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="perception" value="${escapeAttr(String(p.stats?.perception ?? 0))}"></label>
+          <label>Інтуїц. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="intuition" value="${escapeAttr(String(p.stats?.intuition ?? 0))}"></label>
+          <label>Хар. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="charisma" value="${escapeAttr(String(p.stats?.charisma ?? 0))}"></label>
+        </div>
+      </div>
+
+      <div class="compact-editor-section">
+        <div class="compact-editor-title">Інвентар</div>
+        <div class="copy-mini">${(p.inventory || []).length ? `${(p.inventory || []).length} позицій. Детально — у вкладці “Інвентар”.` : "Інвентар порожній."}</div>
+      </div>
+
+      <div class="button-row compact-action-row">
         <button class="metal-btn" data-select-player="${escapeAttr(pid)}">Обрати активним</button>
         <button class="metal-btn" data-copy-player-link="${escapeAttr(pid)}">Скопіювати посилання</button>
+        <button class="metal-btn" data-toggle-player-cover="${escapeAttr(pid)}">${p.cover ? "Без укриття" : "В укриття"}</button>
         ${pid !== currentPlayerId() ? `<button class="metal-btn danger" data-remove-player="${escapeAttr(pid)}">Видалити</button>` : ""}
       </div>
       <div class="copy-mini">${escapeHtml(playerUrl)}</div>
     </div>`;
   }).join("");
 }
-
-
 function setVal(sel, val){
   const el = qs(sel);
   if(el && el.value !== String(val)) el.value = val;
@@ -2310,7 +2330,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=196`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=197`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2414,7 +2434,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1961`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1971`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }
@@ -2647,7 +2667,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   }
 
   if(e.target.id === "copyGmLink"){
-    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1961`;
+    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1971`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання Майстра скопійовано.");
   }
@@ -2762,6 +2782,20 @@ document.addEventListener("input", e => {
 
 
 document.addEventListener("change", e => {
+
+  // weaponJammed checkbox V19.7
+  const playerCheckbox = e.target.closest('input[type="checkbox"][data-player][data-field="weaponJammed"]');
+  if(playerCheckbox){
+    const p = data.players?.[playerCheckbox.dataset.player];
+    if(p){
+      p.weaponJammed = playerCheckbox.checked;
+      save();
+      render();
+    }
+    return;
+  }
+
+
 
   const enemyControl = e.target.closest("[data-enemy-control]");
   if(enemyControl){
