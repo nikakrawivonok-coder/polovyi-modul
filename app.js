@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.2 Master Control Dashboard
+// Польовий Модуль — V19.3 Enemy Control Dashboard
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1168,7 +1168,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1921`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1931`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1218,9 +1218,74 @@ function renderGmQuickPanel(){
     const effects = typeof enemyEffectsText === "function" ? enemyEffectsText(e) : "";
     return `<button class="gm-mini-card enemy ${e.id === activeEnemyId ? "active" : ""}" data-gm-mini-enemy="${escapeAttr(e.id)}">
       <strong>${escapeHtml(e.name)}</strong>
-      <span>${escapeHtml(e.state || "стан?")} · Захист ${escapeHtml(String(defense))}${effects ? " · " + escapeHtml(effects) : ""}</span>
+      <span>${escapeHtml(e.state || "стан?")} · HP ${escapeHtml(String(e.gm?.hp ?? "?"))}/${escapeHtml(String(e.gm?.hpMax ?? "?"))} · Захист ${escapeHtml(String(defense))}${effects && effects !== "немає" ? " · " + escapeHtml(effects) : ""}</span>
     </button>`;
   }).join("") : `<div class="gm-empty-line">Видимих ворогів немає.</div>`;
+
+  const enemyControl = activeEnemy ? `
+    <div class="gm-enemy-control" data-active-enemy-panel="${escapeAttr(activeEnemy.id)}">
+      <div class="gm-dashboard-title">Активний ворог: ${escapeHtml(activeEnemy.name)}</div>
+
+      <div class="gm-enemy-line">
+        <span>HP</span>
+        <button class="micro-btn" data-enemy-step="${escapeAttr(activeEnemy.id)}" data-field="hp" data-delta="-1">−</button>
+        <strong>${escapeHtml(String(activeEnemy.gm?.hp ?? "?"))}/${escapeHtml(String(activeEnemy.gm?.hpMax ?? "?"))}</strong>
+        <button class="micro-btn" data-enemy-step="${escapeAttr(activeEnemy.id)}" data-field="hp" data-delta="1">+</button>
+      </div>
+
+      <div class="gm-enemy-line">
+        <span>Max HP</span>
+        <button class="micro-btn" data-enemy-step="${escapeAttr(activeEnemy.id)}" data-field="hpMax" data-delta="-1">−</button>
+        <strong>${escapeHtml(String(activeEnemy.gm?.hpMax ?? "?"))}</strong>
+        <button class="micro-btn" data-enemy-step="${escapeAttr(activeEnemy.id)}" data-field="hpMax" data-delta="1">+</button>
+      </div>
+
+      <div class="gm-enemy-line">
+        <span>Захист</span>
+        <button class="micro-btn" data-enemy-step="${escapeAttr(activeEnemy.id)}" data-field="defense" data-delta="-1">−</button>
+        <strong>${escapeHtml(String(activeEnemy.defense ?? 12))}${enemyEffects(activeEnemy).includes("inCover") ? " (+укр.)" : ""}</strong>
+        <button class="micro-btn" data-enemy-step="${escapeAttr(activeEnemy.id)}" data-field="defense" data-delta="1">+</button>
+      </div>
+
+      <div class="gm-enemy-line">
+        <span>Набої</span>
+        <button class="micro-btn" data-enemy-step="${escapeAttr(activeEnemy.id)}" data-field="ammo" data-delta="-1">−</button>
+        <strong>${escapeHtml(String(activeEnemy.gm?.ammo ?? 0))}</strong>
+        <button class="micro-btn" data-enemy-step="${escapeAttr(activeEnemy.id)}" data-field="ammo" data-delta="1">+</button>
+      </div>
+
+      <div class="gm-enemy-grid">
+        <label>Стан
+          <select data-enemy-control="${escapeAttr(activeEnemy.id)}" data-field="state">
+            ${["цілий","поранений","ледь стоїть","вибув"].map(s => `<option value="${escapeAttr(s)}" ${activeEnemy.state === s ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
+          </select>
+        </label>
+
+        <label>Мораль
+          <select data-enemy-control="${escapeAttr(activeEnemy.id)}" data-field="morale">
+            ${["тримається","нервує","паніка","тікає","невідомо"].map(s => `<option value="${escapeAttr(s)}" ${(activeEnemy.gm?.morale || "невідомо") === s ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+
+      <label class="gm-enemy-action">Поточна дія
+        <input data-enemy-control="${escapeAttr(activeEnemy.id)}" data-field="action" value="${escapeAttr(activeEnemy.action || "")}" placeholder="що робить ворог зараз">
+      </label>
+
+      <div class="gm-enemy-toggles">
+        <button class="metal-btn small ${activeEnemy.visible !== false ? "active-choice" : ""}" data-enemy-toggle="${escapeAttr(activeEnemy.id)}" data-effect="visible">${activeEnemy.visible !== false ? "Видимий" : "Схований"}</button>
+        <button class="metal-btn small ${enemyEffects(activeEnemy).includes("inCover") ? "active-choice" : ""}" data-enemy-toggle="${escapeAttr(activeEnemy.id)}" data-effect="inCover">Укриття</button>
+        <button class="metal-btn small ${enemyEffects(activeEnemy).includes("suppressed") ? "active-choice" : ""}" data-enemy-toggle="${escapeAttr(activeEnemy.id)}" data-effect="suppressed">Пригнічений</button>
+        <button class="metal-btn small ${enemyEffects(activeEnemy).includes("panic") ? "active-choice" : ""}" data-enemy-toggle="${escapeAttr(activeEnemy.id)}" data-effect="panic">Паніка</button>
+      </div>
+
+      <div class="gm-enemy-toggles">
+        <button class="metal-btn small" data-enemy-quick-state="${escapeAttr(activeEnemy.id)}" data-state="поранений">Поранити</button>
+        <button class="metal-btn small" data-enemy-quick-state="${escapeAttr(activeEnemy.id)}" data-state="ледь стоїть">Ледь стоїть</button>
+        <button class="metal-btn small danger" data-enemy-quick-state="${escapeAttr(activeEnemy.id)}" data-state="вибув">Вибув</button>
+      </div>
+    </div>
+  ` : `<div class="gm-enemy-control"><div class="gm-empty-line">Активного ворога немає. Додай або покажи ворога.</div></div>`;
 
   box.innerHTML = `
     <div class="gm-quick-head">
@@ -1252,6 +1317,8 @@ function renderGmQuickPanel(){
       <div class="gm-dashboard-title">Вороги</div>
       <div class="gm-mini-grid">${enemiesMini}</div>
     </div>
+
+    ${enemyControl}
 
     <div class="gm-quick-actions">
       <button class="metal-btn small" id="gmQuickCombatToggle">${data.combat?.active ? "Завершити бій" : "Почати бій"}</button>
@@ -1434,7 +1501,7 @@ function renderGmPlayers(){
     <div class="copy-mini">У цьому блоці показані параметри тільки активного персонажа. Натисни ім’я іншого гравця, щоб переключитися на нього.</div>`;
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1921`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1931`;
     return `<div class="gm-player-card ${pid === currentPlayerId() ? "active-selected" : ""}">
       <h4>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
       <div class="gm-mini-grid">
@@ -1909,6 +1976,70 @@ function randomModuleWarning(){
 
 document.addEventListener("click", e => {
 
+  const enemyStep = e.target.closest("[data-enemy-step]");
+  if(enemyStep){
+    const enemy = findEnemyById(enemyStep.dataset.enemyStep);
+    const field = enemyStep.dataset.field;
+    const delta = Number(enemyStep.dataset.delta || 0);
+    if(enemy){
+      enemy.gm = enemy.gm || {};
+      if(field === "hp"){
+        enemy.gm.hp = clamp(Number(enemy.gm.hp ?? enemy.gm.hpMax ?? 8) + delta, 0, Number(enemy.gm.hpMax ?? 8));
+        if(enemy.gm.hp <= 0){ enemy.state = "вибув"; enemy.color = "red"; }
+        else if(enemy.gm.hp < Number(enemy.gm.hpMax ?? 8)){ enemy.state = enemy.gm.hp <= Math.ceil(Number(enemy.gm.hpMax ?? 8)*0.3) ? "ледь стоїть" : "поранений"; enemy.color = enemy.state === "ледь стоїть" ? "red" : "orange"; }
+        else { enemy.state = "цілий"; enemy.color = "green"; }
+      }
+      if(field === "hpMax"){
+        enemy.gm.hpMax = Math.max(1, Number(enemy.gm.hpMax ?? 8) + delta);
+        enemy.gm.hp = clamp(Number(enemy.gm.hp ?? enemy.gm.hpMax), 0, enemy.gm.hpMax);
+      }
+      if(field === "defense"){
+        enemy.defense = Math.max(1, Number(enemy.defense ?? 12) + delta);
+      }
+      if(field === "ammo"){
+        enemy.gm.ammo = Math.max(0, Number(enemy.gm.ammo ?? 0) + delta);
+      }
+      render(); save(); return;
+    }
+  }
+
+  const enemyToggle = e.target.closest("[data-enemy-toggle]");
+  if(enemyToggle){
+    const enemy = findEnemyById(enemyToggle.dataset.enemyToggle);
+    const effect = enemyToggle.dataset.effect;
+    if(enemy){
+      if(effect === "visible"){
+        enemy.visible = enemy.visible === false ? true : false;
+      } else {
+        enemy.effects = Array.isArray(enemy.effects) ? enemy.effects : [];
+        if(enemy.effects.includes(effect)) enemy.effects = enemy.effects.filter(x => x !== effect);
+        else enemy.effects.push(effect);
+        if(effect === "panic"){
+          enemy.gm = enemy.gm || {};
+          enemy.gm.morale = enemy.effects.includes("panic") ? "паніка" : (enemy.gm.morale || "невідомо");
+        }
+      }
+      render(); save(); return;
+    }
+  }
+
+  const enemyQuickState = e.target.closest("[data-enemy-quick-state]");
+  if(enemyQuickState){
+    const enemy = findEnemyById(enemyQuickState.dataset.enemyQuickState);
+    const state = enemyQuickState.dataset.state;
+    if(enemy){
+      enemy.state = state;
+      enemy.color = state === "вибув" || state === "ледь стоїть" ? "red" : state === "поранений" ? "orange" : "green";
+      enemy.gm = enemy.gm || {};
+      if(state === "вибув") enemy.gm.hp = 0;
+      if(state === "ледь стоїть" && Number(enemy.gm.hp ?? 0) > Math.ceil(Number(enemy.gm.hpMax ?? 8)*0.3)) enemy.gm.hp = Math.max(1, Math.ceil(Number(enemy.gm.hpMax ?? 8)*0.3));
+      if(state === "поранений" && Number(enemy.gm.hp ?? 0) >= Number(enemy.gm.hpMax ?? 8)) enemy.gm.hp = Math.max(1, Number(enemy.gm.hpMax ?? 8) - 1);
+      render(); save(); return;
+    }
+  }
+
+
+
   const miniPlayer = e.target.closest("[data-gm-mini-player]");
   if(miniPlayer){
     data.meta = data.meta || {};
@@ -1971,7 +2102,7 @@ document.addEventListener("click", e => {
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=192`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=193`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2075,7 +2206,7 @@ document.addEventListener("click", e => {
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1921`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1931`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }
@@ -2308,7 +2439,7 @@ document.addEventListener("click", e => {
   }
 
   if(e.target.id === "copyGmLink"){
-    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1921`;
+    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1931`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання Майстра скопійовано.");
   }
@@ -2423,6 +2554,27 @@ document.addEventListener("input", e => {
 
 
 document.addEventListener("change", e => {
+
+  const enemyControl = e.target.closest("[data-enemy-control]");
+  if(enemyControl){
+    const enemy = findEnemyById(enemyControl.dataset.enemyControl);
+    const field = enemyControl.dataset.field;
+    if(enemy){
+      enemy.gm = enemy.gm || {};
+      if(field === "state"){
+        enemy.state = e.target.value;
+        enemy.color = enemy.state === "вибув" || enemy.state === "ледь стоїть" ? "red" : enemy.state === "поранений" ? "orange" : "green";
+        if(enemy.state === "вибув") enemy.gm.hp = 0;
+      } else if(field === "morale"){
+        enemy.gm.morale = e.target.value;
+      } else if(field === "action"){
+        enemy.action = e.target.value;
+      }
+      render(); save(); return;
+    }
+  }
+
+
 
   if(e.target.id === "gmQuickPlayer"){
     data.meta = data.meta || {};
