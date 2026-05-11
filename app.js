@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.4 Player Control Dashboard
+// Польовий Модуль — V19.5 Command Core + ROADMAP
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1168,7 +1168,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1941`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1951`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1191,6 +1191,173 @@ function renderPlayerSpecificLinks(){
   }).join("");
 }
 
+
+
+
+/* === V19.5 Command Core ===
+   Centralized command dispatcher for future buttons, voice commands and AI actions.
+   Current UI may still contain legacy direct handlers, but new systems should call doCommand().
+*/
+function doCommand(command){
+  if(!command || !command.type) return { ok:false, error:"empty_command" };
+
+  const type = command.type;
+  const payload = command.payload || command;
+  let changed = false;
+
+  try{
+    if(type === "setActivePlayer"){
+      const playerId = payload.playerId;
+      if(!data.players?.[playerId]) return { ok:false, error:"player_not_found" };
+      data.meta = data.meta || {};
+      data.meta.activePlayerId = playerId;
+      changed = true;
+    }
+
+    else if(type === "setTargetEnemy"){
+      const enemyId = payload.enemyId;
+      const enemy = findEnemyById(enemyId);
+      if(!enemy) return { ok:false, error:"enemy_not_found" };
+      data.combat = data.combat || {};
+      data.combat.targetEnemyId = enemyId;
+      changed = true;
+    }
+
+    else if(type === "stepPlayerStat"){
+      const p = data.players?.[payload.playerId];
+      if(!p) return { ok:false, error:"player_not_found" };
+      const field = payload.field;
+      const delta = Number(payload.delta || 0);
+
+      if(field === "hp") p.hp = clamp(Number(p.hp ?? p.hpMax ?? 10) + delta, 0, Number(p.hpMax ?? 10));
+      else if(field === "hpMax"){
+        p.hpMax = Math.max(1, Number(p.hpMax ?? 10) + delta);
+        p.hp = clamp(Number(p.hp ?? p.hpMax), 0, p.hpMax);
+      }
+      else if(field === "defense"){
+        if(typeof p.defenseMax !== "number") p.defenseMax = Number(p.defense ?? 12);
+        p.defense = clamp(Number(p.defense ?? 12) + delta, 1, Number(p.defenseMax ?? 12));
+      }
+      else if(field === "defenseMax"){
+        p.defenseMax = Math.max(1, Number(p.defenseMax ?? p.defense ?? 12) + delta);
+        p.defense = clamp(Number(p.defense ?? p.defenseMax), 1, p.defenseMax);
+      }
+      else if(field === "fatigue") p.fatigue = clamp(Number(p.fatigue ?? 0) + delta, 0, 5);
+      else if(field === "infection") p.infection = Math.max(0, Number(p.infection ?? 0) + delta);
+      else if(field === "ammo") p.ammo = Math.max(0, Number(p.ammo ?? 0) + delta);
+      else return { ok:false, error:"unknown_player_field" };
+
+      changed = true;
+    }
+
+    else if(type === "stepEnemyStat"){
+      const enemy = findEnemyById(payload.enemyId);
+      if(!enemy) return { ok:false, error:"enemy_not_found" };
+      enemy.gm = enemy.gm || {};
+      const field = payload.field;
+      const delta = Number(payload.delta || 0);
+
+      if(field === "hp"){
+        enemy.gm.hp = clamp(Number(enemy.gm.hp ?? enemy.gm.hpMax ?? 8) + delta, 0, Number(enemy.gm.hpMax ?? 8));
+        if(enemy.gm.hp <= 0){ enemy.state = "вибув"; enemy.color = "red"; }
+        else if(enemy.gm.hp < Number(enemy.gm.hpMax ?? 8)){
+          enemy.state = enemy.gm.hp <= Math.ceil(Number(enemy.gm.hpMax ?? 8)*0.3) ? "ледь стоїть" : "поранений";
+          enemy.color = enemy.state === "ледь стоїть" ? "red" : "orange";
+        } else { enemy.state = "цілий"; enemy.color = "green"; }
+      }
+      else if(field === "hpMax"){
+        enemy.gm.hpMax = Math.max(1, Number(enemy.gm.hpMax ?? 8) + delta);
+        enemy.gm.hp = clamp(Number(enemy.gm.hp ?? enemy.gm.hpMax), 0, enemy.gm.hpMax);
+      }
+      else if(field === "defense") enemy.defense = Math.max(1, Number(enemy.defense ?? 12) + delta);
+      else if(field === "ammo") enemy.gm.ammo = Math.max(0, Number(enemy.gm.ammo ?? 0) + delta);
+      else return { ok:false, error:"unknown_enemy_field" };
+
+      changed = true;
+    }
+
+    else if(type === "setEnemyField"){
+      const enemy = findEnemyById(payload.enemyId);
+      if(!enemy) return { ok:false, error:"enemy_not_found" };
+      enemy.gm = enemy.gm || {};
+      const field = payload.field;
+      const value = payload.value;
+
+      if(field === "state"){
+        enemy.state = value;
+        enemy.color = enemy.state === "вибув" || enemy.state === "ледь стоїть" ? "red" : enemy.state === "поранений" ? "orange" : "green";
+        if(enemy.state === "вибув") enemy.gm.hp = 0;
+      }
+      else if(field === "morale") enemy.gm.morale = value;
+      else if(field === "action") enemy.action = value;
+      else return { ok:false, error:"unknown_enemy_field" };
+
+      changed = true;
+    }
+
+    else if(type === "toggleEnemyEffect"){
+      const enemy = findEnemyById(payload.enemyId);
+      if(!enemy) return { ok:false, error:"enemy_not_found" };
+      const effect = payload.effect;
+
+      if(effect === "visible") enemy.visible = enemy.visible === false ? true : false;
+      else{
+        enemy.effects = Array.isArray(enemy.effects) ? enemy.effects : [];
+        if(enemy.effects.includes(effect)) enemy.effects = enemy.effects.filter(x => x !== effect);
+        else enemy.effects.push(effect);
+        if(effect === "panic"){
+          enemy.gm = enemy.gm || {};
+          enemy.gm.morale = enemy.effects.includes("panic") ? "паніка" : (enemy.gm.morale || "невідомо");
+        }
+      }
+      changed = true;
+    }
+
+    else if(type === "setEnemyQuickState"){
+      const enemy = findEnemyById(payload.enemyId);
+      if(!enemy) return { ok:false, error:"enemy_not_found" };
+      const state = payload.state;
+      enemy.gm = enemy.gm || {};
+      enemy.state = state;
+      enemy.color = state === "вибув" || state === "ледь стоїть" ? "red" : state === "поранений" ? "orange" : "green";
+      if(state === "вибув") enemy.gm.hp = 0;
+      if(state === "ледь стоїть" && Number(enemy.gm.hp ?? 0) > Math.ceil(Number(enemy.gm.hpMax ?? 8)*0.3)){
+        enemy.gm.hp = Math.max(1, Math.ceil(Number(enemy.gm.hpMax ?? 8)*0.3));
+      }
+      if(state === "поранений" && Number(enemy.gm.hp ?? 0) >= Number(enemy.gm.hpMax ?? 8)){
+        enemy.gm.hp = Math.max(1, Number(enemy.gm.hpMax ?? 8) - 1);
+      }
+      changed = true;
+    }
+
+    else if(type === "addJournalLog"){
+      const text = String(payload.text || "").trim();
+      if(!text) return { ok:false, error:"empty_text" };
+      addLog(text, payload.visibility || "public");
+      changed = true;
+    }
+
+    else if(type === "addComplication"){
+      const text = String(payload.text || "").trim();
+      if(!text) return { ok:false, error:"empty_text" };
+      addLog(`Ускладнення: ${text}`, "public");
+      changed = true;
+    }
+
+    else return { ok:false, error:"unknown_command_type" };
+
+    if(changed){
+      render();
+      save();
+      return { ok:true, changed:true };
+    }
+    return { ok:true, changed:false };
+  }catch(err){
+    console.error("Command failed", command, err);
+    showToast?.(`Помилка команди: ${type}`);
+    return { ok:false, error:String(err?.message || err) };
+  }
+}
 
 
 function renderGmQuickPanel(){
@@ -1267,12 +1434,6 @@ function renderGmQuickPanel(){
         <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="ammo" data-delta="1">+</button>
       </div>
 
-      <div class="gm-player-quick-row">
-        <button class="metal-btn small" data-player-quick="${escapeAttr(activePlayerId)}" data-action="heal1">+1 HP</button>
-        <button class="metal-btn small" data-player-quick="${escapeAttr(activePlayerId)}" data-action="damage1">−1 HP</button>
-        <button class="metal-btn small" data-player-quick="${escapeAttr(activePlayerId)}" data-action="restFatigue">−1 Втома</button>
-        <button class="metal-btn small" data-player-quick="${escapeAttr(activePlayerId)}" data-action="addFatigue">+1 Втома</button>
-      </div>
     </div>
   ` : `<div class="gm-player-control"><div class="gm-empty-line">Активного гравця немає.</div></div>`;
 
@@ -1566,7 +1727,7 @@ function renderGmPlayers(){
     <div class="copy-mini">У цьому блоці показані параметри тільки активного персонажа. Натисни ім’я іншого гравця, щоб переключитися на нього.</div>`;
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1941`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1951`;
     return `<div class="gm-player-card ${pid === currentPlayerId() ? "active-selected" : ""}">
       <h4>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
       <div class="gm-mini-grid">
@@ -2043,39 +2204,15 @@ document.addEventListener("click", e => {
 
   const playerStep = e.target.closest("[data-player-step]");
   if(playerStep){
-    const pid = playerStep.dataset.playerStep;
-    const p = data.players?.[pid];
-    const field = playerStep.dataset.field;
-    const delta = Number(playerStep.dataset.delta || 0);
-    if(p){
-      if(field === "hp"){
-        p.hp = clamp(Number(p.hp ?? p.hpMax ?? 10) + delta, 0, Number(p.hpMax ?? 10));
-      }
-      if(field === "hpMax"){
-        p.hpMax = Math.max(1, Number(p.hpMax ?? 10) + delta);
-        p.hp = clamp(Number(p.hp ?? p.hpMax), 0, p.hpMax);
-      }
-      if(field === "defense"){
-        p.defense = Math.max(1, Number(p.defense ?? 12) + delta);
-        if(typeof p.defenseMax !== "number") p.defenseMax = Number(p.defense ?? 12);
-        p.defense = Math.min(p.defense, Number(p.defenseMax ?? p.defense));
-      }
-      if(field === "defenseMax"){
-        p.defenseMax = Math.max(1, Number(p.defenseMax ?? p.defense ?? 12) + delta);
-        p.defense = clamp(Number(p.defense ?? p.defenseMax), 1, p.defenseMax);
-      }
-      if(field === "fatigue"){
-        p.fatigue = clamp(Number(p.fatigue ?? 0) + delta, 0, 5);
-      }
-      if(field === "infection"){
-        p.infection = Math.max(0, Number(p.infection ?? 0) + delta);
-      }
-      if(field === "ammo"){
-        p.ammo = Math.max(0, Number(p.ammo ?? 0) + delta);
-      }
-      render(); save(); return;
-    }
+    doCommand({
+      type:"stepPlayerStat",
+      playerId: playerStep.dataset.playerStep,
+      field: playerStep.dataset.field,
+      delta: Number(playerStep.dataset.delta || 0)
+    });
+    return;
   }
+
 
   const playerQuick = e.target.closest("[data-player-quick]");
   if(playerQuick){
@@ -2095,100 +2232,82 @@ document.addEventListener("click", e => {
 
   const enemyStep = e.target.closest("[data-enemy-step]");
   if(enemyStep){
-    const enemy = findEnemyById(enemyStep.dataset.enemyStep);
-    const field = enemyStep.dataset.field;
-    const delta = Number(enemyStep.dataset.delta || 0);
-    if(enemy){
-      enemy.gm = enemy.gm || {};
-      if(field === "hp"){
-        enemy.gm.hp = clamp(Number(enemy.gm.hp ?? enemy.gm.hpMax ?? 8) + delta, 0, Number(enemy.gm.hpMax ?? 8));
-        if(enemy.gm.hp <= 0){ enemy.state = "вибув"; enemy.color = "red"; }
-        else if(enemy.gm.hp < Number(enemy.gm.hpMax ?? 8)){ enemy.state = enemy.gm.hp <= Math.ceil(Number(enemy.gm.hpMax ?? 8)*0.3) ? "ледь стоїть" : "поранений"; enemy.color = enemy.state === "ледь стоїть" ? "red" : "orange"; }
-        else { enemy.state = "цілий"; enemy.color = "green"; }
-      }
-      if(field === "hpMax"){
-        enemy.gm.hpMax = Math.max(1, Number(enemy.gm.hpMax ?? 8) + delta);
-        enemy.gm.hp = clamp(Number(enemy.gm.hp ?? enemy.gm.hpMax), 0, enemy.gm.hpMax);
-      }
-      if(field === "defense"){
-        enemy.defense = Math.max(1, Number(enemy.defense ?? 12) + delta);
-      }
-      if(field === "ammo"){
-        enemy.gm.ammo = Math.max(0, Number(enemy.gm.ammo ?? 0) + delta);
-      }
-      render(); save(); return;
-    }
+    doCommand({
+      type:"stepEnemyStat",
+      enemyId: enemyStep.dataset.enemyStep,
+      field: enemyStep.dataset.field,
+      delta: Number(enemyStep.dataset.delta || 0)
+    });
+    return;
   }
+
 
   const enemyToggle = e.target.closest("[data-enemy-toggle]");
   if(enemyToggle){
-    const enemy = findEnemyById(enemyToggle.dataset.enemyToggle);
-    const effect = enemyToggle.dataset.effect;
-    if(enemy){
-      if(effect === "visible"){
-        enemy.visible = enemy.visible === false ? true : false;
-      } else {
-        enemy.effects = Array.isArray(enemy.effects) ? enemy.effects : [];
-        if(enemy.effects.includes(effect)) enemy.effects = enemy.effects.filter(x => x !== effect);
-        else enemy.effects.push(effect);
-        if(effect === "panic"){
-          enemy.gm = enemy.gm || {};
-          enemy.gm.morale = enemy.effects.includes("panic") ? "паніка" : (enemy.gm.morale || "невідомо");
-        }
-      }
-      render(); save(); return;
-    }
+    doCommand({
+      type:"toggleEnemyEffect",
+      enemyId: enemyToggle.dataset.enemyToggle,
+      effect: enemyToggle.dataset.effect
+    });
+    return;
   }
+
 
   const enemyQuickState = e.target.closest("[data-enemy-quick-state]");
   if(enemyQuickState){
-    const enemy = findEnemyById(enemyQuickState.dataset.enemyQuickState);
-    const state = enemyQuickState.dataset.state;
-    if(enemy){
-      enemy.state = state;
-      enemy.color = state === "вибув" || state === "ледь стоїть" ? "red" : state === "поранений" ? "orange" : "green";
-      enemy.gm = enemy.gm || {};
-      if(state === "вибув") enemy.gm.hp = 0;
-      if(state === "ледь стоїть" && Number(enemy.gm.hp ?? 0) > Math.ceil(Number(enemy.gm.hpMax ?? 8)*0.3)) enemy.gm.hp = Math.max(1, Math.ceil(Number(enemy.gm.hpMax ?? 8)*0.3));
-      if(state === "поранений" && Number(enemy.gm.hp ?? 0) >= Number(enemy.gm.hpMax ?? 8)) enemy.gm.hp = Math.max(1, Number(enemy.gm.hpMax ?? 8) - 1);
-      render(); save(); return;
-    }
+    doCommand({
+      type:"setEnemyQuickState",
+      enemyId: enemyQuickState.dataset.enemyQuickState,
+      state: enemyQuickState.dataset.state
+    });
+    return;
   }
+
 
 
 
   const miniPlayer = e.target.closest("[data-gm-mini-player]");
   if(miniPlayer){
-    data.meta = data.meta || {};
-    data.meta.activePlayerId = miniPlayer.dataset.gmMiniPlayer;
-    render(); save(); return;
+    doCommand({type:"setActivePlayer", playerId: miniPlayer.dataset.gmMiniPlayer});
+    return;
   }
 
   const miniEnemy = e.target.closest("[data-gm-mini-enemy]");
   if(miniEnemy){
-    data.combat = data.combat || {};
-    data.combat.targetEnemyId = miniEnemy.dataset.gmMiniEnemy;
-    render(); save(); return;
+    doCommand({type:"setTargetEnemy", enemyId: miniEnemy.dataset.gmMiniEnemy});
+    return;
   }
 
   if(e.target.id === "gmQuickAddPublicLog"){
     const field = qs("#gmQuickLogText");
     const text = field?.value?.trim();
-    if(text){ addLog(text, "public"); field.value = ""; render(); save(); showToast("Запис додано в журнал гравців."); }
+    if(text){
+      doCommand({type:"addJournalLog", text, visibility:"public"});
+      field.value = "";
+      showToast("Запис додано в журнал гравців.");
+    }
     return;
   }
 
   if(e.target.id === "gmQuickAddGmLog"){
     const field = qs("#gmQuickLogText");
     const text = field?.value?.trim();
-    if(text){ addLog(text, "gm"); field.value = ""; render(); save(); showToast("Нотатку Майстра додано."); }
+    if(text){
+      doCommand({type:"addJournalLog", text, visibility:"gm"});
+      field.value = "";
+      showToast("Нотатку Майстра додано.");
+    }
     return;
   }
 
   if(e.target.id === "gmQuickAddComplication"){
     const select = qs("#gmQuickComplication");
     const text = select?.value?.trim();
-    if(text){ addLog(`Ускладнення: ${text}`, "public"); select.value = ""; render(); save(); showToast("Ускладнення додано."); }
+    if(text){
+      doCommand({type:"addComplication", text});
+      select.value = "";
+      showToast("Ускладнення додано.");
+    }
     return;
   }
 
@@ -2219,7 +2338,7 @@ document.addEventListener("click", e => {
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=194`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=195`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2323,7 +2442,7 @@ document.addEventListener("click", e => {
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1941`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1951`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }
@@ -2556,7 +2675,7 @@ document.addEventListener("click", e => {
   }
 
   if(e.target.id === "copyGmLink"){
-    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1941`;
+    const url = `${location.origin}${location.pathname}?role=gm&room=${encodeURIComponent(appSession.room)}&gmKey=${encodeURIComponent(DEFAULT_GM_KEY)}&v=1951`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання Майстра скопійовано.");
   }
@@ -2674,22 +2793,15 @@ document.addEventListener("change", e => {
 
   const enemyControl = e.target.closest("[data-enemy-control]");
   if(enemyControl){
-    const enemy = findEnemyById(enemyControl.dataset.enemyControl);
-    const field = enemyControl.dataset.field;
-    if(enemy){
-      enemy.gm = enemy.gm || {};
-      if(field === "state"){
-        enemy.state = e.target.value;
-        enemy.color = enemy.state === "вибув" || enemy.state === "ледь стоїть" ? "red" : enemy.state === "поранений" ? "orange" : "green";
-        if(enemy.state === "вибув") enemy.gm.hp = 0;
-      } else if(field === "morale"){
-        enemy.gm.morale = e.target.value;
-      } else if(field === "action"){
-        enemy.action = e.target.value;
-      }
-      render(); save(); return;
-    }
+    doCommand({
+      type:"setEnemyField",
+      enemyId: enemyControl.dataset.enemyControl,
+      field: enemyControl.dataset.field,
+      value: e.target.value
+    });
+    return;
   }
+
 
 
 
