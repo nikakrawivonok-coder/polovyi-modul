@@ -1,4 +1,4 @@
-/* Польовий Модуль — V19.8.5 Hide GM Tab For Players
+/* Польовий Модуль — V19.9 Enemy Templates
    Extracted from Stable V18.12.1. Functional behavior should match V18.12.1. */
 
 :root{
@@ -964,7 +964,7 @@ body.sync-online #syncLabel::before{
 }
 
 
-/* === V19.8.5 Hide GM Tab For Players === */
+/* === V19.9 Enemy Templates === */
 .collapsible-player-editor .compact-editor-section,
 .pm-collapse-section{margin:7px 0!important;padding:0!important;overflow:hidden!important;border:1px solid rgba(240,195,106,.22)!important;border-radius:10px!important;background:rgba(0,0,0,.16)!important}
 .pm-collapse-head{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;cursor:pointer;background:linear-gradient(180deg,#24170d,#100a06);color:#f0d49c;user-select:none}

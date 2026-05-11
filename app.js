@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.8.5 Hide GM Tab For Players
+// Польовий Модуль — V19.9 Enemy Templates
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -190,11 +190,17 @@ const sceneTemplates = {
 };
 
 const enemyTemplates = {
-  coward: { name: "Боягуз", state: "наляканий", color: "yellow", position: "тримається позаду", danger: "низька", action: "шукає шлях втечі", visible: true, gm: { hp: 8, hpMax: 8, ammo: 3, morale: "ламається" } },
-  bandit: { name: "Бандит", state: "цілий", color: "green", position: "за укриттям", danger: "середня", action: "цілиться", visible: true, gm: { hp: 9, hpMax: 9, ammo: 6, morale: "нервує" } },
-  shotgun: { name: "Бандит з обрізом", state: "цілий", color: "green", position: "близько до проходу", danger: "висока зблизька", action: "чекає зближення", visible: true, gm: { hp: 8, hpMax: 8, ammo: 2, morale: "агресивний" } },
-  auto: { name: "Автоматник", state: "цілий", color: "green", position: "на відкритій лінії вогню", danger: "дуже висока", action: "готує чергу", visible: true, gm: { hp: 12, hpMax: 12, ammo: 15, morale: "тримається" } },
-  leader: { name: "Ватажок", state: "цілий", color: "green", position: "біля центру групи", danger: "висока", action: "кричить накази", visible: true, gm: { hp: 14, hpMax: 14, ammo: 8, morale: "контролює інших" } }
+  coward: { name: "Боягуз", state: "наляканий", color: "yellow", position: "тримається позаду", danger: "низька", action: "шукає шлях втечі", visible: true, defense: 12, gm: { hp: 8, hpMax: 8, ammo: 3, morale: "ламається" }, tags:["бандит","мораль"] },
+  bandit: { name: "Бандит", state: "цілий", color: "green", position: "за укриттям", danger: "середня", action: "цілиться", visible: true, defense: 12, gm: { hp: 9, hpMax: 9, ammo: 6, morale: "нервує" }, tags:["бандит"] },
+  shotgun: { name: "Бандит з обрізом", state: "цілий", color: "green", position: "близько до проходу", danger: "висока зблизька", action: "чекає зближення", visible: true, defense: 12, gm: { hp: 8, hpMax: 8, ammo: 2, morale: "агресивний" }, tags:["бандит","обріз"] },
+  auto: { name: "Автоматник", state: "цілий", color: "green", position: "на відкритій лінії вогню", danger: "дуже висока", action: "готує чергу", visible: true, defense: 12, gm: { hp: 12, hpMax: 12, ammo: 15, morale: "тримається" }, tags:["бандит","автомат"] },
+  leader: { name: "Ватажок", state: "цілий", color: "green", position: "біля центру групи", danger: "висока", action: "кричить накази", visible: true, defense: 12, gm: { hp: 14, hpMax: 14, ammo: 8, morale: "контролює інших" }, tags:["бандит","лідер"] },
+  ambusher: { name: "Засадник", state: "цілий", color: "green", position: "у тіні збоку", danger: "середня, якщо його не помітили", action: "чекає нагоди для першого пострілу", visible: true, defense: 13, gm: { hp: 8, hpMax: 8, ammo: 5, morale: "терплячий" }, tags:["бандит","засідка"] },
+  finisher: { name: "Добивач", state: "цілий", color: "green", position: "шукає поранених", danger: "висока для слабких цілей", action: "тисне на найслабшого", visible: true, defense: 12, gm: { hp: 9, hpMax: 9, ammo: 5, morale: "жорстокий" }, tags:["бандит","тиск"] },
+  blinddog: { name: "Сліпий пес", state: "цілий", color: "green", position: "нишпорить зграєю", danger: "середня", action: "заходить збоку", visible: true, defense: 11, gm: { hp: 6, hpMax: 6, ammo: 0, morale: "інстинкт зграї" }, tags:["мутант","зграя"] },
+  pseudodog: { name: "Псевдособака", state: "цілий", color: "green", position: "попереду зграї", danger: "висока", action: "стрибає і збиває з ніг", visible: true, defense: 12, gm: { hp: 12, hpMax: 12, ammo: 0, morale: "хижа впевненість" }, tags:["мутант","ривок"] },
+  tushkan: { name: "Тушкан", state: "цілий", color: "green", position: "у траві біля ніг", danger: "низька, але настирлива", action: "стрибає під ноги", visible: true, defense: 10, gm: { hp: 4, hpMax: 4, ammo: 0, morale: "метушня" }, tags:["мутант","малий"] },
+  npc: { name: "Озброєний NPC", state: "насторожений", color: "yellow", position: "тримає дистанцію", danger: "залежить від розмови", action: "вимагає пояснень", visible: true, defense: 12, gm: { hp: 10, hpMax: 10, ammo: 6, morale: "обережний" }, tags:["npc","людина"] }
 };
 
 const lootTables = {
@@ -417,6 +423,7 @@ function loadSceneTemplate(templateId){
 
 function addEnemyTemplate(templateId){
   const enemy = makeEnemyFromTemplate(templateId);
+  data.enemies = Array.isArray(data.enemies) ? data.enemies : [];
   data.enemies.push(enemy);
   if(data.combat?.active) buildTurnOrder();
   addLog(`Майстер додав ворога: ${enemy.name}.`, "public");
@@ -1169,7 +1176,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1985`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=199`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1647,7 +1654,37 @@ function logItem(j){
   return `<div class="journal-entry"><time>${escapeHtml(j.time)}</time>${escapeHtml(j.text)}</div>`;
 }
 
+
+function renderEnemyTemplateButtons(){
+  const box = qs("#enemyTemplateButtons");
+  if(!box) return;
+
+  const groups = [
+    ["Люди", ["coward","bandit","shotgun","auto","leader","ambusher","finisher","npc"]],
+    ["Мутанти", ["blinddog","pseudodog","tushkan"]]
+  ];
+
+  box.innerHTML = groups.map(([group, ids]) => `
+    <div class="enemy-template-group">
+      <div class="enemy-template-group-title">${escapeHtml(group)}</div>
+      <div class="enemy-template-grid">
+        ${ids.map(id => {
+          const tpl = enemyTemplates[id];
+          if(!tpl) return "";
+          const hp = tpl.gm?.hpMax ?? tpl.gm?.hp ?? "?";
+          const defense = tpl.defense ?? 12;
+          return `<button class="metal-btn enemy-template-btn" data-add-enemy-template="${escapeAttr(id)}">
+            <strong>${escapeHtml(tpl.name)}</strong>
+            <small>HP ${escapeHtml(String(hp))} · Захист ${escapeHtml(String(defense))}</small>
+          </button>`;
+        }).join("")}
+      </div>
+    </div>
+  `).join("");
+}
+
 function fillMaster(){
+  renderEnemyTemplateButtons();
   const p = currentPlayer(), s = data.scene;
   setVal("#gmName", p.name); setVal("#gmHp", p.hp); setVal("#gmHpMax", p.hpMax);
   setVal("#gmFatigue", p.fatigue); setVal("#gmRad", p.infection ?? p.radiation ?? 0); setVal("#gmAmmo", p.ammo);
@@ -1730,7 +1767,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1985`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=199`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2325,7 +2362,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1985`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=199`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2429,7 +2466,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1985`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=199`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }

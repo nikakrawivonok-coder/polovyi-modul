@@ -1,43 +1,50 @@
-# Польовий Модуль — V19.8.5 Hide GM Tab For Players
+# Польовий Модуль — V19.9 Enemy Templates
 
-Версія на основі робочої V19.8.4.
+Версія на основі стабільної V19.8.5.
 
 ## Головна зміна
 
-У режимі `role=player` нижня вкладка **Майстер** більше не має відображатися.
+У вкладці **Майстер → Вороги** додано блок **Шаблони ворогів**.
 
-Для `role=gm` вкладка **Майстер** лишається на нижній панелі.
+Шаблон створює звичайного ворога у списку ворогів сцени.
 
-## Додатковий захист
+## Додані шаблони
 
-Додано два рівні захисту:
+### Люди
 
-1. CSS:
-   - `body.role-player .gm-only { display:none !important; }`
-   - нижня панель гравця перебудовується на 4 вкладки.
+- Боягуз
+- Бандит
+- Бандит з обрізом
+- Автоматник
+- Ватажок
+- Засадник
+- Добивач
+- Озброєний NPC
 
-2. JS:
-   - якщо гравець якимось чином натисне/відкриє `master`, система поверне його на `Стан`.
+### Мутанти
+
+- Сліпий пес
+- Псевдособака
+- Тушкан
 
 ## Що не змінювалося
 
 Не змінювалися:
 
-- Firebase;
+- Firebase-архітектура;
 - бойова математика;
-- вороги;
 - Оточення;
-- інтерфейс Майстра;
-- редактор гравців;
-- Command Core.
+- інтерфейс гравця;
+- Command Core;
+- логіка пострілу.
 
 ## Cache busting
 
 В `index.html`:
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=1985">
-<script src="./app.js?v=1985"></script>
+<link rel="stylesheet" href="./styles.css?v=199">
+<script src="./app.js?v=199"></script>
 ```
 
 ## Файли для GitHub
@@ -53,10 +60,10 @@
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test1985&gmKey=zona-master&v=1985`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test199&gmKey=zona-master&v=199`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test1985&player=fox&v=1985`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test199&player=fox&v=199`
 
 Гравець Сірий:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test1985&player=grey&v=1985`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test199&player=grey&v=199`
