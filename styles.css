@@ -1570,7 +1570,7 @@ body.role-player .gm-combat-sticky {
 }
 
 
-/* === V19.12 Final Combat UI Polish === */
+/* === V19.12.1 Damage Dice Transparency Patch === */
 .gm-dock-main.v19-12 {
   grid-template-columns: 48px minmax(138px, 1fr) 96px;
 }

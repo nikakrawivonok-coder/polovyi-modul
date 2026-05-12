@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.12 Final Combat UI Polish
+// Польовий Модуль — V19.12.1 Damage Dice Transparency Patch
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1321,7 +1321,8 @@ function enemyAttack(enemyId, mode){
     targetHp: target.hp,
     targetHpMax: target.hpMax,
     shooterName: enemy.name,
-    shooterAmmo: mutant ? "не витрачаються" : enemy.gm.ammo
+    shooterAmmo: mutant ? "не витрачаються" : enemy.gm.ammo,
+    rolledText: damageRollsTextForStatic(damageDetails, crits)
   }));
 
   showRollToast(`${enemy.name}: ${cfg.label} → ${targetName}`, rolls, totals, "", 0, popupExtra);
@@ -1666,7 +1667,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19200`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19201`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2331,7 +2332,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19200`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19201`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2839,7 +2840,8 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     shooterName: p.name || playerId,
     shooterAmmo: p.ammo,
     reactionText: enemy.lastReactions?.join(", ") || "",
-    effectText: enemyEffects(enemy).length ? enemyEffectsText(enemy) : ""
+    effectText: enemyEffects(enemy).length ? enemyEffectsText(enemy) : "",
+    rolledText: damageRollsTextForStatic(damageRoll, crits)
   }));
 
   addLog(`${p.name || playerId}: ${cfg.title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}.${targetText}${hitText}. Набої: ${p.ammo}.`, "public");
@@ -3052,6 +3054,19 @@ function doAction(action){
 
 
 
+
+function damageRollsTextForStatic(damageResult, crits=0){
+  const rolls = Array.isArray(damageResult?.rolls) ? damageResult.rolls : [];
+  if(!rolls.length) return "";
+  const critCount = Math.max(0, Number(crits || 0));
+  if(!critCount) return `Випало: ${rolls.join(", ")}`;
+  const splitAt = Math.max(0, rolls.length - critCount);
+  const normal = rolls.slice(0, splitAt);
+  const critical = rolls.slice(splitAt);
+  if(!critical.length) return `Випало: ${rolls.join(", ")}`;
+  return `Випало: ${normal.join(", ")} +${critical.join(", ")} за крит. шкоду`;
+}
+
 function staticShotResultLines({
   actorName,
   actionTitle,
@@ -3069,7 +3084,8 @@ function staticShotResultLines({
   shooterName,
   shooterAmmo,
   reactionText="",
-  effectText=""
+  effectText="",
+  rolledText=""
 }){
   const quotedTarget = `“${targetName}”`;
   const quotedShooter = `“${shooterName || actorName}”`;
@@ -3080,6 +3096,7 @@ function staticShotResultLines({
     `🎲 ${attackDie}${accuracyPart}`,
     `Захист цілі: ${quotedTarget} ${targetDefense} ${isHit ? "пробитий" : "не пробитий"}`,
     isHit ? `Шкода зброї: ${damage} (${formulaDisplay})` : `Шкода зброї: 0 (${formulaDisplay})`,
+    isHit && rolledText ? rolledText : "",
     `${quotedTarget} тепер має ${targetHp}/${targetHpMax} HP.`,
     `У ${quotedShooter} лишилось набоїв: ${shooterAmmo}.`
   ];
