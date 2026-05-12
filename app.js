@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.11.12 Popup Static Feedback Polish
+// Польовий Модуль — V19.11.13 Combat Feedback Real Path Fix
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1301,25 +1301,9 @@ function enemyAttack(enemyId, mode){
     : "";
 
   const mainDie = rolls.length === 1 ? String(rolls[0]) : rolls.join(" · ");
-  const toastDamageBits = [];
-  if(hits){
-    toastDamageBits.push(`Шкода: ${totalDamage}`);
-    if(!mutant && damageDetails){
-      const diceLabel = damageDetails.extraDice ? `${damageDetails.extraDice + Math.max(1, hits)}d${damageDetails.sides}` : damageDetails.formula;
-      toastDamageBits.push(damageDetails.weaponName);
-      toastDamageBits.push(damageDetails.rangeText);
-      toastDamageBits.push(`d${damageDetails.sides}`);
-    }
-  } else {
-    toastDamageBits.push("Промах");
-  }
-  if(!mutant) toastDamageBits.push(`Набої: ${enemy.gm.ammo}`);
-  const toastLine1 = `Результат: ${totals.join(" · ")}`;
-  const toastLine2 = `Ціль: ${targetNumber} · Влучань: ${hits}${crits ? ` · КРИТ +${crits}` : ""}`;
-  const toastLine3 = hits
-    ? `${toastDamageBits.join(" · ")} · ${targetName} HP ${target.hp}/${target.hpMax}`
-    : toastDamageBits.join(" · ");
-  const toastHtml = `<div class="toast-roll"><strong>${escapeHtml(enemy.name)}: ${escapeHtml(cfg.label)} → ${escapeHtml(targetName)}</strong><br><span class="toast-big-die">🎲 ${escapeHtml(mainDie)}</span><br>${escapeHtml(toastLine1)}<br>${escapeHtml(toastLine2)}<br>${escapeHtml(toastLine3)}</div>`;
+  const popupExtra = hits
+    ? `Влучань: ${hits}, шкода: ${totalDamage}${damageFormula ? " · " + damageFormula : ""}${crits ? " · КРИТ" : ""} · ${targetName} HP ${target.hp}/${target.hpMax}${!mutant ? " · Набої: " + enemy.gm.ammo : ""}`
+    : `Промах${!mutant ? " · Набої: " + enemy.gm.ammo : ""}`;
 
   setStaticRollResult(`${enemy.name}: ${cfg.label} → ${targetName}`, [
     `🎲 ${mainDie}`,
@@ -1333,7 +1317,7 @@ function enemyAttack(enemyId, mode){
     notes.length ? `Ефекти: ${notes.join("; ")}.` : ""
   ].filter(Boolean));
 
-  showToast(toastHtml, true, 8000);
+  showRollToast(`${enemy.name}: ${cfg.label} → ${targetName}`, rolls, totals, "", 0, popupExtra);
 
   render();
 }
@@ -1636,7 +1620,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19122`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19123`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2301,7 +2285,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19122`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19123`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2789,19 +2773,31 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
 
   showRollToast(`${p.name || playerId}: ${cfg.title} → ${enemy.name}`, r.dice, r.totals, attrName, attrMod, `${hits ? "Влучань: " + hits + ", шкода: " + damage + " · " + damageRoll.formula : "Промах"}${enemy.lastReactions?.length ? " · " + enemy.lastReactions.join(", ") : ""}${crits ? " · КРИТ" : ""}${jammedNow ? " · КЛИН" : ""} · Набої: ${p.ammo}`);
 
-  const result = qs("#rollResult");
-  if(result){
-    result.hidden = false;
-    result.innerHTML = `<h4>${escapeHtml(p.name || playerId)}: ${escapeHtml(cfg.title)} → ${escapeHtml(enemy.name)}</h4>
-      <div>${escapeHtml(cfg.extra)}</div>
-      <div class="roll-dice">🎲 ${r.dice.join(" · ")}</div>
-      <div><strong>Кидок:</strong> ${escapeHtml(rollText)}</div>
-      <div><strong>Підсумок:</strong> ${escapeHtml(r.totals.join(" · "))}</div>
-      <div><strong>${escapeHtml(attrName)}:</strong> ${attrMod > 0 ? "+" : ""}${attrMod}</div>
-      <div>${escapeHtml(targetText)}</div>
-      <div>${escapeHtml(hitText)}</div>
-      <div><strong>Набої:</strong> -${cfg.cost}, лишилось ${escapeHtml(String(p.ammo))}</div>`;
-  }
+  const weapon = weaponInfo(p);
+  const rangeText = weaponRange(p) === "near" ? "зблизька" : "здалека";
+  const condition = weaponConditionInfo(p);
+  const mainDie = r.dice.length === 1 ? String(r.dice[0]) : r.dice.join(" · ");
+  const playerDamageDiceLine = hits && damageRoll
+    ? `🎲 Шкода зброї: ${damageRoll.rolls.join(", ")}${damageRoll.bonus ? " +" + damageRoll.bonus : ""}${damageRoll.conditionMod ? ` ${damageRoll.conditionMod > 0 ? "+" : ""}${damageRoll.conditionMod} стан` : ""}${crits ? ` · крит +${crits} кубик` : ""}.`
+    : "";
+  setStaticRollResult(`${p.name || playerId}: ${cfg.title} → ${enemy.name}`, [
+    cfg.extra,
+    `🎲 ${mainDie}`,
+    `Кидок атаки: ${rollText}`,
+    `Підсумок: ${r.totals.join(" · ")}`,
+    `${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}`,
+    `Ціль: ${enemy.name}. Захист цілі: ${threshold}.`,
+    hits ? `Влучань: ${hits}. Шкода: ${damage}. Формула: ${damageRoll.formula}.` : "Промах.",
+    playerDamageDiceLine,
+    `Зброя: ${weapon.name}. Дистанція: ${rangeText}. Стан: ${condition.name}.`,
+    `HP цілі: ${enemy.gm.hp}/${enemy.gm.hpMax}.`,
+    enemy.lastReactions?.length ? `Реакція ворога: ${enemy.lastReactions.join(", ")}.` : "",
+    enemyEffects(enemy).length ? `Ефекти ворога: ${enemyEffectsText(enemy)}.` : "",
+    critMiss ? "Критичний промах: Майстер може ускладнити ситуацію." : "",
+    jammedNow ? "Зброю заклинило." : "",
+    enemy.state === "вибув" ? "Ціль вибула." : "",
+    `Набої стрільця: ${p.ammo}.`
+  ].filter(Boolean));
 
   addLog(`${p.name || playerId}: ${cfg.title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}.${targetText}${hitText}. Набої: ${p.ammo}.`, "public");
   render();
