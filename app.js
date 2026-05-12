@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.10 Enemy Attack MVP
+// Польовий Модуль — V19.10.2 Journal Quick Notes
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1336,7 +1336,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1910`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19102`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1767,9 +1767,14 @@ function render(){
   const inlineInv = qs("#inventoryInlineList");
   if(inlineInv) inlineInv.innerHTML = currentInventory().map(invItem).join("");
   renderTargetSelector();
+  renderJournalPrivateTargets();
   qs("#journalList").innerHTML = (data.journal || []).filter(j => {
-    if(appSession.role !== "gm") return j.visibility !== "gm";
-    if(journalFilter === "public") return j.visibility !== "gm";
+    if(appSession.role !== "gm"){
+      if(j.visibility === "gm") return false;
+      if(j.visibility === "private") return j.targetPlayerId === appSession.player;
+      return true;
+    }
+    if(journalFilter === "public") return j.visibility !== "gm" && j.visibility !== "private";
     if(journalFilter === "gm") return j.visibility === "gm";
     return true;
   }).slice().reverse().map(logItem).join("");
@@ -1785,6 +1790,44 @@ function render(){
   refreshActionLocks();
   save();
   restoreFocusState(focusState);
+}
+
+
+function renderJournalPrivateTargets(){
+  const sel = qs("#journalPrivateTarget");
+  if(!sel) return;
+  const players = Object.entries(data.players || {});
+  sel.innerHTML = players.map(([pid,p]) => `<option value="${escapeAttr(pid)}">${escapeHtml(p.name || pid)}</option>`).join("");
+}
+
+function submitJournalQuickNote(visibility){
+  const input = qs("#journalQuickText");
+  if(!input) return;
+  const text = String(input.value || "").trim();
+  if(!text){
+    showToast("Журнал: порожній запис.");
+    return;
+  }
+
+  if(visibility === "private"){
+    const targetId = qs("#journalPrivateTarget")?.value || currentPlayerId();
+    const target = playerById(targetId);
+    data.journal.push({
+      id: makeId("log"),
+      visibility: "private",
+      targetPlayerId: targetId,
+      time: nowTime(),
+      text: `Приватно для ${target.name || targetId}: ${text}`
+    });
+  } else {
+    addLog(text, visibility);
+  }
+
+  input.value = "";
+  if(data.journal.length > 120) data.journal = data.journal.slice(-120);
+  save();
+  render();
+  showToast(visibility === "gm" ? "Записано тільки для Майстра." : visibility === "private" ? "Приватне повідомлення додано." : "Публічний запис додано.");
 }
 
 function enemyRow(e){
@@ -1811,7 +1854,8 @@ function invItem(i){
 }
 
 function logItem(j){
-  return `<div class="journal-entry"><time>${escapeHtml(j.time)}</time>${escapeHtml(j.text)}</div>`;
+  const badge = j.visibility === "gm" ? `<span class="journal-badge gm">Майстру</span>` : j.visibility === "private" ? `<span class="journal-badge private">Приватно</span>` : `<span class="journal-badge public">Публічно</span>`;
+  return `<div class="journal-entry"><time>${escapeHtml(j.time)}</time>${badge}${escapeHtml(j.text)}</div>`;
 }
 
 
@@ -1927,7 +1971,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1910`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19102`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2387,6 +2431,23 @@ function randomModuleWarning(){
 
 document.addEventListener("click", e => {
 
+  if(e.target.closest("#journalPostPublic")){
+    submitJournalQuickNote("public");
+    return;
+  }
+
+  if(e.target.closest("#journalPostGm")){
+    submitJournalQuickNote("gm");
+    return;
+  }
+
+  if(e.target.closest("#journalPostPrivate")){
+    submitJournalQuickNote("private");
+    return;
+  }
+
+
+
   const forbiddenMasterNav = e.target.closest('.nav-btn[data-target="master"]');
   if(forbiddenMasterNav && appSession.role !== "gm"){
     showToast?.("Панель Майстра доступна тільки Майстру.");
@@ -2523,7 +2584,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1910`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19102`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2627,7 +2688,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1910`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19102`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }

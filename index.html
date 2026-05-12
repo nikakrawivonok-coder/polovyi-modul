@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#120d09" />
-  <title>Польовий Модуль — V19.10 Enemy Attack MVP</title>
-  <link rel="stylesheet" href="./styles.css?v=1910">
+  <title>Польовий Модуль — V19.10.2 Journal Quick Notes</title>
+  <link rel="stylesheet" href="./styles.css?v=19102">
 
 </head>
 <body>
@@ -181,6 +181,21 @@
 
     <section class="screen" data-screen="journal">
       <div class="section-title"><span>▤</span><h3>Журнал модуля</h3></div>
+      
+      <div class="journal-compose gm-only">
+        <label>Швидкий запис Майстра
+          <textarea id="journalQuickText" rows="3" placeholder="Напиши подію, підказку, шум, наслідок або приватну нотатку..."></textarea>
+        </label>
+        <div class="journal-compose-grid">
+          <button class="metal-btn" id="journalPostPublic">Написати всім</button>
+          <button class="metal-btn" id="journalPostGm">Тільки Майстру</button>
+        </div>
+        <div class="journal-compose-private">
+          <select id="journalPrivateTarget"></select>
+          <button class="metal-btn" id="journalPostPrivate">Приватно гравцю</button>
+        </div>
+      </div>
+
       <div class="journal-controls">
         <button class="metal-btn" id="addKpkMsg">Сигнал модуля</button>
         <button class="metal-btn" id="clearJournal">Очистити</button>
@@ -359,6 +374,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   
-  <script src="./app.js?v=1910"></script>
+  <script src="./app.js?v=19102"></script>
 </body>
 </html>
