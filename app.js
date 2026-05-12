@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.11.5 Combat Routing Authority Fix
+// Польовий Модуль — V19.11.6 GM Combat Action Override
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1552,7 +1552,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19115`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19116`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2217,7 +2217,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19115`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19116`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2631,6 +2631,165 @@ function routeAttackByActorTarget(action){
   return { routed:false };
 }
 
+
+function shotActionConfig(action){
+  if(action === "shoot_aimed") return { count:1, baseMod:2, cost:1, title:"Точний постріл", extra:"1 набій, +2 до точності.", attrKey:"accuracy" };
+  if(action === "shoot_normal") return { count:2, baseMod:0, cost:2, title:"Бойовий постріл", extra:"2 набої, кожне влучання окремо.", attrKey:"accuracy" };
+  if(action === "shoot_burst") return { count:3, baseMod:-2, cost:3, title:"Черга", extra:"3 набої, -2, після черги діє Віддача.", attrKey:"accuracy" };
+  return null;
+}
+
+function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
+  const cfg = shotActionConfig(action);
+  if(!cfg) return false;
+
+  const p = playerById(playerId);
+  const enemy = findEnemyById(enemyId);
+
+  if(!p || !enemy){
+    showToast("Немає стрільця або цілі.");
+    addLog("GM-постріл не виконано: немає стрільця або цілі.", "gm");
+    return true;
+  }
+
+  if(enemy.state === "вибув"){
+    showToast("Ціль уже вибула.");
+    addLog(`${p.name || playerId}: постріл по ${enemy.name} заблоковано — ціль вибула.`, "gm");
+    return true;
+  }
+
+  if(p.weaponJammed){
+    showToast("Зброю заклинило.", false, 4000);
+    addLog(`${p.name || playerId}: не може стріляти — зброю заклинило.`, "public");
+    render();
+    return true;
+  }
+
+  if(cfg.cost && Number(p.ammo || 0) < cfg.cost){
+    showToast("Недостатньо набоїв.");
+    addLog(`${p.name || playerId}: ${cfg.title}. Недостатньо набоїв.`, "public");
+    render();
+    return true;
+  }
+
+  if(cfg.cost) p.ammo = Number(p.ammo || 0) - cfg.cost;
+
+  const attrMod = cfg.attrKey ? attrValue(p, cfg.attrKey) : 0;
+  const totalMod = cfg.baseMod + attrMod;
+  const r = rollD20(cfg.count, totalMod);
+  const rollText = totalMod ? `${cfg.count}d20 ${totalMod>0?"+":""}${totalMod}` : `${cfg.count}d20`;
+  const attrName = cfg.attrKey ? attrLabel(cfg.attrKey) : "";
+
+  const threshold = enemyDefenseValue(enemy);
+  const crits = criticalCount(r.dice);
+  const jammedNow = shouldWeaponJam(p, r.dice);
+  const critMiss = r.dice.includes(1);
+  const hits = r.totals.filter(t => t >= threshold).length;
+
+  let damage = 0;
+  let damageRoll = null;
+  if(hits){
+    damageRoll = rollWeaponDamage(p, hits, crits);
+    damage = applyPlayerHitsToEnemy(enemy, hits, damageRoll.total);
+  }
+  if(jammedNow) p.weaponJammed = true;
+
+  let targetText = ` Ціль: ${enemy.name}. Захист цілі: ${threshold}.`;
+  let hitText = hits ? ` Влучань: ${hits}. Шкода: ${damage}. Формула: ${damageRoll.formula}. Кубики шкоди: ${damageRoll.rolls.join(", ")}${damageRoll.bonus ? " +" + damageRoll.bonus : ""}${damageRoll.conditionMod ? " " + damageRoll.conditionMod : ""}.` : " Промах.";
+  if(crits) hitText += ` Крит: +${crits} кубик шкоди.`;
+  if(enemy.lastReactions?.length) hitText += ` Реакція ворога: ${enemy.lastReactions.join(", ")}.`;
+  if(enemyEffects(enemy).length) hitText += ` Ефекти ворога: ${enemyEffectsText(enemy)}.`;
+  if(critMiss) hitText += " Критичний промах: Майстер може ускладнити ситуацію.";
+  if(jammedNow) hitText += " Зброю заклинило.";
+  if(enemy.state === "вибув") hitText += " Ціль вибула.";
+
+  showRollToast(`${p.name || playerId}: ${cfg.title} → ${enemy.name}`, r.dice, r.totals, attrName, attrMod, `${hits ? "Влучань: " + hits + ", шкода: " + damage + " · " + damageRoll.formula : "Промах"}${enemy.lastReactions?.length ? " · " + enemy.lastReactions.join(", ") : ""}${crits ? " · КРИТ" : ""}${jammedNow ? " · КЛИН" : ""} · Набої: ${p.ammo}`);
+
+  const result = qs("#rollResult");
+  if(result){
+    result.hidden = false;
+    result.innerHTML = `<h4>${escapeHtml(p.name || playerId)}: ${escapeHtml(cfg.title)}</h4>
+      <div>${escapeHtml(cfg.extra)}</div>
+      <div class="roll-dice">🎲 ${r.dice.join(" · ")}</div>
+      <div><strong>Кидок:</strong> ${escapeHtml(rollText)}</div>
+      <div><strong>Підсумок:</strong> ${escapeHtml(r.totals.join(" · "))}</div>
+      <div><strong>${escapeHtml(attrName)}:</strong> ${attrMod > 0 ? "+" : ""}${attrMod}</div>
+      <div>${escapeHtml(targetText)}</div>
+      <div>${escapeHtml(hitText)}</div>
+      <div><strong>Набої:</strong> -${cfg.cost}, лишилось ${escapeHtml(String(p.ammo))}</div>`;
+  }
+
+  addLog(`${p.name || playerId}: ${cfg.title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}.${targetText}${hitText}. Набої: ${p.ammo}.`, "public");
+  render();
+  triggerFlicker();
+  return true;
+}
+
+function gmCombatActionOverride(action){
+  if(appSession.role !== "gm") return false;
+
+  const cfg = shotActionConfig(action);
+  if(!cfg) return false;
+
+  const actor = currentCombatActorForAction();
+  const target = currentCombatTargetForAction();
+
+  if(!actor || !target){
+    showToast("Немає Ходу або Цілі в бойовій панелі.");
+    addLog("GM-постріл заблоковано: немає Ходу або Цілі.", "gm");
+    return true;
+  }
+
+  if(isDefeatedCombatant(actor)){
+    showToast("Учасник вибув і не може діяти.", false, 4000);
+    addLog(`${actor.name}: дія заблокована — учасник вибув.`, "gm");
+    return true;
+  }
+
+  if(isDefeatedCombatant(target)){
+    showToast("Ціль уже вибула.", false, 4000);
+    addLog(`${actor.name}: дія заблокована — ціль ${target.name} уже вибула.`, "gm");
+    return true;
+  }
+
+  if(actor.id === target.id){
+    showToast("Учасник не може атакувати сам себе.", false, 4000);
+    addLog(`${actor.name}: постріл у самого себе заблоковано.`, "gm");
+    return true;
+  }
+
+  if(actor.type === "player" && target.type === "enemy"){
+    data.meta = data.meta || {};
+    data.meta.activePlayerId = actor.ref;
+    data.combat = data.combat || {};
+    data.combat.targetEnemyId = target.ref;
+    data.combat.targetCombatantId = target.id;
+    return applyPlayerShotToEnemyFromPanel(actor.ref, target.ref, action);
+  }
+
+  if(actor.type === "enemy" && target.type === "player"){
+    data.combat = data.combat || {};
+    data.combat.enemyTargetPlayerId = target.ref;
+    data.combat.targetCombatantId = target.id;
+    enemyAttack(actor.ref, actionToEnemyAttackMode(action));
+    return true;
+  }
+
+  if(actor.type === "player" && target.type === "player"){
+    showToast("Гравець → гравець ще не підключено.", false, 4500);
+    addLog(`${actor.name}: атака по ${target.name} заблокована — PvP ще не підключено.`, "gm");
+    return true;
+  }
+
+  if(actor.type === "enemy" && target.type === "enemy"){
+    showToast("Ворог → ворог ще не підключено.", false, 4500);
+    addLog(`${actor.name}: атака по ${target.name} заблокована — friendly fire ще не підключено.`, "gm");
+    return true;
+  }
+
+  return false;
+}
+
 function doAction(action){
   if(!isCurrentPlayerTurn()){
     const msg = turnLockMessage();
@@ -3020,7 +3179,11 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   }
 
   const action = e.target.closest("[data-action]");
-  if(action) doAction(action.dataset.action);
+  if(action){
+    if(gmCombatActionOverride(action.dataset.action)) return;
+    doAction(action.dataset.action);
+    return;
+  }
 
 
 
