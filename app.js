@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.11.4 Actor Target Combat Routing Fix
+// Польовий Модуль — V19.11.5 Combat Routing Authority Fix
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1019,9 +1019,14 @@ function moraleCheck(){
 
 
 function enemyAttackTargetId(){
+  const panelTarget = combatantById(combatTargetId());
+  if(panelTarget?.type === "player" && data.players[panelTarget.ref]) return panelTarget.ref;
+
+  if(data.combat?.enemyTargetPlayerId && data.players[data.combat.enemyTargetPlayerId]) return data.combat.enemyTargetPlayerId;
+
   const select = qs("#enemyAttackTarget");
   if(select && data.players[select.value]) return select.value;
-  if(data.combat?.enemyTargetPlayerId && data.players[data.combat.enemyTargetPlayerId]) return data.combat.enemyTargetPlayerId;
+
   return currentPlayerId();
 }
 
@@ -1170,6 +1175,12 @@ function enemyAttack(enemyId, mode){
   if(!enemy) return;
   const targetId = enemyAttackTargetId();
   const target = playerById(targetId);
+  if(!target){
+    showToast("Ворог не має коректної цілі-гравця.");
+    addLog(`${enemy.name}: атака не виконана — немає коректної цілі-гравця.`, "gm");
+    render();
+    return;
+  }
   const cfg = attackModeConfig(mode, enemy);
   const mutant = enemyIsMutant(enemy);
   enemy.gm = enemy.gm || { hp: 8, hpMax: 8, ammo: 0, morale: "невідомо" };
@@ -1541,7 +1552,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19114`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19115`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2206,7 +2217,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19114`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19115`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2517,9 +2528,15 @@ function applyPlayerHitsToEnemy(enemy, hits, damageAmount){
 
 
 function currentCombatActorForAction(){
-  if(appSession.role === "gm" && data.combat?.active){
+  if(appSession.role === "gm"){
     const active = activeCombatant();
     if(active) return active;
+
+    const order = data.combat?.turnOrder || [];
+    if(order.length){
+      const c = combatantById(order[Number(data.combat?.turnIndex || 0) % order.length]);
+      if(c) return c;
+    }
   }
   return { id:`player:${currentPlayerId()}`, type:"player", ref:currentPlayerId(), name:currentPlayer().name || currentPlayerId() };
 }
@@ -2555,6 +2572,8 @@ function isDefeatedCombatant(c){
 }
 
 function routeAttackByActorTarget(action){
+  if(appSession.role !== "gm") return { routed:false };
+
   const actor = currentCombatActorForAction();
   const target = currentCombatTargetForAction();
 
