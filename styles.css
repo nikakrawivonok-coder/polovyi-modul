@@ -1568,3 +1568,90 @@ body.role-player .gm-combat-sticky {
   line-height:1.05;
   font-weight:900;
 }
+
+
+/* === V19.12 Final Combat UI Polish === */
+.gm-dock-main.v19-12 {
+  grid-template-columns: 48px minmax(138px, 1fr) 96px;
+}
+.gm-dock-main.v19-12 .gm-dock-next {
+  display: grid;
+  place-items: center;
+  gap: 0;
+  height: 38px;
+  min-height: 38px;
+  padding: 2px 3px;
+}
+.gm-dock-next-icon {
+  display: block;
+  font-size: 15px;
+  line-height: 1;
+}
+.gm-dock-next-text {
+  display: block;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 900;
+}
+.gm-dock-main.v19-12 .gm-dock-current div {
+  min-height: 34px;
+}
+.gm-dock-main.v19-12 .gm-dock-current small {
+  display: block;
+  margin-top: 1px;
+  color: #bba06f;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-dock-main.v19-12 .gm-turn-chip {
+  height: 34px;
+  min-width: 66px;
+  max-width: 116px;
+  padding: 3px 8px;
+}
+.gm-dock-main.v19-12 .gm-turn-chip small {
+  display: block;
+  margin-top: 1px;
+  font-size: 8px;
+  line-height: 1;
+  opacity: .82;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-dock-main.v19-12 .gm-turn-chip.active::before {
+  content: "Х";
+  position: absolute;
+  left: 7px;
+  top: 1px;
+  color: #ffcf7a;
+  font-size: 9px;
+  font-weight: 900;
+}
+.gm-dock-main.v19-12 .gm-turn-chip.target::after {
+  content: "Ц";
+  right: 7px;
+  top: 1px;
+  font-size: 9px;
+  font-weight: 900;
+}
+@media(max-width:390px) {
+  .gm-dock-main.v19-12 {
+    grid-template-columns: 44px minmax(122px, 1fr) 84px;
+  }
+  .gm-dock-main.v19-12 .gm-dock-next {
+    height: 36px;
+    min-height: 36px;
+  }
+  .gm-dock-main.v19-12 .gm-turn-chip {
+    min-width: 60px;
+    max-width: 104px;
+    height: 33px;
+  }
+  .gm-dock-main.v19-12 .gm-turn-chip small {
+    font-size: 7.5px;
+  }
+}

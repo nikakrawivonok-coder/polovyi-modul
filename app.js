@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.11.15 Static Result Real Path Patch
+// Польовий Модуль — V19.12 Final Combat UI Polish
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1409,6 +1409,28 @@ function setActiveCombatantById(combatantId){
   render();
 }
 
+
+function combatantMiniInfo(c){
+  if(!c) return "";
+  if(c.type === "player"){
+    const p = data.players?.[c.ref];
+    if(!p) return "";
+    return `${Number(p.hp ?? 0)}/${Number(p.hpMax ?? 0)} HP · ${Number(p.ammo ?? 0)} наб.`;
+  }
+  if(c.type === "enemy"){
+    const e = findEnemyById(c.ref);
+    if(!e) return "";
+    const gm = e.gm || {};
+    return `${escapeHtml(e.state || "стан")} · ${Number(gm.hp ?? 0)}/${Number(gm.hpMax ?? 0)} HP`;
+  }
+  return "";
+}
+
+function combatPanelActionLabel(){
+  if(!data.combat?.active) return "Почати";
+  return "Далі";
+}
+
 function renderGmCombatStickyBar(){
   const bar = ensureGmCombatFixedBar();
   if(!bar) return;
@@ -1424,18 +1446,32 @@ function renderGmCombatStickyBar(){
   const active = activeCombatant();
   const activeId = active?.id || "";
   const targetId = combatTargetId();
+  const target = combatantById(targetId);
   const targetName = combatTargetName();
   const round = combat.active ? Number(combat.round || 1) : 0;
   const mode = gmCombatBarMode === "target" ? "target" : "actor";
+  const activeInfo = active ? combatantMiniInfo(active) : "";
+  const targetInfo = target ? combatantMiniInfo(target) : "";
 
   bar.hidden = false;
   bar.innerHTML = `
-    <div class="gm-dock-main two-row">
-      <button class="gm-dock-next" id="gmStickyNextTurn" type="button" title="Почати / наступний хід">▶</button>
+    <div class="gm-dock-main two-row v19-12">
+      <button class="gm-dock-next" id="gmStickyNextTurn" type="button" title="${combat.active ? "Наступний хід" : "Почати бій"}">
+        <span class="gm-dock-next-icon">▶</span>
+        <span class="gm-dock-next-text">${combatPanelActionLabel()}</span>
+      </button>
 
       <div class="gm-dock-current">
-        <div><span>${combat.active ? `Р${escapeHtml(String(round))}` : "Бій"}</span><strong>Хід: ${active ? escapeHtml(active.name) : "немає"}</strong></div>
-        <div><span>Ціль</span><strong>${escapeHtml(targetName)}</strong></div>
+        <div>
+          <span>${combat.active ? `Раунд ${escapeHtml(String(round))}` : "Бій"}</span>
+          <strong>Хід: ${active ? escapeHtml(active.name) : "немає"}</strong>
+          ${activeInfo ? `<small>${activeInfo}</small>` : ""}
+        </div>
+        <div>
+          <span>Ціль</span>
+          <strong>${escapeHtml(targetName)}</strong>
+          ${targetInfo ? `<small>${targetInfo}</small>` : ""}
+        </div>
       </div>
 
       <div class="gm-dock-modes">
@@ -1448,14 +1484,17 @@ function renderGmCombatStickyBar(){
           const isActive = activeId === c.id;
           const isTarget = targetId === c.id;
           const cls = [c.type, isActive ? "active" : "", isTarget ? "target" : ""].filter(Boolean).join(" ");
-          return `<button type="button" class="gm-turn-chip ${cls}" data-sticky-combatant="${escapeAttr(c.id)}">
+          const mini = combatantMiniInfo(c);
+          return `<button type="button" class="gm-turn-chip ${cls}" data-sticky-combatant="${escapeAttr(c.id)}" title="${escapeAttr(c.name + (mini ? " · " + mini : ""))}">
             <span>${escapeHtml(c.name)}</span>
+            ${mini ? `<small>${mini}</small>` : ""}
           </button>`;
         }).join("") || `<span class="gm-turn-empty">немає учасників</span>`}
       </div>
     </div>
   `;
 }
+
 function renderCombatSummary(){
   const target = qs("#combatSummary");
   if(!target) return;
@@ -1627,7 +1666,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19125`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19200`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2292,7 +2331,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19125`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19200`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
