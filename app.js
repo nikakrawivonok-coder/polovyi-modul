@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.11.2 GM Combat Docked Bar Polish
+// Польовий Модуль — V19.11.3 Combat Bar Actor Target Separation
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -94,6 +94,7 @@ let isBootstrappingRemote = true;
 let pendingSaveTimer = null;
 let expandedStateEnemyDetails = {};
 let journalFilter = "all";
+let gmCombatBarMode = "actor";
 let expandedPlayerEditorSections = { profile:false, combat:false, weapon:false, stats:false, inventory:false };
 
 const defaultRoomData = {
@@ -1256,6 +1257,49 @@ function ensureGmCombatFixedBar(){
   return bar;
 }
 
+
+function combatantById(combatantId){
+  return getCombatants().find(c => c.id === combatantId) || null;
+}
+
+function combatTargetId(){
+  const combat = data.combat || {};
+  if(combat.targetCombatantId && combatantById(combat.targetCombatantId)) return combat.targetCombatantId;
+
+  if(combat.targetEnemyId && combatantById(`enemy:${combat.targetEnemyId}`)) return `enemy:${combat.targetEnemyId}`;
+  if(combat.enemyTargetPlayerId && combatantById(`player:${combat.enemyTargetPlayerId}`)) return `player:${combat.enemyTargetPlayerId}`;
+
+  const active = activeCombatant();
+  if(active) return active.id;
+
+  const first = getCombatants()[0];
+  return first?.id || "";
+}
+
+function combatTargetName(){
+  const target = combatantById(combatTargetId());
+  return target ? target.name : "немає";
+}
+
+function setCombatTargetById(combatantId){
+  const target = combatantById(combatantId);
+  if(!target) return;
+
+  data.combat = data.combat || {};
+  data.combat.targetCombatantId = combatantId;
+
+  if(target.type === "enemy"){
+    data.combat.targetEnemyId = target.ref;
+  }
+  if(target.type === "player"){
+    data.combat.enemyTargetPlayerId = target.ref;
+  }
+
+  data.combat.lastEvent = `Ціль: ${target.name}.`;
+  addLog(`Майстер обрав ціль: ${target.name}.`, "gm");
+  render();
+}
+
 function setActiveCombatantById(combatantId){
   data.combat = data.combat || {};
   const combatants = getCombatants();
@@ -1272,10 +1316,6 @@ function setActiveCombatantById(combatantId){
   if(active?.type === "player"){
     data.meta = data.meta || {};
     data.meta.activePlayerId = active.ref;
-  }
-
-  if(active?.type === "enemy"){
-    data.combat.targetEnemyId = active.ref;
   }
 
   data.combat.lastEvent = active ? `Активний хід: ${active.name}.` : "Активний учасник змінений.";
@@ -1297,25 +1337,39 @@ function renderGmCombatStickyBar(){
   const combatants = getCombatants();
   const active = activeCombatant();
   const activeId = active?.id || "";
+  const targetId = combatTargetId();
+  const targetName = combatTargetName();
   const round = combat.active ? Number(combat.round || 1) : 0;
+  const mode = gmCombatBarMode === "target" ? "target" : "actor";
 
   bar.hidden = false;
   bar.innerHTML = `
-    <div class="gm-dock-main">
-      <button class="gm-dock-next" id="gmStickyNextTurn" type="button">${combat.active ? "▶" : "▶"}</button>
+    <div class="gm-dock-main two-row">
+      <button class="gm-dock-next" id="gmStickyNextTurn" type="button" title="Почати / наступний хід">▶</button>
+
       <div class="gm-dock-current">
-        <span>${combat.active ? `Р${escapeHtml(String(round))}` : "Бій"}</span>
-        <strong>${active ? escapeHtml(active.name) : "немає активного"}</strong>
+        <div><span>${combat.active ? `Р${escapeHtml(String(round))}` : "Бій"}</span><strong>Хід: ${active ? escapeHtml(active.name) : "немає"}</strong></div>
+        <div><span>Ціль</span><strong>${escapeHtml(targetName)}</strong></div>
       </div>
+
+      <div class="gm-dock-modes">
+        <button type="button" class="gm-mode-btn ${mode === "actor" ? "active" : ""}" data-gm-combat-mode="actor">Хід</button>
+        <button type="button" class="gm-mode-btn ${mode === "target" ? "active" : ""}" data-gm-combat-mode="target">Ціль</button>
+      </div>
+
       <div class="gm-dock-order">
-        ${combatants.map(c => `<button type="button" class="gm-turn-chip ${activeId === c.id ? "active" : ""} ${c.type}" data-sticky-combatant="${escapeAttr(c.id)}">
-          <span>${escapeHtml(c.name)}</span>
-        </button>`).join("") || `<span class="gm-turn-empty">немає учасників</span>`}
+        ${combatants.map(c => {
+          const isActive = activeId === c.id;
+          const isTarget = targetId === c.id;
+          const cls = [c.type, isActive ? "active" : "", isTarget ? "target" : ""].filter(Boolean).join(" ");
+          return `<button type="button" class="gm-turn-chip ${cls}" data-sticky-combatant="${escapeAttr(c.id)}">
+            <span>${escapeHtml(c.name)}</span>
+          </button>`;
+        }).join("") || `<span class="gm-turn-empty">немає учасників</span>`}
       </div>
     </div>
   `;
 }
-
 function renderCombatSummary(){
   const target = qs("#combatSummary");
   if(!target) return;
@@ -1487,7 +1541,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19112`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19113`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2152,7 +2206,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19112`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19113`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2617,9 +2671,18 @@ document.addEventListener("click", e => {
     return;
   }
 
+  const gmCombatModeBtn = e.target.closest("[data-gm-combat-mode]");
+  if(gmCombatModeBtn){
+    gmCombatBarMode = gmCombatModeBtn.dataset.gmCombatMode === "target" ? "target" : "actor";
+    renderGmCombatStickyBar();
+    return;
+  }
+
   const stickyCombatant = e.target.closest("[data-sticky-combatant]");
   if(stickyCombatant){
-    setActiveCombatantById(stickyCombatant.dataset.stickyCombatant);
+    const cid = stickyCombatant.dataset.stickyCombatant;
+    if(gmCombatBarMode === "target") setCombatTargetById(cid);
+    else setActiveCombatantById(cid);
     return;
   }
 
