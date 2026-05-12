@@ -1,18 +1,21 @@
-# Польовий Модуль — V19.11.14 Static Shot Result Exact Format
+# Польовий Модуль — V19.11.15 Static Result Real Path Patch
 
-Точкова версія після V19.11.13.
+Точкова правка після V19.11.14.
+
+## Що було не так
+
+У V19.11.14 новий формат був підключений не до всіх реальних шляхів.  
+На скріншотах спрацьовував старий static-блок із `doAction()`, тому ти бачив старий формат.
 
 ## Що змінено
 
 Змінено тільки нижній інформативний блок у вкладці `Стан` після пострілу.
 
-Popup / спливаюче повідомлення після пострілу не чіпалося.
+Popup / спливаюче повідомлення не чіпалося.
 
 ## Новий формат нижнього блоку
 
 ### Гравець → ворог
-
-Формат:
 
 ```text
 Лис: Точний постріл → Боягуз
@@ -27,8 +30,6 @@ Popup / спливаюче повідомлення після пострілу 
 
 ### Ворог → гравець
 
-Формат:
-
 ```text
 Автоматник: Точний постріл → Лис
 🎲 10 (+2 від точності пострілу)
@@ -37,12 +38,6 @@ Popup / спливаюче повідомлення після пострілу 
 “Лис” тепер має 0/10 HP.
 У “Автоматник” лишилось набоїв: 1.
 ```
-
-## Важливо
-
-Реакція ворога та ефекти ворога показуються тільки при `гравець → ворог`.
-
-Для `ворог → гравець` вони не показуються.
 
 ## Що не змінювалося
 
@@ -62,14 +57,14 @@ Popup / спливаюче повідомлення після пострілу 
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19124">
-<script src="./app.js?v=19124"></script>
+<link rel="stylesheet" href="./styles.css?v=19125">
+<script src="./app.js?v=19125"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19124&gmKey=zona-master&v=19124`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19125&gmKey=zona-master&v=19125`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19124&player=fox&v=19124`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19125&player=fox&v=19125`
