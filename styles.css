@@ -1,4 +1,4 @@
-/* Польовий Модуль — V19.11.1 GM Combat Fixed Bar Fix
+/* Польовий Модуль — V19.11.2 GM Combat Docked Bar Polish
    Extracted from Stable V18.12.1. Functional behavior should match V18.12.1. */
 
 :root{
@@ -963,7 +963,7 @@ body.sync-online #syncLabel::before{
   word-break:break-all;
 }
 
-/* === V19.11.1 GM Combat Fixed Bar Fix === */
+/* === V19.11.2 GM Combat Docked Bar Polish === */
 .gm-combat-sticky {
   position: sticky;
   bottom: 76px;
@@ -1087,7 +1087,7 @@ body.role-player .gm-combat-sticky {
   }
 }
 
-/* === V19.11.1 GM Combat Fixed Bar Fix === */
+/* === V19.11.2 GM Combat Docked Bar Polish === */
 .gm-combat-sticky {
   position: fixed !important;
   left: 8px;
@@ -1216,5 +1216,146 @@ body.role-player .gm-combat-sticky {
   }
   .gm-sticky-btn {
     width: 100%;
+  }
+}
+
+/* === V19.11.2 GM Combat Docked Bar Polish === */
+.gm-combat-sticky {
+  position: fixed !important;
+  left: 8px;
+  right: 8px;
+  bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+  z-index: 88;
+  margin: 0;
+  padding: 5px 6px;
+  border: 1px solid rgba(240,195,106,.26);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(180deg,rgba(30,18,10,.96),rgba(13,8,5,.98));
+  box-shadow: 0 -3px 12px rgba(0,0,0,.42);
+  backdrop-filter: blur(8px);
+}
+.gm-dock-main {
+  display: grid;
+  grid-template-columns: 38px minmax(92px, 128px) 1fr;
+  gap: 6px;
+  align-items: center;
+}
+.gm-dock-next {
+  min-height: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(240,195,106,.35);
+  background: linear-gradient(180deg,#e7c882,#a46a2f);
+  color: #17100a;
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.gm-dock-current {
+  min-width: 0;
+  line-height: 1.05;
+}
+.gm-dock-current span {
+  display: inline-block;
+  margin-right: 4px;
+  color: #bfa36d;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.gm-dock-current strong {
+  display: inline;
+  color: #f0d49c;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-dock-order {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  padding: 1px 0;
+  scrollbar-width: none;
+}
+.gm-dock-order::-webkit-scrollbar {
+  display: none;
+}
+.gm-turn-chip {
+  flex: 0 0 auto;
+  min-width: 56px;
+  max-width: 104px;
+  height: 34px;
+  padding: 4px 8px;
+  border: 1px solid rgba(240,195,106,.22);
+  border-radius: 999px;
+  background: rgba(0,0,0,.22);
+  color: #dec58d;
+  text-align: center;
+  cursor: pointer;
+}
+.gm-turn-chip span {
+  display: block;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-turn-chip small {
+  display: none;
+}
+.gm-turn-chip.active {
+  border-color: #f0b441;
+  background: linear-gradient(180deg,#5b3516,#24150b);
+  color: #fff0bd;
+  box-shadow: 0 0 0 1px rgba(240,180,65,.18), 0 0 10px rgba(240,180,65,.15);
+}
+.gm-turn-chip.player {
+  border-color: rgba(141,198,255,.30);
+}
+.gm-turn-chip.enemy {
+  border-color: rgba(255,126,86,.30);
+}
+.gm-turn-empty {
+  color: #9f8558;
+  font-size: 11px;
+  padding: 7px;
+}
+body.role-gm {
+  padding-bottom: 106px;
+}
+body.role-player {
+  padding-bottom: 0;
+}
+body.role-player .gm-combat-sticky {
+  display: none !important;
+}
+@media(max-width:390px) {
+  .gm-combat-sticky {
+    left: 5px;
+    right: 5px;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding: 4px 5px;
+  }
+  .gm-dock-main {
+    grid-template-columns: 34px minmax(78px, 112px) 1fr;
+    gap: 5px;
+  }
+  .gm-dock-next {
+    min-height: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+  .gm-turn-chip {
+    min-width: 50px;
+    max-width: 92px;
+    height: 32px;
+    padding: 4px 7px;
+  }
+  .gm-turn-chip span {
+    font-size: 10px;
   }
 }

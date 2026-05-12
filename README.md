@@ -1,26 +1,31 @@
-# Польовий Модуль — V19.11.1 GM Combat Fixed Bar Fix
+# Польовий Модуль — V19.11.2 GM Combat Docked Bar Polish
 
-Фікс після V19.11.
-
-## Що було не так
-
-У V19.11 бойова панель була зроблена як `position: sticky` і розміщена внизу HTML-документа. Через це вона могла не бути видимою на першому екрані й з’являтися лише після скролу.
+Фікс-поліш після V19.11.1.
 
 ## Що виправлено
 
-Панель Майстра тепер:
+Панель бою Майстра більше не виглядає як велика окрема картка посеред екрана.
 
-- `position: fixed`;
-- постійно знаходиться над нижньою навігацією;
-- створюється через `app.js`, якщо її немає в HTML;
-- показується тільки для `role=gm`;
-- приховується для `role=player`.
+Тепер це компактна docked-панель:
+
+- прикріплена до нижньої навігації;
+- виглядає як додатковий тонкий ряд керування;
+- займає менше висоти;
+- містить кнопку наступного ходу;
+- містить активного учасника;
+- містить компактну горизонтальну чергу.
+
+## Що вже працювало і лишилося
+
+- для гравця панель не показується;
+- тап по учаснику робить його активним;
+- кнопка запускає початок/наступний хід.
 
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19111">
-<script src="./app.js?v=19111"></script>
+<link rel="stylesheet" href="./styles.css?v=19112">
+<script src="./app.js?v=19112"></script>
 ```
 
 ## Файли для GitHub
@@ -36,7 +41,7 @@
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19111&gmKey=zona-master&v=19111`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19112&gmKey=zona-master&v=19112`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19111&player=fox&v=19111`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19112&player=fox&v=19112`
