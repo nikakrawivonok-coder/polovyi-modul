@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.11.7 Combat Feedback Visibility Fix
+// Польовий Модуль — V19.11.8 Enemy Weapon Damage Feedback Polish
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -137,9 +137,9 @@ const defaultRoomData = {
     objects: ["іржава вантажівка", "бетонні плити", "розбитий шлагбаум", "вхід у підвал", "кущі праворуч"]
   },
   enemies: [
-    { id: "enemy_auto_1", name: "Автоматник", state: "цілий", color: "green", position: "біля воріт", danger: "дуже висока", action: "готує чергу", visible: true, gm: { hp: 12, hpMax: 12, ammo: 15, morale: "тримається" } },
-    { id: "enemy_shotgun_1", name: "Бандит з обрізом", state: "поранений", color: "orange", position: "за машиною", danger: "висока зблизька", action: "перезаряджається", visible: true, gm: { hp: 5, hpMax: 8, ammo: 2, morale: "нервує" } },
-    { id: "enemy_coward_1", name: "Боягуз", state: "наляканий", color: "yellow", position: "біля паркану", danger: "низька", action: "відступає", visible: true, gm: { hp: 8, hpMax: 8, ammo: 3, morale: "ламається" } }
+    { id: "enemy_auto_1", name: "Автоматник", weapon: "aks74u", state: "цілий", color: "green", position: "біля воріт", danger: "дуже висока", action: "готує чергу", visible: true, gm: { hp: 12, hpMax: 12, ammo: 15, morale: "тримається" } },
+    { id: "enemy_shotgun_1", name: "Бандит з обрізом", weapon: "obrez", state: "поранений", color: "orange", position: "за машиною", danger: "висока зблизька", action: "перезаряджається", visible: true, gm: { hp: 5, hpMax: 8, ammo: 2, morale: "нервує" } },
+    { id: "enemy_coward_1", name: "Боягуз", weapon: "pm", state: "наляканий", color: "yellow", position: "біля паркану", danger: "низька", action: "відступає", visible: true, gm: { hp: 8, hpMax: 8, ammo: 3, morale: "ламається" } }
   ],
   combat: {
     active: false,
@@ -191,10 +191,10 @@ const sceneTemplates = {
 };
 
 const enemyTemplates = {
-  coward: { name: "Боягуз", state: "наляканий", color: "yellow", position: "тримається позаду", danger: "низька", action: "шукає шлях втечі", visible: true, defense: 12, gm: { hp: 8, hpMax: 8, ammo: 3, morale: "ламається" }, tags:["бандит","мораль"] },
-  bandit: { name: "Бандит", state: "цілий", color: "green", position: "за укриттям", danger: "середня", action: "цілиться", visible: true, defense: 12, gm: { hp: 9, hpMax: 9, ammo: 6, morale: "нервує" }, tags:["бандит"] },
-  shotgun: { name: "Бандит з обрізом", state: "цілий", color: "green", position: "близько до проходу", danger: "висока зблизька", action: "чекає зближення", visible: true, defense: 12, gm: { hp: 8, hpMax: 8, ammo: 2, morale: "агресивний" }, tags:["бандит","обріз"] },
-  auto: { name: "Автоматник", state: "цілий", color: "green", position: "на відкритій лінії вогню", danger: "дуже висока", action: "готує чергу", visible: true, defense: 12, gm: { hp: 12, hpMax: 12, ammo: 15, morale: "тримається" }, tags:["бандит","автомат"] },
+  coward: { name: "Боягуз", weapon: "pm", state: "наляканий", color: "yellow", position: "тримається позаду", danger: "низька", action: "шукає шлях втечі", visible: true, defense: 12, gm: { hp: 8, hpMax: 8, ammo: 3, morale: "ламається" }, tags:["бандит","мораль"] },
+  bandit: { name: "Бандит", weapon: "pm", state: "цілий", color: "green", position: "за укриттям", danger: "середня", action: "цілиться", visible: true, defense: 12, gm: { hp: 9, hpMax: 9, ammo: 6, morale: "нервує" }, tags:["бандит"] },
+  shotgun: { name: "Бандит з обрізом", weapon: "obrez", state: "цілий", color: "green", position: "близько до проходу", danger: "висока зблизька", action: "чекає зближення", visible: true, defense: 12, gm: { hp: 8, hpMax: 8, ammo: 2, morale: "агресивний" }, tags:["бандит","обріз"] },
+  auto: { name: "Автоматник", weapon: "aks74u", state: "цілий", color: "green", position: "на відкритій лінії вогню", danger: "дуже висока", action: "готує чергу", visible: true, defense: 12, gm: { hp: 12, hpMax: 12, ammo: 15, morale: "тримається" }, tags:["бандит","автомат"] },
   leader: { name: "Ватажок", state: "цілий", color: "green", position: "біля центру групи", danger: "висока", action: "кричить накази", visible: true, defense: 12, gm: { hp: 14, hpMax: 14, ammo: 8, morale: "контролює інших" }, tags:["бандит","лідер"] },
   ambusher: { name: "Засадник", state: "цілий", color: "green", position: "у тіні збоку", danger: "середня, якщо його не помітили", action: "чекає нагоди для першого пострілу", visible: true, defense: 13, gm: { hp: 8, hpMax: 8, ammo: 5, morale: "терплячий" }, tags:["бандит","засідка"] },
   finisher: { name: "Добивач", state: "цілий", color: "green", position: "шукає поранених", danger: "висока для слабких цілей", action: "тисне на найслабшого", visible: true, defense: 12, gm: { hp: 9, hpMax: 9, ammo: 5, morale: "жорстокий" }, tags:["бандит","тиск"] },
@@ -1150,6 +1150,35 @@ function applyFierceEnemyDebuff(enemy, rolls, hits){
   return criticalFail;
 }
 
+
+function enemyWeaponKey(enemy){
+  const raw = `${enemy?.weapon || ""} ${enemy?.gm?.weapon || ""} ${enemy?.name || ""} ${(enemy?.tags || []).join(" ")}`.toLowerCase();
+
+  if(raw.includes("обріз") || raw.includes("shotgun")) return "obrez";
+  if(raw.includes("двоствол")) return "doublebarrel";
+  if(raw.includes("акс") || raw.includes("аксу") || raw.includes("ак-74") || raw.includes("автомат") || raw.includes("auto")) return "aks74u";
+  if(raw.includes("пм") || raw.includes("пістолет") || raw.includes("bandit") || raw.includes("бандит") || raw.includes("боягуз")) return "pm";
+
+  return "pm";
+}
+
+function enemyWeaponPseudoPlayer(enemy){
+  const key = enemyWeaponKey(enemy);
+  return {
+    weapon: key,
+    range: enemy?.range || enemy?.gm?.range || (key === "obrez" ? "near" : "far"),
+    weaponCondition: enemy?.weaponCondition || enemy?.gm?.weaponCondition || "normal",
+    weaponJammed: false
+  };
+}
+
+function rollEnemyWeaponDamage(enemy, hits){
+  const pseudo = enemyWeaponPseudoPlayer(enemy);
+  const dmg = rollWeaponDamage(pseudo, Math.max(1, Number(hits || 1)), 0);
+  const weapon = weaponInfo(pseudo);
+  return { ...dmg, weaponName: weapon.name };
+}
+
 function attackModeConfig(mode, enemy){
   const mutant = enemyIsMutant(enemy);
   if(mutant){
@@ -1211,9 +1240,14 @@ function enemyAttack(enemyId, mode){
     rawDamage = resolved.damage;
     notes = resolved.notes || [];
     damageFormula = resolved.formulaText || "";
+  } else if(hits){
+    const resolved = rollEnemyWeaponDamage(enemy, hits);
+    rawDamage = resolved.total;
+    damageFormula = resolved.formula;
+    notes.push(`зброя: ${resolved.weaponName}; кубики шкоди: ${resolved.rolls.join(", ")}`);
   } else {
-    rawDamage = hits * cfg.damage;
-    damageFormula = hits ? `${hits}×${cfg.damage}` : "";
+    rawDamage = 0;
+    damageFormula = "";
   }
 
   const armor = Number(target.armor || 0);
@@ -1259,7 +1293,7 @@ function enemyAttack(enemyId, mode){
     notes.length ? `Ефекти: ${notes.join("; ")}.` : ""
   ].filter(Boolean));
 
-  showToast(toastHtml, true, 6000);
+  showToast(toastHtml, true, 8000);
 
   render();
 }
@@ -1562,7 +1596,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19117`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19118`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2227,7 +2261,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19117`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19118`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2441,7 +2475,7 @@ function showRollToast(title, dice, totals, attrName="", attrMod=0, extra=""){
   const cls = attrMod > 0 ? "mod-pos" : attrMod < 0 ? "mod-neg" : "mod-zero";
   const sign = attrMod > 0 ? "+" : "";
   const attrLine = attrName ? `<br><span>${escapeHtml(attrName)}: <b class="${cls}">${sign}${attrMod}</b></span>` : "";
-  showToast(`<div class="toast-roll"><strong>${escapeHtml(title)}</strong><br>🎲 ${escapeHtml(dice.join(" · "))}<br>Результат: ${escapeHtml(totals.join(" · "))}${attrLine}${extra ? `<br>${extra}` : ""}</div>`, true, 6000);
+  showToast(`<div class="toast-roll"><strong>${escapeHtml(title)}</strong><br>🎲 ${escapeHtml(dice.join(" · "))}<br>Результат: ${escapeHtml(totals.join(" · "))}${attrLine}${extra ? `<br>${extra}` : ""}</div>`, true, 8000);
 }
 
 const ENEMY_EFFECT_LABELS = {
