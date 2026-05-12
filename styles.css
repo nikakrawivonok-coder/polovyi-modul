@@ -1,4 +1,4 @@
-/* Польовий Модуль — V19.11.3 Combat Bar Actor Target Separation
+/* Польовий Модуль — V19.11.4 Actor Target Combat Routing Fix
    Extracted from Stable V18.12.1. Functional behavior should match V18.12.1. */
 
 :root{
@@ -963,7 +963,7 @@ body.sync-online #syncLabel::before{
   word-break:break-all;
 }
 
-/* === V19.11.3 Combat Bar Actor Target Separation === */
+/* === V19.11.4 Actor Target Combat Routing Fix === */
 .gm-combat-sticky {
   position: sticky;
   bottom: 76px;
@@ -1087,7 +1087,7 @@ body.role-player .gm-combat-sticky {
   }
 }
 
-/* === V19.11.3 Combat Bar Actor Target Separation === */
+/* === V19.11.4 Actor Target Combat Routing Fix === */
 .gm-combat-sticky {
   position: fixed !important;
   left: 8px;
@@ -1219,7 +1219,7 @@ body.role-player .gm-combat-sticky {
   }
 }
 
-/* === V19.11.3 Combat Bar Actor Target Separation === */
+/* === V19.11.4 Actor Target Combat Routing Fix === */
 .gm-combat-sticky {
   position: fixed !important;
   left: 8px;
@@ -1360,12 +1360,12 @@ body.role-player .gm-combat-sticky {
   }
 }
 
-/* === V19.11.3 Combat Bar Actor Target Separation === */
+/* === V19.11.4 Actor Target Combat Routing Fix === */
 .gm-combat-sticky {
   position: fixed !important;
   left: 8px;
   right: 8px;
-  bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
   z-index: 88;
   margin: 0;
   padding: 6px;
@@ -1511,7 +1511,7 @@ body.role-player .gm-combat-sticky {
   padding: 7px;
 }
 body.role-gm {
-  padding-bottom: 142px;
+  padding-bottom: 132px;
 }
 body.role-player {
   padding-bottom: 0;
@@ -1523,7 +1523,7 @@ body.role-player .gm-combat-sticky {
   .gm-combat-sticky {
     left: 5px;
     right: 5px;
-    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
     padding: 5px;
   }
   .gm-dock-main.two-row {

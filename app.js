@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.11.3 Combat Bar Actor Target Separation
+// Польовий Модуль — V19.11.4 Actor Target Combat Routing Fix
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -886,7 +886,7 @@ function getCombatants(){
     state: `${data.players[pid].hp}/${data.players[pid].hpMax} HP`
   }));
 
-  const enemyCombatants = (data.enemies || []).filter(e => e.visible !== false).map(e => ({
+  const enemyCombatants = (data.enemies || []).filter(e => e.visible !== false && e.state !== "вибув").map(e => ({
     id: `enemy:${e.id}`,
     type: "enemy",
     ref: e.id,
@@ -1541,7 +1541,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19113`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19114`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2206,7 +2206,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19113`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19114`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2515,6 +2515,103 @@ function applyPlayerHitsToEnemy(enemy, hits, damageAmount){
 }
 
 
+
+function currentCombatActorForAction(){
+  if(appSession.role === "gm" && data.combat?.active){
+    const active = activeCombatant();
+    if(active) return active;
+  }
+  return { id:`player:${currentPlayerId()}`, type:"player", ref:currentPlayerId(), name:currentPlayer().name || currentPlayerId() };
+}
+
+function currentCombatTargetForAction(){
+  const target = combatantById(combatTargetId());
+  if(target) return target;
+
+  const enemy = selectedTargetEnemy();
+  if(enemy) return { id:`enemy:${enemy.id}`, type:"enemy", ref:enemy.id, name:enemy.name, state:enemy.state || "цілий" };
+
+  return null;
+}
+
+function actionToEnemyAttackMode(action){
+  if(action === "shoot_aimed") return "aimed";
+  if(action === "shoot_normal") return "normal";
+  if(action === "shoot_burst") return "burst";
+  return "normal";
+}
+
+function isDefeatedCombatant(c){
+  if(!c) return true;
+  if(c.type === "enemy"){
+    const e = findEnemyById(c.ref);
+    return !e || e.state === "вибув" || Number(e.gm?.hp ?? 1) <= 0;
+  }
+  if(c.type === "player"){
+    const p = data.players?.[c.ref];
+    return !p || Number(p.hp ?? 1) <= 0;
+  }
+  return false;
+}
+
+function routeAttackByActorTarget(action){
+  const actor = currentCombatActorForAction();
+  const target = currentCombatTargetForAction();
+
+  if(!actor || !target){
+    showToast("Немає активного ходу або цілі.");
+    addLog("Постріл не виконано: немає активного ходу або цілі.", "gm");
+    return { routed:true };
+  }
+
+  if(isDefeatedCombatant(actor)){
+    showToast("Цей учасник вибув і не може діяти.", false, 4000);
+    addLog(`${actor.name}: дія заблокована — учасник вибув.`, "gm");
+    return { routed:true };
+  }
+
+  if(isDefeatedCombatant(target)){
+    showToast("Ціль уже вибула.", false, 4000);
+    addLog(`${actor.name}: дія заблокована — ціль ${target.name} уже вибула.`, "gm");
+    return { routed:true };
+  }
+
+  if(actor.id === target.id){
+    showToast("Учасник не може атакувати сам себе.", false, 4000);
+    addLog(`${actor.name}: постріл у самого себе заблоковано.`, "gm");
+    return { routed:true };
+  }
+
+  if(actor.type === "enemy"){
+    if(target.type !== "player"){
+      showToast("Ворог → ворог ще не підключено. Це буде окрема логіка дружнього вогню.", false, 4500);
+      addLog(`${actor.name}: атака по ${target.name} заблокована — дружній вогонь ворогів ще не підключено.`, "gm");
+      return { routed:true };
+    }
+
+    data.combat = data.combat || {};
+    data.combat.enemyTargetPlayerId = target.ref;
+    enemyAttack(actor.ref, actionToEnemyAttackMode(action));
+    return { routed:true };
+  }
+
+  if(actor.type === "player"){
+    if(target.type !== "enemy"){
+      showToast("Гравець → гравець ще не підключено. Поки заблоковано, щоб не ламати PvP.", false, 4500);
+      addLog(`${actor.name}: атака по ${target.name} заблокована — PvP ще не підключено.`, "gm");
+      return { routed:true };
+    }
+
+    data.meta = data.meta || {};
+    data.meta.activePlayerId = actor.ref;
+    data.combat = data.combat || {};
+    data.combat.targetEnemyId = target.ref;
+    return { routed:false, playerId: actor.ref, enemyId: target.ref };
+  }
+
+  return { routed:false };
+}
+
 function doAction(action){
   if(!isCurrentPlayerTurn()){
     const msg = turnLockMessage();
@@ -2523,7 +2620,7 @@ function doAction(action){
     return;
   }
 
-  const p = currentPlayer();
+  let p = currentPlayer();
   let count = 1, baseMod = 0, cost = 0, title = "", extra = "", attrKey = "", damagePerHit = 1, isAttack = false;
 
   if(action === "shoot_aimed"){ count = 1; baseMod = 2; cost = 1; title = "Точний постріл"; extra = "1 набій, +2 до точності."; attrKey = "accuracy"; isAttack = true; }
@@ -2539,6 +2636,13 @@ function doAction(action){
   if(action === "clear_jam"){ title = "Усунути клин"; extra = "1d20 + Вправність. 10+ — клин усунуто."; attrKey = "agility"; }
 
   if(!title) return;
+
+  let routedAttack = null;
+  if(isAttack){
+    routedAttack = routeAttackByActorTarget(action);
+    if(routedAttack?.routed) return;
+    if(routedAttack?.playerId) p = playerById(routedAttack.playerId);
+  }
 
   if(action === "clear_jam"){
     const attrModClear = attrValue(p, "agility");
@@ -2574,7 +2678,8 @@ function doAction(action){
   let targetText = "";
   let hitText = "";
   if(isAttack){
-    const enemy = selectedTargetEnemy();
+    const targetCombatant = currentCombatTargetForAction();
+    const enemy = targetCombatant?.type === "enemy" ? findEnemyById(targetCombatant.ref) : selectedTargetEnemy();
     if(!enemy){
       showToast("Немає видимої цілі для пострілу.");
       addLog(`${p.name}: ${title}. Постріл не виконано — немає видимої цілі.`, "public");
