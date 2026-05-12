@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.10.2 Journal Quick Notes
+// Польовий Модуль — V19.10.3 Journal Dynamic Fix
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1336,7 +1336,7 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 function playerSpecificUrl(pid){
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19102`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19103`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1767,6 +1767,7 @@ function render(){
   const inlineInv = qs("#inventoryInlineList");
   if(inlineInv) inlineInv.innerHTML = currentInventory().map(invItem).join("");
   renderTargetSelector();
+  ensureJournalComposer();
   renderJournalPrivateTargets();
   qs("#journalList").innerHTML = (data.journal || []).filter(j => {
     if(appSession.role !== "gm"){
@@ -1792,6 +1793,33 @@ function render(){
   restoreFocusState(focusState);
 }
 
+
+
+function ensureJournalComposer(){
+  if(appSession.role !== "gm") return;
+  if(qs("#journalQuickText")) return;
+
+  const journalScreen = qs('[data-screen="journal"]');
+  const controls = qs(".journal-controls");
+  if(!journalScreen || !controls) return;
+
+  const box = document.createElement("div");
+  box.className = "journal-compose gm-only";
+  box.innerHTML = `
+    <label>Швидкий запис Майстра
+      <textarea id="journalQuickText" rows="3" placeholder="Напиши подію, підказку, шум, наслідок або приватну нотатку..."></textarea>
+    </label>
+    <div class="journal-compose-grid">
+      <button class="metal-btn" id="journalPostPublic" type="button">Написати всім</button>
+      <button class="metal-btn" id="journalPostGm" type="button">Тільки Майстру</button>
+    </div>
+    <div class="journal-compose-private">
+      <select id="journalPrivateTarget"></select>
+      <button class="metal-btn" id="journalPostPrivate" type="button">Приватно гравцю</button>
+    </div>
+  `;
+  controls.parentNode.insertBefore(box, controls);
+}
 
 function renderJournalPrivateTargets(){
   const sel = qs("#journalPrivateTarget");
@@ -1971,7 +1999,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19102`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19103`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2584,7 +2612,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
-    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19102`;
+    const url = playerSpecificUrl ? playerSpecificUrl(pid) : `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19103`;
     navigator.clipboard?.writeText(url);
     showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
     return;
@@ -2688,7 +2716,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   const copyPlayer = e.target.closest("[data-copy-player-link]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
-    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19102`;
+    const url = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19103`;
     navigator.clipboard?.writeText(url);
     showToast("Посилання гравця скопійовано.");
   }
