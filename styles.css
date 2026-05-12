@@ -1,4 +1,4 @@
-/* Польовий Модуль — V19.10.6 Player Link Copy Full Audit
+/* Польовий Модуль — V19.11 GM Combat Sticky Bar MVP
    Extracted from Stable V18.12.1. Functional behavior should match V18.12.1. */
 
 :root{
@@ -963,30 +963,126 @@ body.sync-online #syncLabel::before{
   word-break:break-all;
 }
 
-
-/* === V19.10.6 Player Link Copy Full Audit === */
-.collapsible-player-editor .compact-editor-section,
-.pm-collapse-section{margin:7px 0!important;padding:0!important;overflow:hidden!important;border:1px solid rgba(240,195,106,.22)!important;border-radius:10px!important;background:rgba(0,0,0,.16)!important}
-.pm-collapse-head{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;cursor:pointer;background:linear-gradient(180deg,#24170d,#100a06);color:#f0d49c;user-select:none}
-.pm-collapse-section.is-open .pm-collapse-head{background:linear-gradient(180deg,#2b1b0f,#120b06);border-bottom:1px solid rgba(240,195,106,.18)}
-.pm-collapse-main{display:flex;align-items:center;gap:7px;min-width:0}.pm-collapse-main strong{font-size:16px;line-height:1.05;white-space:nowrap}.pm-collapse-arrow{color:#f0d49c;font-weight:900;width:18px;display:inline-block}
-.pm-collapse-head small{color:#c9ad76;font-size:11px;font-weight:800;line-height:1.15;text-align:right}.pm-collapse-body{padding:8px}.pm-collapse-body[hidden]{display:none!important}
-.compact-section-header,.compact-section-header.open{display:none!important}.collapsible-player-editor .compact-editor-title{display:none!important}
-@media(max-width:390px){.pm-collapse-head{align-items:flex-start;flex-direction:column}.pm-collapse-head small{text-align:left}}
-
-
-/* === V19.10.6 Player Link Copy Full Audit === */
-body.role-player .gm-only,
-body.role-player [data-screen="master"],
-body.role-player .nav-btn[data-target="master"]{
-  display:none !important;
+/* === V19.11 GM Combat Sticky Bar MVP === */
+.gm-combat-sticky {
+  position: sticky;
+  bottom: 76px;
+  z-index: 45;
+  margin: 8px 8px 6px;
+  padding: 8px;
+  border: 1px solid rgba(240,195,106,.34);
+  border-radius: 14px;
+  background: linear-gradient(180deg,rgba(35,22,13,.98),rgba(11,8,6,.98));
+  box-shadow: 0 -6px 18px rgba(0,0,0,.38);
+  backdrop-filter: blur(8px);
 }
-body.role-player .bottom-nav{
-  grid-template-columns:repeat(4,1fr) !important;
+.gm-sticky-top {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
 }
-.player-link-row code{
-  display:block;
-  white-space:normal;
-  overflow-wrap:anywhere;
-  word-break:break-word;
+.gm-sticky-status {
+  min-width: 0;
+}
+.gm-sticky-label {
+  display: block;
+  color: #bfa36d;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  font-weight: 900;
+}
+.gm-sticky-status strong {
+  display: block;
+  color: #f0d49c;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-sticky-status small {
+  display: block;
+  color: #b9a77e;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-sticky-btn {
+  min-height: 38px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+.gm-sticky-order {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 7px 0 1px;
+  scrollbar-width: thin;
+}
+.gm-turn-chip {
+  flex: 0 0 auto;
+  min-width: 72px;
+  max-width: 132px;
+  padding: 6px 8px;
+  border: 1px solid rgba(240,195,106,.24);
+  border-radius: 999px;
+  background: rgba(0,0,0,.24);
+  color: #dec58d;
+  text-align: left;
+  cursor: pointer;
+}
+.gm-turn-chip span {
+  display: block;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-turn-chip small {
+  display: block;
+  font-size: 9px;
+  opacity: .75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-turn-chip.active {
+  border-color: #f0b441;
+  background: linear-gradient(180deg,#5b3516,#24150b);
+  color: #fff0bd;
+  box-shadow: 0 0 0 1px rgba(240,180,65,.18), 0 0 12px rgba(240,180,65,.18);
+}
+.gm-turn-chip.player {
+  border-color: rgba(141,198,255,.28);
+}
+.gm-turn-chip.enemy {
+  border-color: rgba(255,126,86,.28);
+}
+.gm-turn-empty {
+  color: #9f8558;
+  font-size: 12px;
+  padding: 7px;
+}
+body.role-player .gm-combat-sticky {
+  display: none !important;
+}
+@media(max-width:390px) {
+  .gm-combat-sticky {
+    bottom: 68px;
+    margin-left: 5px;
+    margin-right: 5px;
+    padding: 7px;
+  }
+  .gm-sticky-top {
+    grid-template-columns: 1fr;
+  }
+  .gm-sticky-actions {
+    display: grid;
+  }
+  .gm-sticky-btn {
+    width: 100%;
+  }
 }

@@ -1,32 +1,30 @@
-# Польовий Модуль — V19.10.6 Player Link Copy Full Audit
+# Польовий Модуль — V19.11 GM Combat Sticky Bar MVP
 
-Контрольна версія після V19.10.5.
+Версія на основі стабільної V19.10.6.
 
-## Що перевірено й виправлено
+## Головна зміна
 
-Усі player-link кнопки мають працювати через один шлях:
+Додано тонку sticky-панель бою тільки для Майстра, щоб зменшити скрол під час живої сцени.
 
-```text
-playerSpecificUrl(pid) → copyTextToClipboard(url)
-```
+## Що є в MVP
 
-Додатково виправлено стару кнопку:
+- показ активного учасника;
+- показ раунду;
+- кнопка `Наступний хід` / `Почати бій`;
+- компактна горизонтальна черга учасників;
+- тап по учаснику в черзі робить його активним;
+- якщо обрано гравця — він стає активним гравцем Майстра;
+- якщо обрано ворога — він стає активною ціллю/ворогом.
 
-- `Скопіювати посилання поточного Гравця`
+## Що не змінювалося
 
-Вона теж тепер використовує `copyTextToClipboard()` і `playerSpecificUrl(pid)`.
-
-## Формат player-посилання
-
-```text
-?role=player&room=ROOM&player=PLAYER_ID&v=19106
-```
+Не змінювалися бойова математика, атаки ворогів, журнал, player-посилання, Firebase-архітектура, шаблони ворогів та інтерфейс гравця.
 
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19106">
-<script src="./app.js?v=19106"></script>
+<link rel="stylesheet" href="./styles.css?v=1911">
+<script src="./app.js?v=1911"></script>
 ```
 
 ## Файли для GitHub
@@ -42,7 +40,7 @@ playerSpecificUrl(pid) → copyTextToClipboard(url)
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19106&gmKey=zona-master&v=19106`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test1911&gmKey=zona-master&v=1911`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19106&player=fox&v=19106`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test1911&player=fox&v=1911`

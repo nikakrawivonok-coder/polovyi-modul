@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.10.6 Player Link Copy Full Audit
+// Польовий Модуль — V19.11 GM Combat Sticky Bar MVP
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1242,6 +1242,71 @@ function enemyAttack(enemyId, mode){
   render();
 }
 
+
+function setActiveCombatantById(combatantId){
+  data.combat = data.combat || {};
+  const combatants = getCombatants();
+  const order = combatants.map(c => c.id);
+  if(!order.length) return;
+
+  data.combat.turnOrder = order;
+  const idx = order.indexOf(combatantId);
+  if(idx < 0) return;
+
+  data.combat.turnIndex = idx;
+  const active = activeCombatant();
+
+  if(active?.type === "player"){
+    data.meta = data.meta || {};
+    data.meta.activePlayerId = active.ref;
+  }
+
+  if(active?.type === "enemy"){
+    data.combat.targetEnemyId = active.ref;
+  }
+
+  data.combat.lastEvent = active ? `Активний хід: ${active.name}.` : "Активний учасник змінений.";
+  addLog(active ? `Майстер обрав активний хід: ${active.name}.` : "Майстер змінив активний хід.", "gm");
+  render();
+}
+
+function renderGmCombatStickyBar(){
+  const bar = qs("#gmCombatStickyBar");
+  if(!bar) return;
+
+  if(appSession.role !== "gm"){
+    bar.hidden = true;
+    bar.innerHTML = "";
+    return;
+  }
+
+  const combat = data.combat || {};
+  const combatants = getCombatants();
+  const active = activeCombatant();
+  const activeId = active?.id || "";
+  const round = combat.active ? Number(combat.round || 1) : 0;
+
+  bar.hidden = false;
+  bar.innerHTML = `
+    <div class="gm-sticky-top">
+      <div class="gm-sticky-status">
+        <span class="gm-sticky-label">${combat.active ? `Раунд ${escapeHtml(String(round))}` : "Бій не активний"}</span>
+        <strong>${active ? escapeHtml(active.name) : "Немає активного"}</strong>
+        <small>${active ? escapeHtml(active.type === "player" ? "гравець" : "ворог") + " · " + escapeHtml(active.state || "") : "Натисни “Почати / Наступний”"}</small>
+      </div>
+      <div class="gm-sticky-actions">
+        <button class="metal-btn gm-sticky-btn" id="gmStickyNextTurn" type="button">${combat.active ? "Наступний хід" : "Почати бій"}</button>
+      </div>
+    </div>
+    <div class="gm-sticky-order">
+      ${combatants.map(c => `<button type="button" class="gm-turn-chip ${activeId === c.id ? "active" : ""} ${c.type}" data-sticky-combatant="${escapeAttr(c.id)}">
+        <span>${escapeHtml(c.name)}</span>
+        <small>${escapeHtml(c.state || "")}</small>
+      </button>`).join("") || `<span class="gm-turn-empty">Учасників немає</span>`}
+    </div>
+  `;
+}
+
 function renderCombatSummary(){
   const target = qs("#combatSummary");
   if(!target) return;
@@ -1413,7 +1478,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19106`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=1911`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1860,6 +1925,7 @@ function render(){
   qsa("[data-journal-filter]").forEach(btn => btn.classList.toggle("active-filter", btn.dataset.journalFilter === journalFilter));
 
   renderCombatSummary();
+  renderGmCombatStickyBar();
   renderGmCombatPanel();
   fillMaster();
   renderGmQuickPanel();
@@ -2077,7 +2143,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19106`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1911`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2536,6 +2602,19 @@ function randomModuleWarning(){
 }
 
 document.addEventListener("click", e => {
+
+  if(e.target.closest("#gmStickyNextTurn")){
+    nextTurn();
+    return;
+  }
+
+  const stickyCombatant = e.target.closest("[data-sticky-combatant]");
+  if(stickyCombatant){
+    setActiveCombatantById(stickyCombatant.dataset.stickyCombatant);
+    return;
+  }
+
+
   const copySpecificPlayer = e.target.closest("[data-copy-player-specific]");
   if(copySpecificPlayer){
     const pid = copySpecificPlayer.dataset.copyPlayerSpecific;
