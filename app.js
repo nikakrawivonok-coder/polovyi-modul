@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.11.13 Combat Feedback Real Path Fix
+// Польовий Модуль — V19.11.14 Static Shot Result Exact Format
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1305,17 +1305,24 @@ function enemyAttack(enemyId, mode){
     ? `Влучань: ${hits}, шкода: ${totalDamage}${damageFormula ? " · " + damageFormula : ""}${crits ? " · КРИТ" : ""} · ${targetName} HP ${target.hp}/${target.hpMax}${!mutant ? " · Набої: " + enemy.gm.ammo : ""}`
     : `Промах${!mutant ? " · Набої: " + enemy.gm.ammo : ""}`;
 
-  setStaticRollResult(`${enemy.name}: ${cfg.label} → ${targetName}`, [
-    `🎲 ${mainDie}`,
-    `Кидки атаки: ${rollText}`,
-    `Ціль: ${targetNumber}. Влучань: ${hits}${crits ? `, крит: +${crits} кубик шкоди` : ""}.`,
-    damageLine,
-    damageDiceLine,
-    !mutant && damageDetails ? `Зброя: ${damageDetails.weaponName}. Дистанція: ${damageDetails.rangeText}. Стан: ${damageDetails.conditionName}.` : "",
-    `${targetName}: HP ${target.hp}/${target.hpMax}.`,
-    mutant ? "Набої: не витрачаються." : `Набої стрільця: ${enemy.gm.ammo}.`,
-    notes.length ? `Ефекти: ${notes.join("; ")}.` : ""
-  ].filter(Boolean));
+  const enemyDamageDice = damageDetails?.formula?.match(/d\d+/)?.[0] || "";
+  setStaticRollResult(`${enemy.name}: ${cfg.label} → ${targetName}`, staticShotResultLines({
+    actorName: enemy.name,
+    actionTitle: cfg.label,
+    targetName,
+    attackDie: rolls.join(" · "),
+    attackBonus: cfg.mod,
+    targetDefense: targetNumber,
+    isHit: hits > 0,
+    damage: totalDamage,
+    weaponName: damageDetails?.weaponName || "атака",
+    rangeText: damageDetails?.rangeText || "",
+    damageFormula: enemyDamageDice,
+    targetHp: target.hp,
+    targetHpMax: target.hpMax,
+    shooterName: enemy.name,
+    shooterAmmo: mutant ? "не витрачаються" : enemy.gm.ammo
+  }));
 
   showRollToast(`${enemy.name}: ${cfg.label} → ${targetName}`, rolls, totals, "", 0, popupExtra);
 
@@ -1620,7 +1627,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19123`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19124`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2285,7 +2292,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19123`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19124`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2775,29 +2782,26 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
 
   const weapon = weaponInfo(p);
   const rangeText = weaponRange(p) === "near" ? "зблизька" : "здалека";
-  const condition = weaponConditionInfo(p);
-  const mainDie = r.dice.length === 1 ? String(r.dice[0]) : r.dice.join(" · ");
-  const playerDamageDiceLine = hits && damageRoll
-    ? `🎲 Шкода зброї: ${damageRoll.rolls.join(", ")}${damageRoll.bonus ? " +" + damageRoll.bonus : ""}${damageRoll.conditionMod ? ` ${damageRoll.conditionMod > 0 ? "+" : ""}${damageRoll.conditionMod} стан` : ""}${crits ? ` · крит +${crits} кубик` : ""}.`
-    : "";
-  setStaticRollResult(`${p.name || playerId}: ${cfg.title} → ${enemy.name}`, [
-    cfg.extra,
-    `🎲 ${mainDie}`,
-    `Кидок атаки: ${rollText}`,
-    `Підсумок: ${r.totals.join(" · ")}`,
-    `${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}`,
-    `Ціль: ${enemy.name}. Захист цілі: ${threshold}.`,
-    hits ? `Влучань: ${hits}. Шкода: ${damage}. Формула: ${damageRoll.formula}.` : "Промах.",
-    playerDamageDiceLine,
-    `Зброя: ${weapon.name}. Дистанція: ${rangeText}. Стан: ${condition.name}.`,
-    `HP цілі: ${enemy.gm.hp}/${enemy.gm.hpMax}.`,
-    enemy.lastReactions?.length ? `Реакція ворога: ${enemy.lastReactions.join(", ")}.` : "",
-    enemyEffects(enemy).length ? `Ефекти ворога: ${enemyEffectsText(enemy)}.` : "",
-    critMiss ? "Критичний промах: Майстер може ускладнити ситуацію." : "",
-    jammedNow ? "Зброю заклинило." : "",
-    enemy.state === "вибув" ? "Ціль вибула." : "",
-    `Набої стрільця: ${p.ammo}.`
-  ].filter(Boolean));
+  const damageDice = damageRoll?.formula?.match(/d\d+/)?.[0] || weapon.damage || "";
+  setStaticRollResult(`${p.name || playerId}: ${cfg.title} → ${enemy.name}`, staticShotResultLines({
+    actorName: p.name || playerId,
+    actionTitle: cfg.title,
+    targetName: enemy.name,
+    attackDie: r.dice.join(" · "),
+    attackBonus: cfg.baseMod,
+    targetDefense: threshold,
+    isHit: hits > 0,
+    damage,
+    weaponName: weapon.name,
+    rangeText,
+    damageFormula: damageDice,
+    targetHp: enemy.gm.hp,
+    targetHpMax: enemy.gm.hpMax,
+    shooterName: p.name || playerId,
+    shooterAmmo: p.ammo,
+    reactionText: enemy.lastReactions?.join(", ") || "",
+    effectText: enemyEffects(enemy).length ? enemyEffectsText(enemy) : ""
+  }));
 
   addLog(`${p.name || playerId}: ${cfg.title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}.${targetText}${hitText}. Набої: ${p.ammo}.`, "public");
   render();
@@ -3008,6 +3012,43 @@ function doAction(action){
   triggerFlicker();
 }
 
+
+
+function staticShotResultLines({
+  actorName,
+  actionTitle,
+  targetName,
+  attackDie,
+  attackBonus,
+  targetDefense,
+  isHit,
+  damage,
+  weaponName,
+  rangeText,
+  damageFormula,
+  targetHp,
+  targetHpMax,
+  shooterName,
+  shooterAmmo,
+  reactionText="",
+  effectText=""
+}){
+  const quotedTarget = `“${targetName}”`;
+  const quotedShooter = `“${shooterName || actorName}”`;
+  const accuracyPart = attackBonus ? ` (${attackBonus > 0 ? "+" : ""}${attackBonus} від точності пострілу)` : "";
+  const damageFormulaText = damageFormula ? `1${damageFormula}`.replace(/^11d/, "1d") : "";
+  const formulaDisplay = damageFormulaText ? `${weaponName} · ${rangeText} · ${damageFormulaText}` : `${weaponName} · ${rangeText}`;
+  const lines = [
+    `🎲 ${attackDie}${accuracyPart}`,
+    `Захист цілі: ${quotedTarget} ${targetDefense} ${isHit ? "пробитий" : "не пробитий"}`,
+    isHit ? `Шкода зброї: ${damage} (${formulaDisplay})` : `Шкода зброї: 0 (${formulaDisplay})`,
+    `${quotedTarget} тепер має ${targetHp}/${targetHpMax} HP.`,
+    `У ${quotedShooter} лишилось набоїв: ${shooterAmmo}.`
+  ];
+  if(reactionText) lines.push(`Реакція ворога: ${reactionText}.`);
+  if(effectText) lines.push(`Ефекти ворога: ${effectText}.`);
+  return lines;
+}
 
 function setStaticRollResult(title, lines){
   const result = qs("#rollResult");
