@@ -1,52 +1,32 @@
-# Польовий Модуль — V19.10.3 Journal Dynamic Fix
+# Польовий Модуль — V19.10.4 Player Links Access Fix
 
-Версія виправляє ситуацію, коли у вкладці **Журнал** не з’явився блок швидкого запису Майстра.
+Версія виправляє проблеми з посиланнями на окремих гравців і доступом у режимі гравця.
 
-## Причина
+## Що виправлено
 
-У V19.10.2 блок був доданий у `index.html`. Якщо GitHub/Telegram/Safari показує стару HTML-розмітку або якщо на GitHub не було замінено `index.html`, кнопки не з’являються, навіть якщо логіка в `app.js` уже є.
+- Усі посилання на гравців формуються через одну функцію:
+  `?role=player&room=ROOM&player=PLAYER_ID&v=19104`
+- Player-link більше не містить `role=gm` або `gmKey=zona-master`.
+- Кнопки `Скопіювати: Лис`, `Скопіювати: 1`, `Скопіювати: ...` тепер копіюють відповідний player-link.
+- Для `role=player` додано посилений захист:
+  - вкладка `Майстер` ховається;
+  - екран `Майстер` ховається;
+  - записи журналу `Тільки Майстру` не показуються;
+  - приватні записи показуються тільки адресованому гравцю.
 
-## Виправлення
+## Правильні формати
 
-Тепер блок швидкого запису:
+Посилання Майстра:
+`?role=gm&room=...&gmKey=zona-master&v=19104`
 
-1. Є в `index.html`.
-2. Додатково створюється самим `app.js`, якщо його немає в HTML.
-
-Це страховка від кешу або неповної заміни файлів.
-
-## Функції журналу
-
-Майстер у вкладці `Журнал` може:
-
-- написати всім;
-- написати тільки Майстру;
-- написати приватно конкретному гравцю.
-
-Гравці бачать:
-
-- публічні записи;
-- тільки свої приватні записи.
-
-## Важливо про посилання гравців
-
-Посилання Майстра має формат:
-
-```text
-?role=gm&room=...&gmKey=zona-master&v=...
-```
-
-Посилання гравця має формат:
-
-```text
-?role=player&room=...&player=ID_ГРАВЦЯ&v=...
-```
+Посилання гравця:
+`?role=player&room=...&player=ID_ГРАВЦЯ&v=19104`
 
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19103">
-<script src="./app.js?v=19103"></script>
+<link rel="stylesheet" href="./styles.css?v=19104">
+<script src="./app.js?v=19104"></script>
 ```
 
 ## Файли для GitHub
@@ -62,7 +42,7 @@
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19103&gmKey=zona-master&v=19103`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19104&gmKey=zona-master&v=19104`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19103&player=fox&v=19103`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19104&player=fox&v=19104`
