@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.11.6 GM Combat Action Override
+// Польовий Модуль — V19.11.7 Combat Feedback Visibility Fix
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1249,7 +1249,17 @@ function enemyAttack(enemyId, mode){
   }
 
   const toastHtml = `<div class="toast-roll"><strong>${escapeHtml(enemy.name)}: ${escapeHtml(cfg.label)}</strong><br>🎲 ${escapeHtml(rollText)}<br>Ціль: ${escapeHtml(String(targetNumber))} · Влучань: ${escapeHtml(String(hits))}<br>Шкода: ${escapeHtml(String(totalDamage))} · ${escapeHtml(targetName)} HP ${escapeHtml(String(target.hp))}/${escapeHtml(String(target.hpMax))}${notes.length ? `<br>${escapeHtml(notes.join("; "))}` : ""}</div>`;
-  showToast(toastHtml, true, 8000);
+
+  setStaticRollResult(`${enemy.name}: ${cfg.label} → ${targetName}`, [
+    `Кидки: ${rollText}`,
+    `Ціль: ${targetNumber}. Влучань: ${hits}.`,
+    hits ? `Шкода: ${totalDamage}${damageFormula ? ` (${damageFormula})` : ""}${armor ? `, броня ${armor}` : ""}.` : "Промах.",
+    `${targetName}: HP ${target.hp}/${target.hpMax}.`,
+    mutant ? "Набої: не витрачаються." : `Набої стрільця: ${enemy.gm.ammo}.`,
+    notes.length ? `Ефекти: ${notes.join("; ")}.` : ""
+  ].filter(Boolean));
+
+  showToast(toastHtml, true, 6000);
 
   render();
 }
@@ -1552,7 +1562,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19116`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19117`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2217,7 +2227,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19116`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19117`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2431,7 +2441,7 @@ function showRollToast(title, dice, totals, attrName="", attrMod=0, extra=""){
   const cls = attrMod > 0 ? "mod-pos" : attrMod < 0 ? "mod-neg" : "mod-zero";
   const sign = attrMod > 0 ? "+" : "";
   const attrLine = attrName ? `<br><span>${escapeHtml(attrName)}: <b class="${cls}">${sign}${attrMod}</b></span>` : "";
-  showToast(`<div class="toast-roll"><strong>${escapeHtml(title)}</strong><br>🎲 ${escapeHtml(dice.join(" · "))}<br>Результат: ${escapeHtml(totals.join(" · "))}${attrLine}${extra ? `<br>${extra}` : ""}</div>`, true);
+  showToast(`<div class="toast-roll"><strong>${escapeHtml(title)}</strong><br>🎲 ${escapeHtml(dice.join(" · "))}<br>Результат: ${escapeHtml(totals.join(" · "))}${attrLine}${extra ? `<br>${extra}` : ""}</div>`, true, 6000);
 }
 
 const ENEMY_EFFECT_LABELS = {
@@ -2708,7 +2718,7 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
   const result = qs("#rollResult");
   if(result){
     result.hidden = false;
-    result.innerHTML = `<h4>${escapeHtml(p.name || playerId)}: ${escapeHtml(cfg.title)}</h4>
+    result.innerHTML = `<h4>${escapeHtml(p.name || playerId)}: ${escapeHtml(cfg.title)} → ${escapeHtml(enemy.name)}</h4>
       <div>${escapeHtml(cfg.extra)}</div>
       <div class="roll-dice">🎲 ${r.dice.join(" · ")}</div>
       <div><strong>Кидок:</strong> ${escapeHtml(rollText)}</div>
@@ -2906,6 +2916,14 @@ function doAction(action){
   addLog(`${p.name}: ${title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}${attrKey ? `. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}` : ""}${targetText}${hitText}${cost ? `. Набої: ${p.ammo}` : ""}.`, "public");
   render();
   triggerFlicker();
+}
+
+
+function setStaticRollResult(title, lines){
+  const result = qs("#rollResult");
+  if(!result) return;
+  result.hidden = false;
+  result.innerHTML = `<h4>${escapeHtml(title)}</h4>${(lines || []).map(line => `<div>${escapeHtml(line)}</div>`).join("")}`;
 }
 
 function addLog(text, visibility="public"){
