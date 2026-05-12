@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.11 GM Combat Sticky Bar MVP
+// Польовий Модуль — V19.11.1 GM Combat Fixed Bar Fix
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1243,6 +1243,19 @@ function enemyAttack(enemyId, mode){
 }
 
 
+
+function ensureGmCombatFixedBar(){
+  let bar = qs("#gmCombatStickyBar");
+  if(bar) return bar;
+
+  bar = document.createElement("div");
+  bar.id = "gmCombatStickyBar";
+  bar.className = "gm-combat-sticky gm-only";
+  bar.hidden = true;
+  document.body.appendChild(bar);
+  return bar;
+}
+
 function setActiveCombatantById(combatantId){
   data.combat = data.combat || {};
   const combatants = getCombatants();
@@ -1271,7 +1284,7 @@ function setActiveCombatantById(combatantId){
 }
 
 function renderGmCombatStickyBar(){
-  const bar = qs("#gmCombatStickyBar");
+  const bar = ensureGmCombatFixedBar();
   if(!bar) return;
 
   if(appSession.role !== "gm"){
@@ -1478,7 +1491,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=1911`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19111`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2143,7 +2156,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=1911`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19111`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;

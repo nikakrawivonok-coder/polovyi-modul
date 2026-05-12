@@ -1,4 +1,4 @@
-/* Польовий Модуль — V19.11 GM Combat Sticky Bar MVP
+/* Польовий Модуль — V19.11.1 GM Combat Fixed Bar Fix
    Extracted from Stable V18.12.1. Functional behavior should match V18.12.1. */
 
 :root{
@@ -963,7 +963,7 @@ body.sync-online #syncLabel::before{
   word-break:break-all;
 }
 
-/* === V19.11 GM Combat Sticky Bar MVP === */
+/* === V19.11.1 GM Combat Fixed Bar Fix === */
 .gm-combat-sticky {
   position: sticky;
   bottom: 76px;
@@ -1074,6 +1074,138 @@ body.role-player .gm-combat-sticky {
     bottom: 68px;
     margin-left: 5px;
     margin-right: 5px;
+    padding: 7px;
+  }
+  .gm-sticky-top {
+    grid-template-columns: 1fr;
+  }
+  .gm-sticky-actions {
+    display: grid;
+  }
+  .gm-sticky-btn {
+    width: 100%;
+  }
+}
+
+/* === V19.11.1 GM Combat Fixed Bar Fix === */
+.gm-combat-sticky {
+  position: fixed !important;
+  left: 8px;
+  right: 8px;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  z-index: 90;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid rgba(240,195,106,.38);
+  border-radius: 14px;
+  background: linear-gradient(180deg,rgba(35,22,13,.98),rgba(11,8,6,.98));
+  box-shadow: 0 -6px 22px rgba(0,0,0,.55);
+  backdrop-filter: blur(8px);
+}
+body.role-gm {
+  padding-bottom: 132px;
+}
+body.role-player {
+  padding-bottom: 0;
+}
+body.role-player .gm-combat-sticky {
+  display: none !important;
+}
+.gm-sticky-top {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.gm-sticky-status {
+  min-width: 0;
+}
+.gm-sticky-label {
+  display: block;
+  color: #bfa36d;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  font-weight: 900;
+}
+.gm-sticky-status strong {
+  display: block;
+  color: #f0d49c;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-sticky-status small {
+  display: block;
+  color: #b9a77e;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-sticky-btn {
+  min-height: 38px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+.gm-sticky-order {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 7px 0 1px;
+  scrollbar-width: thin;
+}
+.gm-turn-chip {
+  flex: 0 0 auto;
+  min-width: 72px;
+  max-width: 132px;
+  padding: 6px 8px;
+  border: 1px solid rgba(240,195,106,.24);
+  border-radius: 999px;
+  background: rgba(0,0,0,.24);
+  color: #dec58d;
+  text-align: left;
+  cursor: pointer;
+}
+.gm-turn-chip span {
+  display: block;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-turn-chip small {
+  display: block;
+  font-size: 9px;
+  opacity: .75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gm-turn-chip.active {
+  border-color: #f0b441;
+  background: linear-gradient(180deg,#5b3516,#24150b);
+  color: #fff0bd;
+  box-shadow: 0 0 0 1px rgba(240,180,65,.18), 0 0 12px rgba(240,180,65,.18);
+}
+.gm-turn-chip.player {
+  border-color: rgba(141,198,255,.28);
+}
+.gm-turn-chip.enemy {
+  border-color: rgba(255,126,86,.28);
+}
+.gm-turn-empty {
+  color: #9f8558;
+  font-size: 12px;
+  padding: 7px;
+}
+@media(max-width:390px) {
+  .gm-combat-sticky {
+    left: 5px;
+    right: 5px;
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
     padding: 7px;
   }
   .gm-sticky-top {
