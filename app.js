@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.11.10 Enemy Weapon Key Audit Fix
+// Польовий Модуль — V19.11.11 Enemy Crit Dice Result Polish
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1177,14 +1177,14 @@ function enemyWeaponPseudoPlayer(enemy){
   };
 }
 
-function rollEnemyWeaponDamage(enemy, hits){
+function rollEnemyWeaponDamage(enemy, hits, crits=0){
   const pseudo = enemyWeaponPseudoPlayer(enemy);
-  const dmg = rollWeaponDamage(pseudo, Math.max(1, Number(hits || 1)), 0);
+  const dmg = rollWeaponDamage(pseudo, Math.max(1, Number(hits || 1)), Math.max(0, Number(crits || 0)));
   const weapon = weaponInfo(pseudo);
   const rangeText = weaponRange(pseudo) === "near" ? "зблизька" : "здалека";
   const condition = weaponConditionInfo(pseudo);
   const diceText = dmg.rolls.join(", ");
-  return { ...dmg, weaponName: weapon.name, rangeText, conditionName: condition.name, diceText };
+  return { ...dmg, weaponName: weapon.name, rangeText, conditionName: condition.name, diceText, crits: Math.max(0, Number(crits || 0)) };
 }
 
 function attackModeConfig(mode, enemy){
@@ -1238,6 +1238,7 @@ function enemyAttack(enemyId, mode){
 
   const targetNumber = Number(target.defense || 12) + (target.cover ? 2 : 0);
   const hits = totals.filter(t => t >= targetNumber).length;
+  const crits = criticalCount(rolls);
 
   let rawDamage = 0;
   let notes = [];
@@ -1250,7 +1251,7 @@ function enemyAttack(enemyId, mode){
     notes = resolved.notes || [];
     damageFormula = resolved.formulaText || "";
   } else if(hits){
-    const resolved = rollEnemyWeaponDamage(enemy, hits);
+    const resolved = rollEnemyWeaponDamage(enemy, hits, crits);
     rawDamage = resolved.total;
     damageFormula = resolved.formula;
     damageDetails = resolved;
@@ -1279,7 +1280,7 @@ function enemyAttack(enemyId, mode){
   const rollText = rolls.map((r,i) => `${r}→${totals[i]}`).join(", ");
   const targetName = target.name || targetId;
   let result = `${enemy.name}: ${cfg.label} по ${targetName}. Кидки: ${rollText}. Ціль: ${targetNumber}. `;
-  result += hits ? `Влучань: ${hits}. Шкода: ${totalDamage}${damageFormula ? ` (${damageFormula})` : ""}${armor ? `, броня ${armor}` : ""}. ${targetName}: HP ${target.hp}/${target.hpMax}.` : "Промах.";
+  result += hits ? `Влучань: ${hits}${crits ? `, крит: +${crits} кубик шкоди` : ""}. Шкода: ${totalDamage}${damageFormula ? ` (${damageFormula})` : ""}${armor ? `, броня ${armor}` : ""}. ${targetName}: HP ${target.hp}/${target.hpMax}.` : "Промах.";
   if(notes.length) result += ` Ефекти: ${notes.join("; ")}.`;
   if(mode === "burst") result += criticalFail ? " Провал лютої атаки: ворог розкрився і втратив позицію." : " Після атаки ворог розкрився: атаки по ньому +1 до його наступного ходу.";
   if(!mutant) result += ` Набої ворога: ${enemy.gm.ammo}.`;
@@ -1296,14 +1297,16 @@ function enemyAttack(enemyId, mode){
     ? `Шкода: ${totalDamage}${damageFormula ? ` (${damageFormula})` : ""}${armor ? `, броня ${armor}` : ""}.`
     : "Промах.";
   const damageDiceLine = damageDetails
-    ? `🎲 Шкода зброї: ${damageDetails.diceText}${damageDetails.bonus ? ` +${damageDetails.bonus}` : ""}${damageDetails.conditionMod ? ` ${damageDetails.conditionMod > 0 ? "+" : ""}${damageDetails.conditionMod} стан` : ""}.`
+    ? `🎲 Шкода зброї: ${damageDetails.diceText}${damageDetails.bonus ? ` +${damageDetails.bonus}` : ""}${damageDetails.conditionMod ? ` ${damageDetails.conditionMod > 0 ? "+" : ""}${damageDetails.conditionMod} стан` : ""}${crits ? ` · крит +${crits} кубик` : ""}.`
     : "";
 
-  const toastHtml = `<div class="toast-roll"><strong>${escapeHtml(enemy.name)}: ${escapeHtml(cfg.label)} → ${escapeHtml(targetName)}</strong><br>🎲 Кидки: ${escapeHtml(rollText)}<br>Ціль: ${escapeHtml(String(targetNumber))} · Влучань: ${escapeHtml(String(hits))}<br>${escapeHtml(damageLine)}<br>${damageDiceLine ? escapeHtml(damageDiceLine) + "<br>" : ""}${escapeHtml(targetName)} HP ${escapeHtml(String(target.hp))}/${escapeHtml(String(target.hpMax))}${!mutant && damageDetails ? `<br>${escapeHtml(damageDetails.weaponName)} · ${escapeHtml(damageDetails.rangeText)} · ${escapeHtml(damageDetails.conditionName)}` : ""}${notes.length ? `<br>${escapeHtml(notes.join("; "))}` : ""}</div>`;
+  const mainDie = rolls.length === 1 ? String(rolls[0]) : rolls.join(" · ");
+  const toastHtml = `<div class="toast-roll"><strong>${escapeHtml(enemy.name)}: ${escapeHtml(cfg.label)} → ${escapeHtml(targetName)}</strong><br><span class="toast-big-die">🎲 ${escapeHtml(mainDie)}</span><br>Кидки: ${escapeHtml(rollText)}<br>Ціль: ${escapeHtml(String(targetNumber))} · Влучань: ${escapeHtml(String(hits))}${crits ? ` · Крит: +${escapeHtml(String(crits))} кубик` : ""}<br>${escapeHtml(damageLine)}<br>${damageDiceLine ? escapeHtml(damageDiceLine) + "<br>" : ""}${escapeHtml(targetName)} HP ${escapeHtml(String(target.hp))}/${escapeHtml(String(target.hpMax))}<br>${mutant ? "Набої: не витрачаються" : `Набої стрільця: ${escapeHtml(String(enemy.gm.ammo))}`}${!mutant && damageDetails ? `<br>${escapeHtml(damageDetails.weaponName)} · ${escapeHtml(damageDetails.rangeText)} · ${escapeHtml(damageDetails.conditionName)}` : ""}${notes.length ? `<br>${escapeHtml(notes.join("; "))}` : ""}</div>`;
 
   setStaticRollResult(`${enemy.name}: ${cfg.label} → ${targetName}`, [
-    `🎲 Кидки атаки: ${rollText}`,
-    `Ціль: ${targetNumber}. Влучань: ${hits}.`,
+    `🎲 ${mainDie}`,
+    `Кидки атаки: ${rollText}`,
+    `Ціль: ${targetNumber}. Влучань: ${hits}${crits ? `, крит: +${crits} кубик шкоди` : ""}.`,
     damageLine,
     damageDiceLine,
     !mutant && damageDetails ? `Зброя: ${damageDetails.weaponName}. Дистанція: ${damageDetails.rangeText}. Стан: ${damageDetails.conditionName}.` : "",
@@ -1615,7 +1618,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19120`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19121`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2280,7 +2283,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19120`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19121`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
