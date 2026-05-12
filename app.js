@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.10.3 Journal Dynamic Fix
+// Польовий Модуль — V19.10.6 Player Link Copy Full Audit
 // Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
 // No gameplay logic intentionally changed in this version.
 
@@ -1372,9 +1372,48 @@ function renderCharacterDetails(p = currentPlayer()){
 
 
 
+
+async function copyTextToClipboard(text, label="Посилання"){
+  const value = String(text || "");
+  if(!value){
+    showToast(`${label}: порожній текст.`);
+    return false;
+  }
+
+  try{
+    if(navigator.clipboard && window.isSecureContext !== false){
+      await navigator.clipboard.writeText(value);
+      showToast(`${label} скопійовано.`);
+      return true;
+    }
+  }catch(err){
+    console.warn("navigator.clipboard failed", err);
+  }
+
+  try{
+    const ta = document.createElement("textarea");
+    ta.value = value;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    ta.style.top = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    showToast(ok ? `${label} скопійовано.` : `Скопіюй вручну: ${value}`);
+    return ok;
+  }catch(err){
+    console.warn("fallback copy failed", err);
+    showToast(`Скопіюй вручну: ${value}`);
+    return false;
+  }
+}
+
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19104`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19106`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -1391,8 +1430,8 @@ function renderPlayerSpecificLinks(){
     const label = p.name || pid;
     const url = playerSpecificUrl(pid);
     return `<div class="player-link-row">
-      <button type="button" class="metal-btn player-link-btn" data-copy-player-specific="${escapeAttr(pid)}">Скопіювати: ${escapeHtml(label)}</button>
-      <code>${escapeHtml(url)}</code>
+      <button type="button" class="metal-btn player-link-btn" data-copy-player-specific="${escapeAttr(pid)}" data-copy-url="${escapeAttr(url)}">Скопіювати: ${escapeHtml(label)}</button>
+      <code class="player-link-code">${escapeHtml(url)}</code>
     </div>`;
   }).join("");
 }
@@ -2038,7 +2077,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19104`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19106`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2497,19 +2536,15 @@ function randomModuleWarning(){
 }
 
 document.addEventListener("click", e => {
-
   const copySpecificPlayer = e.target.closest("[data-copy-player-specific]");
   if(copySpecificPlayer){
     const pid = copySpecificPlayer.dataset.copyPlayerSpecific;
-    const url = playerSpecificUrl(pid);
-    navigator.clipboard?.writeText(url);
-    showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
+    const url = copySpecificPlayer.dataset.copyUrl || playerSpecificUrl(pid);
+    copyTextToClipboard(url, `Посилання ${data.players?.[pid]?.name || pid}`);
     return;
   }
 
-
-
-  if(e.target.closest("#journalPostPublic")){
+if(e.target.closest("#journalPostPublic")){
     submitJournalQuickNote("public");
     return;
   }
@@ -2663,8 +2698,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   if(e.target.id === "gmQuickCopyPlayer"){
     const pid = currentPlayerId();
     const url = playerSpecificUrl(pid);
-    navigator.clipboard?.writeText(url);
-    showToast(`Посилання скопійовано: ${data.players?.[pid]?.name || pid}`);
+    copyTextToClipboard(url, `Посилання ${data.players?.[pid]?.name || pid}`);
     return;
   }
 
@@ -2767,8 +2801,8 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   if(copyPlayer){
     const pid = copyPlayer.dataset.copyPlayerLink;
     const url = playerSpecificUrl(pid);
-    navigator.clipboard?.writeText(url);
-    showToast("Посилання гравця скопійовано.");
+    copyTextToClipboard(url, "Посилання гравця");
+  return;
   }
 
   const removePlayer = e.target.closest("[data-remove-player]");
@@ -2930,8 +2964,8 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 if(e.target.id === "copyPlayerLink"){
     const pid = appSession.role === "gm" ? currentPlayerId() : appSession.player;
     const url = playerSpecificUrl(pid);
-    navigator.clipboard?.writeText(url);
-    showToast("Посилання поточного Гравця скопійовано.");
+    copyTextToClipboard(url, "Посилання поточного Гравця");
+    return;
   }
 
   if(e.target.id === "restoreBaseScene"){

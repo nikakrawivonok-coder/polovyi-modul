@@ -1,32 +1,32 @@
-# Польовий Модуль — V19.10.4 Player Links Access Fix
+# Польовий Модуль — V19.10.6 Player Link Copy Full Audit
 
-Версія виправляє проблеми з посиланнями на окремих гравців і доступом у режимі гравця.
+Контрольна версія після V19.10.5.
 
-## Що виправлено
+## Що перевірено й виправлено
 
-- Усі посилання на гравців формуються через одну функцію:
-  `?role=player&room=ROOM&player=PLAYER_ID&v=19104`
-- Player-link більше не містить `role=gm` або `gmKey=zona-master`.
-- Кнопки `Скопіювати: Лис`, `Скопіювати: 1`, `Скопіювати: ...` тепер копіюють відповідний player-link.
-- Для `role=player` додано посилений захист:
-  - вкладка `Майстер` ховається;
-  - екран `Майстер` ховається;
-  - записи журналу `Тільки Майстру` не показуються;
-  - приватні записи показуються тільки адресованому гравцю.
+Усі player-link кнопки мають працювати через один шлях:
 
-## Правильні формати
+```text
+playerSpecificUrl(pid) → copyTextToClipboard(url)
+```
 
-Посилання Майстра:
-`?role=gm&room=...&gmKey=zona-master&v=19104`
+Додатково виправлено стару кнопку:
 
-Посилання гравця:
-`?role=player&room=...&player=ID_ГРАВЦЯ&v=19104`
+- `Скопіювати посилання поточного Гравця`
+
+Вона теж тепер використовує `copyTextToClipboard()` і `playerSpecificUrl(pid)`.
+
+## Формат player-посилання
+
+```text
+?role=player&room=ROOM&player=PLAYER_ID&v=19106
+```
 
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19104">
-<script src="./app.js?v=19104"></script>
+<link rel="stylesheet" href="./styles.css?v=19106">
+<script src="./app.js?v=19106"></script>
 ```
 
 ## Файли для GitHub
@@ -42,7 +42,7 @@
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19104&gmKey=zona-master&v=19104`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19106&gmKey=zona-master&v=19106`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19104&player=fox&v=19104`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19106&player=fox&v=19106`
