@@ -78,6 +78,13 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
+const BUILD_VERSION = "V19.16.4";
+const BUILD_NUMBER = "19604";
+const BUILD_NAME = "Build / Debug Badge";
+const URL_CACHE_VERSION = String(params.get("v") || "");
+window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
+
+
 const firebaseConfig = {
   apiKey: "AIzaSyCkJP6qzFQZNeOtS_o8rZ2t0ZVqtOz7OsM",
   authDomain: "polovyi-modul.firebaseapp.com",
@@ -884,6 +891,73 @@ function enforcePlayerAccessGuards(){
   }
 }
 
+function activeScreenForDebug(){
+  return qs(".nav-btn.active")?.dataset?.target || qs(".screen.active")?.dataset?.screen || "state";
+}
+
+function combatActorLabelForDebug(){
+  const c = data.combat || {};
+  if(c.activeActorType === "player" && data.players?.[c.activeActorId]) return data.players[c.activeActorId].name || c.activeActorId;
+  if(c.activeActorType === "enemy"){
+    const e = findEnemyById(c.activeActorId);
+    if(e) return e.name;
+  }
+  if(c.actorType === "player" && data.players?.[c.actorId]) return data.players[c.actorId].name || c.actorId;
+  if(c.actorType === "enemy"){
+    const e = findEnemyById(c.actorId);
+    if(e) return e.name;
+  }
+  const active = c.activeId || c.turnId || c.currentTurn || c.currentActorId;
+  if(active){
+    if(data.players?.[active]) return data.players[active].name || active;
+    const e = findEnemyById(active);
+    if(e) return e.name;
+    return String(active);
+  }
+  return "немає";
+}
+
+function combatTargetLabelForDebug(){
+  const c = data.combat || {};
+  if(c.targetType === "player" && data.players?.[c.targetId]) return data.players[c.targetId].name || c.targetId;
+  if(c.targetType === "enemy"){
+    const e = findEnemyById(c.targetId);
+    if(e) return e.name;
+  }
+  const targetId = c.targetId || c.activeTargetId || c.selectedTargetId;
+  if(targetId){
+    if(data.players?.[targetId]) return data.players[targetId].name || targetId;
+    const e = findEnemyById(targetId);
+    if(e) return e.name;
+    return String(targetId);
+  }
+  return "немає";
+}
+
+function updateBuildDebug(){
+  const buildText = `${BUILD_VERSION} · ${BUILD_NUMBER}`;
+  safeSetText("#buildLabel", buildText);
+
+  const visibleEnemies = (data.enemies || []).filter(e => e.visible !== false).length;
+  const totalEnemies = (data.enemies || []).length;
+  const totalPlayers = Object.keys(data.players || {}).length;
+  const cacheText = URL_CACHE_VERSION ? `v=${URL_CACHE_VERSION}` : "без v";
+  const updated = new Date().toLocaleTimeString("uk-UA", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+
+  safeSetText("#debugBuild", `${BUILD_VERSION} · ${BUILD_NUMBER}`);
+  safeSetText("#debugCache", cacheText);
+  safeSetText("#debugRoom", appSession.room);
+  safeSetText("#debugRole", appSession.role === "gm" ? "Майстер" : "Гравець");
+  safeSetText("#debugPlayer", appSession.role === "gm" ? currentPlayerId() : appSession.player);
+  safeSetText("#debugScreen", activeScreenForDebug());
+  safeSetText("#debugActor", combatActorLabelForDebug());
+  safeSetText("#debugTarget", combatTargetLabelForDebug());
+  safeSetText("#debugEnemies", `${visibleEnemies}/${totalEnemies} видимі`);
+  safeSetText("#debugPlayers", String(totalPlayers));
+  safeSetText("#debugSync", syncAdapter.status || appSession.syncMode || "—");
+  safeSetText("#debugUpdated", updated);
+}
+
 function applyRoleMode(){
   document.body.classList.toggle("role-gm", appSession.role === "gm");
   document.body.classList.toggle("role-player", appSession.role !== "gm");
@@ -895,12 +969,14 @@ function applyRoleMode(){
   const playerLabel = document.querySelector("#playerLabel");
   const syncLabel = document.querySelector("#syncLabel");
   const accessLabel = document.querySelector("#accessLabel");
+  const buildLabel = document.querySelector("#buildLabel");
 
   if(roomLabel) roomLabel.textContent = appSession.room;
   if(roleLabel) roleLabel.textContent = appSession.role === "gm" ? "Майстер" : "Гравець";
   if(playerLabel) playerLabel.textContent = appSession.role === "gm" ? currentPlayerId() : appSession.player;
   if(syncLabel) syncLabel.textContent = syncAdapter.status;
   if(accessLabel) accessLabel.textContent = appSession.access === "gm" ? "ключ Майстра" : (appSession.access === "denied" ? "ключ відхилено" : "звичайний");
+  if(buildLabel) buildLabel.textContent = `${BUILD_VERSION} · ${BUILD_NUMBER}`;
 
   if(appSession.role !== "gm"){
     const activeMaster = document.querySelector('.screen.active[data-screen="master"]');
@@ -1841,7 +1917,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19603`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19604`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2295,6 +2371,7 @@ function render(){
   renderGmQuickPanel();
   renderPlayerSpecificLinks();
   applyRoleMode();
+  updateBuildDebug();
   enforcePlayerAccessGuards();
   enforceScreenIsolation();
   refreshActionLocks();
@@ -2615,7 +2692,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19603`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19604`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;

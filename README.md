@@ -1,39 +1,59 @@
-# Польовий Модуль — V19.16.3 Enemy HP Control Runtime Fix
+# Польовий Модуль — V19.16.4 Build / Debug Badge
 
-Версія на базі V19.16.2.
+Версія на базі V19.16.3.
 
-## Що виправлено
+## Головна ідея
 
-У V19.16.2 кнопки HP могли виглядати так, ніби не працюють одразу.
-
-Причина:
+Додано службову діагностику, щоб зі скріншота було видно:
 
 ```text
-HP у data змінювався,
-але після цього код викликав updateEnemyStateByHp(enemy),
-а цієї функції не було визначено.
+яка версія відкрита
+який cache-busting параметр
+яка кімната
+яка роль
+який гравець
+який екран
+який активний хід / ціль
+скільки ворогів і гравців
+стан синхронізації
 ```
 
-Через це виконання зупинялося до `save()` і `render()`.
+## Що додано
 
-Коли потім натискалися кнопки набоїв, вони запускали новий render, і накопичені HP-зміни ставали видимими.
+### 1. Мітка версії в службовому блоці
 
-## Що зроблено
-
-Додано відсутню функцію:
+У нижньому службовому блоці тепер є:
 
 ```text
-updateEnemyStateByHp(enemy)
+Версія: V19.16.4 · 19604
 ```
 
-Вона оновлює стан ворога за HP:
+### 2. Діагностика Майстра
+
+Для Майстра додано блок:
 
 ```text
-0 HP = вибув
-<= 30% HP = ледь стоїть
-менше максимуму = поранений
-повний HP = цілий
+Діагностика Майстра
 ```
+
+Показує:
+
+```text
+Build
+Cache
+Room
+Role
+Player
+Screen
+Хід
+Ціль
+Вороги
+Гравці
+Sync
+Оновлено
+```
+
+Для гравця цей діагностичний блок прихований.
 
 ## Що не змінювалося
 
@@ -43,6 +63,8 @@ updateEnemyStateByHp(enemy)
 - віддача;
 - шкода;
 - крит;
+- вороги;
+- HP / набої;
 - журнал;
 - Firebase-структура;
 - вкладка Стан;
@@ -52,14 +74,14 @@ updateEnemyStateByHp(enemy)
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19603">
-<script src="./app.js?v=19603"></script>
+<link rel="stylesheet" href="./styles.css?v=19604">
+<script src="./app.js?v=19604"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19603&gmKey=zona-master&v=19603`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19604&gmKey=zona-master&v=19604`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19603&player=fox&v=19603`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19604&player=fox&v=19604`
