@@ -1951,3 +1951,30 @@ body.role-player .gm-combat-sticky {
     grid-template-columns:repeat(2, minmax(0, 1fr));
   }
 }
+
+
+/* V19.16.2 — hidden enemy recovery and sturdier controls */
+.enemy-card-gm.enemy-hidden-gm{
+  border-color:rgba(160,160,160,.42);
+  opacity:.86;
+  background:
+    linear-gradient(180deg, rgba(18,18,18,.86), rgba(8,6,4,.9));
+}
+.enemy-card-gm.enemy-hidden-gm::before{
+  content:"ПРИХОВАНО ВІД ГРАВЦІВ";
+  display:block;
+  margin-bottom:8px;
+  color:#d7c09a;
+  font-size:11px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.metal-btn.success{
+  border-color:rgba(120,210,120,.55);
+  box-shadow:0 0 0 1px rgba(120,210,120,.12), inset 0 0 12px rgba(120,210,120,.1);
+}
+.enemy-card-control-grid .metal-btn{
+  min-height:44px;
+  touch-action:manipulation;
+  user-select:none;
+}

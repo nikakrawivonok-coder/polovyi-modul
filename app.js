@@ -1811,7 +1811,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19601`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19602`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2236,8 +2236,9 @@ function render(){
   qs("#sceneObjects").innerHTML = (s.objects || []).map(o => `<li>${escapeHtml(o)}</li>`).join("");
 
   const visible = (data.enemies || []).filter(e => e.visible !== false);
+  const enemiesForEnemyTab = appSession.role === "gm" ? (data.enemies || []) : visible;
   renderEnemyTemplateDock();
-  safeSetHTML("#enemyCards", visible.map(enemyCard).join(""));
+  safeSetHTML("#enemyCards", enemiesForEnemyTab.map(enemyCard).join(""));
   qs("#inventoryList").innerHTML = currentInventory().map(invItem).join("");
   const inlineInv = qs("#inventoryInlineList");
   if(inlineInv) inlineInv.innerHTML = currentInventory().map(invItem).join("");
@@ -2384,7 +2385,7 @@ function enemyCardGm(e){
   const visibleText = e.visible === false ? "Прихований" : "Видимий";
   const visibleClass = e.visible === false ? "red" : "green";
 
-  return `<article class="enemy-card enemy-card-gm enemy-card-polished">
+  return `<article class="enemy-card enemy-card-gm enemy-card-polished ${e.visible === false ? "enemy-hidden-gm" : ""}">
     <div class="enemy-card-head">
       <div class="enemy-portrait-slot">
         <span>☠️</span>
@@ -2413,7 +2414,7 @@ function enemyCardGm(e){
       <button class="metal-btn" data-enemy-hp-delta="${escapeAttr(e.id)}" data-delta="1">HP +1</button>
       <button class="metal-btn" data-enemy-ammo-delta="${escapeAttr(e.id)}" data-delta="-1">Набої -1</button>
       <button class="metal-btn" data-enemy-ammo-delta="${escapeAttr(e.id)}" data-delta="1">Набої +1</button>
-      <button class="metal-btn" data-toggle-enemy-visibility="${escapeAttr(e.id)}">${e.visible === false ? "Показати" : "Сховати"}</button>
+      <button class="metal-btn ${e.visible === false ? "success" : ""}" data-toggle-enemy-visibility="${escapeAttr(e.id)}">${e.visible === false ? "Показати гравцям" : "Сховати від гравців"}</button>
     </div>
 
     <div class="enemy-card-info-grid">
@@ -2584,7 +2585,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19601`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19602`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -4174,6 +4175,8 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   const enemyHpDelta = e.target.closest("[data-enemy-hp-delta]");
   if(enemyHpDelta){
+    e.preventDefault();
+    e.stopPropagation();
     const enemy = findEnemyById(enemyHpDelta.dataset.enemyHpDelta);
     if(enemy){
       enemy.gm = enemy.gm || {};
@@ -4182,6 +4185,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
       enemy.gm.hp = clamp(Number(enemy.gm.hp ?? max) + delta, 0, max);
       updateEnemyStateByHp(enemy);
       addLog(`${enemy.name}: HP ${enemy.gm.hp}/${max}.`, "gm");
+      save();
       render();
     }
     return;
@@ -4189,12 +4193,15 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   const enemyAmmoDelta = e.target.closest("[data-enemy-ammo-delta]");
   if(enemyAmmoDelta){
+    e.preventDefault();
+    e.stopPropagation();
     const enemy = findEnemyById(enemyAmmoDelta.dataset.enemyAmmoDelta);
     if(enemy){
       enemy.gm = enemy.gm || {};
       const delta = Number(enemyAmmoDelta.dataset.delta || 0);
       enemy.gm.ammo = Math.max(0, Number(enemy.gm.ammo || 0) + delta);
       addLog(`${enemy.name}: набої ${enemy.gm.ammo}.`, "gm");
+      save();
       render();
     }
     return;
@@ -4202,10 +4209,13 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   const enemyVisibilityToggle = e.target.closest("[data-toggle-enemy-visibility]");
   if(enemyVisibilityToggle){
+    e.preventDefault();
+    e.stopPropagation();
     const enemy = findEnemyById(enemyVisibilityToggle.dataset.toggleEnemyVisibility);
     if(enemy){
       enemy.visible = enemy.visible === false ? true : false;
       addLog(`${enemy.name}: ${enemy.visible === false ? "прихований від гравців" : "видимий для гравців"}.`, "gm");
+      save();
       render();
     }
     return;
