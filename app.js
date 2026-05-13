@@ -116,6 +116,7 @@ const defaultRoomData = {
       fatigue: 2,
       infection: 1,
       ammo: 15, weapon: "pm", range: "far", weaponCondition: "normal", weaponJammed: false,
+      recoilLevel: 0, exposedUntilNextTurn: false,
       defense: 12,
       defenseMax: 12,
       armor: 0,
@@ -237,11 +238,11 @@ const enemyTemplates = {
     },
     attacks: [
       { id: "precise", name: "Точний постріл", ammo: 1, dice: "1d20 +2", note: "економний постріл, ціль у укритті або далеко" },
-      { id: "combat", name: "Бойовий постріл", ammo: 2, dice: "2d20 +0", note: "стандартна перестрілка" },
-      { id: "burst", name: "Черга", ammo: 3, dice: "3d20 -2", note: "після черги Захист -1 до наступного ходу; повторна черга -4; 1/2 патрони скидають віддачу" }
+      { id: "combat", name: "Бойовий постріл", ammo: 2, dice: "2d20 -1", note: "якщо 0 влучань — стрілець розкривається" },
+      { id: "burst", name: "Черга", ammo: 3, dice: "3d20 -2/-4/-6...", note: "прогресивна віддача: кожна черга підряд ще -2; 1/2 патрони скидають віддачу" }
     ],
     special: "Притискний вогонь: при влучанні з бойового пострілу або черги ціль пригинається / втрачає темп за рішенням Майстра.",
-    weakness: "Погано контролює віддачу: друга черга підряд має -4 замість -2; після черги автоматник розкривається.",
+    weakness: "Погано контролює віддачу: черги підряд погіршують точність -2/-4/-6/-8; після черги автоматник розкривається.",
     tags:["бандит","автомат","шаблон"]
   },
   leader: { name: "Ватажок", state: "цілий", color: "green", position: "біля центру групи", danger: "висока", action: "кричить накази", visible: true, defense: 12, gm: { hp: 14, hpMax: 14, ammo: 8, morale: "контролює інших" }, tags:["бандит","лідер"] },
@@ -587,6 +588,8 @@ function normalizeRoomDataLight(roomData){
     if(!p.range) p.range = "far";
     if(!p.weaponCondition) p.weaponCondition = "normal";
     if(typeof p.weaponJammed !== "boolean") p.weaponJammed = false;
+    p.recoilLevel = Number(p.recoilLevel ?? 0);
+    p.exposedUntilNextTurn = !!p.exposedUntilNextTurn;
     p.defense = Number(p.defense ?? 12);
     p.defenseMax = Number(p.defenseMax ?? p.defense ?? 12);
     p.armor = Number(p.armor ?? 0);
@@ -1014,6 +1017,7 @@ function nextTurn(){
     addLog(`Раунд ${data.combat.round}.`, "public");
   }
   const active = activeCombatant();
+  clearCombatantTemporaryExposure(active);
   data.combat.lastEvent = active ? `Активний хід: ${active.name}.` : "Наступний хід.";
   addLog(active ? `Хід: ${active.name}.` : "Наступний хід.", "public");
   render();
@@ -1279,8 +1283,8 @@ function attackModeConfig(mode, enemy){
 
   const configs = {
     aimed: { label: "точний постріл", dice: 1, mod: 2, ammo: 1, damage: 1 },
-    normal: { label: "бойовий постріл", dice: 2, mod: 0, ammo: 2, damage: 1 },
-    burst: { label: "черга", dice: 3, mod: -2, ammo: 3, damage: 1 },
+    normal: { label: "бойовий постріл", dice: 2, mod: -1, ammo: 2, damage: 1 },
+    burst: { label: "черга", dice: 3, mod: burstAccuracyModForShooter(enemy), ammo: 3, damage: 1 },
     shotgun: { label: "обріз зблизька", dice: 1, mod: 1, ammo: 1, damage: 3 }
   };
   return configs[mode] || configs.normal;
@@ -1315,9 +1319,10 @@ function enemyAttack(enemyId, mode){
   const totals = rolls.map(r => r + cfg.mod + suppressionPenalty);
   if(suppressionPenalty) removeEnemyEffect(enemy, "suppressed");
 
-  const targetNumber = Number(target.defense || 12) + (target.cover ? 2 : 0);
+  const targetNumber = playerDefenseValue(target);
   const hits = totals.filter(t => t >= targetNumber).length;
   const crits = criticalCount(rolls);
+  const shotStateNotes = mutant ? [] : updateShooterAfterShot(enemy, mode, hits);
 
   let rawDamage = 0;
   let notes = [];
@@ -1350,10 +1355,6 @@ function enemyAttack(enemyId, mode){
   let criticalFail = false;
   if(mode === "burst"){
     criticalFail = applyFierceEnemyDebuff(enemy, rolls, hits);
-    if(!mutant){
-      enemy.recoil = true;
-      enemy.action = "розкрив позицію після черги";
-    }
   }
 
   const rollText = rolls.map((r,i) => `${r}→${totals[i]}`).join(", ");
@@ -1361,7 +1362,8 @@ function enemyAttack(enemyId, mode){
   let result = `${enemy.name}: ${cfg.label} по ${targetName}. Кидки: ${rollText}. Ціль: ${targetNumber}. `;
   result += hits ? `Влучань: ${hits}${crits ? `, крит: +${crits} кубик шкоди` : ""}. Шкода: ${totalDamage}${damageFormula ? ` (${damageFormula})` : ""}${armor ? `, броня ${armor}` : ""}. ${targetName}: HP ${target.hp}/${target.hpMax}.` : "Промах.";
   if(notes.length) result += ` Ефекти: ${notes.join("; ")}.`;
-  if(mode === "burst") result += criticalFail ? " Провал лютої атаки: ворог розкрився і втратив позицію." : " Після атаки ворог розкрився: атаки по ньому +1 до його наступного ходу.";
+  if(mode === "burst") result += criticalFail ? " Провал лютої атаки: ворог розкрився і втратив позицію." : " Після атаки ворог розкрився: Захист -1 до його наступного ходу.";
+  if(shotStateNotes?.length) result += ` ${shotStateNotes.join(" ")}`;
   if(!mutant) result += ` Набої ворога: ${enemy.gm.ammo}.`;
 
   data.combat = data.combat || {};
@@ -1401,7 +1403,8 @@ function enemyAttack(enemyId, mode){
     targetHpMax: target.hpMax,
     shooterName: enemy.name,
     shooterAmmo: mutant ? "не витрачаються" : enemy.gm.ammo,
-    rolledText: damageRollsTextForStatic(damageDetails, crits)
+    rolledText: damageRollsTextForStatic(damageDetails, crits),
+    stateText: shotStateNotes.join(" ")
   }));
 
   showRollToast(`${enemy.name}: ${cfg.label} → ${targetName}`, rolls, totals, "", 0, popupExtra);
@@ -1746,7 +1749,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19301`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19400`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2328,7 +2331,7 @@ function renderEnemyTemplateDock(){
         </div>
         <div class="enemy-template-loot">Лут: ${escapeHtml(loot)}</div>
         <div class="enemy-template-note">Характеристики: Вит +1 · Точ +1 · Впр +1 · Спр +1 · Інт 0 · Хар -1. Втома 0 · Зараження 0 · Броня 0.</div>
-        <div class="enemy-template-note">Черга: 3d20 -2; повторна черга -4; після черги Захист -1 до наступного ходу.</div>
+        <div class="enemy-template-note">Бойовий: 2d20 -1, при 0 влучань розкриття. Черга: -2/-4/-6/-8; після черги Захист -1.</div>
       </div>
       <button class="metal-btn enemy-template-add" type="button" data-add-enemy-template="auto">+ Автоматник</button>
     </div>
@@ -2426,7 +2429,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19301`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19400`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2586,6 +2589,95 @@ function attrValue(player, key){
   player.stats = player.stats || {};
   return Number(player.stats[key] || 0);
 }
+
+function shooterRecoilLevel(shooter){
+  if(!shooter) return 0;
+  if(shooter.gm) return Math.max(0, Number(shooter.gm.recoilLevel || 0));
+  return Math.max(0, Number(shooter.recoilLevel || 0));
+}
+
+function setShooterRecoilLevel(shooter, value){
+  if(!shooter) return;
+  const next = Math.max(0, Number(value || 0));
+  if(shooter.gm){
+    shooter.gm.recoilLevel = next;
+  } else {
+    shooter.recoilLevel = next;
+  }
+}
+
+function burstAccuracyModForShooter(shooter){
+  return -2 * (shooterRecoilLevel(shooter) + 1);
+}
+
+function markShooterExposed(shooter, reason="розкрився"){
+  if(!shooter) return;
+  if(shooter.gm){
+    addEnemyEffect(shooter, "exposed");
+    shooter.gm.exposedUntilNextTurn = true;
+    shooter.action = reason;
+  } else {
+    shooter.activeEffects = Array.isArray(shooter.activeEffects) ? shooter.activeEffects : [];
+    if(!shooter.activeEffects.includes("exposed")) shooter.activeEffects.push("exposed");
+    shooter.exposedUntilNextTurn = true;
+  }
+}
+
+function updateShooterAfterShot(shooter, action, hits){
+  const notes = [];
+  if(!shooter) return notes;
+
+  if(action === "shoot_burst" || action === "burst"){
+    const nextRecoil = shooterRecoilLevel(shooter) + 1;
+    setShooterRecoilLevel(shooter, nextRecoil);
+    markShooterExposed(shooter, "розкрився після черги");
+    notes.push(`Після черги стрілець розкрився: Захист -1 до наступного ходу.`);
+    notes.push(`Віддача: наступна черга підряд матиме ${-2 * (nextRecoil + 1)} до точності.`);
+    return notes;
+  }
+
+  if(action === "shoot_normal" || action === "normal"){
+    setShooterRecoilLevel(shooter, 0);
+    if(Number(hits || 0) === 0){
+      markShooterExposed(shooter, "розкрився після невдалого бойового пострілу");
+      notes.push(`Бойовий постріл без влучань: стрілець розкрився, Захист -1 до наступного ходу.`);
+    }
+    return notes;
+  }
+
+  if(action === "shoot_aimed" || action === "aimed"){
+    setShooterRecoilLevel(shooter, 0);
+    return notes;
+  }
+
+  return notes;
+}
+
+function clearCombatantTemporaryExposure(combatant){
+  if(!combatant) return;
+  if(combatant.type === "player"){
+    const p = playerById(combatant.ref);
+    if(!p) return;
+    if(p.exposedUntilNextTurn){
+      p.activeEffects = Array.isArray(p.activeEffects) ? p.activeEffects.filter(e => e !== "exposed") : [];
+      p.exposedUntilNextTurn = false;
+    }
+  }
+  if(combatant.type === "enemy"){
+    const e = findEnemyById(combatant.ref);
+    if(!e) return;
+    if(e.gm?.exposedUntilNextTurn || enemyEffects(e).includes("exposed")){
+      removeEnemyEffect(e, "exposed");
+      e.gm = e.gm || {};
+      e.gm.exposedUntilNextTurn = false;
+    }
+  }
+}
+
+function playerDefenseValue(player){
+  const effects = Array.isArray(player.activeEffects) ? player.activeEffects : [];
+  return Number(player.defense || 12) + (player.cover ? 2 : 0) - (effects.includes("exposed") ? 1 : 0);
+}
 function attrLabel(key){
   return {endurance:"Витривалість", accuracy:"Точність", agility:"Вправність", perception:"Сприйняття", intuition:"Інтуїція", charisma:"Харизма"}[key] || "";
 }
@@ -2672,7 +2764,8 @@ function enemyEffectsText(enemy){
 }
 
 function enemyDefenseValue(enemy){
-  return Number(enemy.defense || 12) + (enemyEffects(enemy).includes("inCover") ? 2 : 0);
+  const effects = enemyEffects(enemy);
+  return Number(enemy.defense || 12) + (effects.includes("inCover") ? 2 : 0) - (effects.includes("exposed") ? 1 : 0);
 }
 
 function applyEnemyReactionsAfterDamage(enemy, hits, damage){
@@ -2843,8 +2936,8 @@ function routeAttackByActorTarget(action){
 
 function shotActionConfig(action){
   if(action === "shoot_aimed") return { count:1, baseMod:2, cost:1, title:"Точний постріл", extra:"1 набій, +2 до точності.", attrKey:"accuracy" };
-  if(action === "shoot_normal") return { count:2, baseMod:0, cost:2, title:"Бойовий постріл", extra:"2 набої, кожне влучання окремо.", attrKey:"accuracy" };
-  if(action === "shoot_burst") return { count:3, baseMod:-2, cost:3, title:"Черга", extra:"3 набої, -2, після черги діє Віддача.", attrKey:"accuracy" };
+  if(action === "shoot_normal") return { count:2, baseMod:-1, cost:2, title:"Бойовий постріл", extra:"2 набої, -1 до точності; якщо 0 влучань — стрілець розкривається.", attrKey:"accuracy" };
+  if(action === "shoot_burst") return { count:3, baseMod:-2, cost:3, title:"Черга", extra:"3 набої, прогресивна віддача; після черги стрілець розкривається.", attrKey:"accuracy" };
   return null;
 }
 
@@ -2881,6 +2974,11 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     return true;
   }
 
+  if(action === "shoot_burst"){
+    cfg.baseMod = burstAccuracyModForShooter(p);
+    cfg.extra = `3 набої, ${cfg.baseMod} до точності через віддачу; після черги стрілець розкривається.`;
+  }
+
   if(cfg.cost) p.ammo = Number(p.ammo || 0) - cfg.cost;
 
   const attrMod = cfg.attrKey ? attrValue(p, cfg.attrKey) : 0;
@@ -2894,6 +2992,7 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
   const jammedNow = shouldWeaponJam(p, r.dice);
   const critMiss = r.dice.includes(1);
   const hits = r.totals.filter(t => t >= threshold).length;
+  const shotStateNotes = updateShooterAfterShot(p, action, hits);
 
   let damage = 0;
   let damageRoll = null;
@@ -2911,6 +3010,7 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
   if(critMiss) hitText += " Критичний промах: Майстер може ускладнити ситуацію.";
   if(jammedNow) hitText += " Зброю заклинило.";
   if(enemy.state === "вибув") hitText += " Ціль вибула.";
+  if(shotStateNotes?.length) hitText += ` ${shotStateNotes.join(" ")}`;
 
   showRollToast(`${p.name || playerId}: ${cfg.title} → ${enemy.name}`, r.dice, r.totals, attrName, attrMod, `${hits ? "Влучань: " + hits + ", шкода: " + damage + " · " + damageRoll.formula : "Промах"}${enemy.lastReactions?.length ? " · " + enemy.lastReactions.join(", ") : ""}${crits ? " · КРИТ" : ""}${jammedNow ? " · КЛИН" : ""} · Набої: ${p.ammo}`);
 
@@ -2935,7 +3035,8 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     shooterAmmo: p.ammo,
     reactionText: enemy.lastReactions?.join(", ") || "",
     effectText: enemyEffects(enemy).length ? enemyEffectsText(enemy) : "",
-    rolledText: damageRollsTextForStatic(damageRoll, crits)
+    rolledText: damageRollsTextForStatic(damageRoll, crits),
+    stateText: shotStateNotes.join(" ")
   }));
 
   addLog(`${p.name || playerId}: ${cfg.title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}.${targetText}${hitText}. Набої: ${p.ammo}.`, "public");
@@ -3021,8 +3122,8 @@ function doAction(action){
   let count = 1, baseMod = 0, cost = 0, title = "", extra = "", attrKey = "", damagePerHit = 1, isAttack = false;
 
   if(action === "shoot_aimed"){ count = 1; baseMod = 2; cost = 1; title = "Точний постріл"; extra = "1 набій, +2 до точності."; attrKey = "accuracy"; isAttack = true; }
-  if(action === "shoot_normal"){ count = 2; baseMod = 0; cost = 2; title = "Бойовий постріл"; extra = "2 набої, кожне влучання окремо."; attrKey = "accuracy"; isAttack = true; }
-  if(action === "shoot_burst"){ count = 3; baseMod = -2; cost = 3; title = "Черга"; extra = "3 набої, -2, після черги діє Віддача."; attrKey = "accuracy"; isAttack = true; }
+  if(action === "shoot_normal"){ count = 2; baseMod = -1; cost = 2; title = "Бойовий постріл"; extra = "2 набої, -1 до точності; якщо 0 влучань — стрілець розкривається."; attrKey = "accuracy"; isAttack = true; }
+  if(action === "shoot_burst"){ count = 3; baseMod = -2; cost = 3; title = "Черга"; extra = "3 набої, прогресивна віддача; після черги стрілець розкривається."; attrKey = "accuracy"; isAttack = true; }
 
   if(action === "look"){ title = "Огляд"; extra = "1d20 + Сприйняття."; attrKey = "perception"; }
   if(action === "throw_bolt"){ title = "Кинути болт"; extra = "1d20 + Сприйняття. Перевірка аномалії."; attrKey = "perception"; }
@@ -3039,6 +3140,11 @@ function doAction(action){
     routedAttack = routeAttackByActorTarget(action);
     if(routedAttack?.routed) return;
     if(routedAttack?.playerId) p = playerById(routedAttack.playerId);
+  }
+
+  if(isAttack && action === "shoot_burst"){
+    baseMod = burstAccuracyModForShooter(p);
+    extra = `3 набої, ${baseMod} до точності через віддачу; після черги стрілець розкривається.`;
   }
 
   if(action === "clear_jam"){
@@ -3089,6 +3195,7 @@ function doAction(action){
     const jammedNow = shouldWeaponJam(p, r.dice);
     const critMiss = r.dice.includes(1);
     const hits = r.totals.filter(t => t >= threshold).length;
+    const shotStateNotes = updateShooterAfterShot(p, action, hits);
     let damage = 0;
     let damageRoll = null;
     if(hits){
@@ -3105,6 +3212,7 @@ function doAction(action){
     if(critMiss) hitText += " Критичний промах: Майстер може ускладнити ситуацію.";
     if(jammedNow) hitText += " Зброю заклинило.";
     if(enemy.state === "вибув") hitText += " Ціль вибула.";
+    if(shotStateNotes?.length) hitText += ` ${shotStateNotes.join(" ")}`;
     showRollToast(`${title} → ${enemy.name}`, r.dice, r.totals, attrName, attrMod, `${hits ? "Влучань: " + hits + ", шкода: " + damage + " · " + damageRoll.formula : "Промах"}${enemy.lastReactions?.length ? " · " + enemy.lastReactions.join(", ") : ""}${crits ? " · КРИТ" : ""}${jammedNow ? " · КЛИН" : ""} · Набої: ${p.ammo}`);
 
     const weapon = weaponInfo(p);
@@ -3179,7 +3287,8 @@ function staticShotResultLines({
   shooterAmmo,
   reactionText="",
   effectText="",
-  rolledText=""
+  rolledText="",
+  stateText=""
 }){
   const quotedTarget = `“${targetName}”`;
   const quotedShooter = `“${shooterName || actorName}”`;
@@ -3192,7 +3301,8 @@ function staticShotResultLines({
     isHit ? `Шкода зброї: ${damage} (${formulaDisplay})` : `Шкода зброї: 0 (${formulaDisplay})`,
     isHit && rolledText ? rolledText : "",
     `${quotedTarget} тепер має ${targetHp}/${targetHpMax} HP.`,
-    `У ${quotedShooter} лишилось набоїв: ${shooterAmmo}.`
+    `У ${quotedShooter} лишилось набоїв: ${shooterAmmo}.`,
+    stateText || ""
   ];
   if(reactionText) lines.push(`Реакція ворога: ${reactionText}.`);
   if(effectText) lines.push(`Ефекти ворога: ${effectText}.`);
