@@ -1631,7 +1631,7 @@ function renderCombatSummary(){
     <div class="turn-banner">${combat.active ? `Бій активний · Раунд ${combat.round || 1}${active ? " · Хід: " + escapeHtml(active.name) : ""}` : "Бій не активний"}</div>
     <div><span class="turn-mode ${combat.strictTurns ? "strict" : "free"}">${combat.strictTurns ? "Строгі ходи" : "Вільні дії"}</span>${!isCurrentPlayerTurn() && appSession.role !== "gm" ? `<span class="turn-mode strict">Дії заблоковано</span>` : ""}</div>
     <div>${order.map(c => `<span class="combat-pill ${active && active.id === c.id ? "active" : ""}">${escapeHtml(c.name)}</span>`).join("") || '<span class="combat-pill">Немає учасників</span>'}</div>
-    ${brief ? `<div class="state-last-action">${escapeHtml(brief).replace(/\n/g, "<br>")}</div>` : `<div class="copy-mini">Короткий підсумок останньої дії з’явиться тут. Повні деталі — у Журналі.</div>`}
+    ${brief ? `<div class="state-last-action">${formatBriefHtml(brief)}</div>` : `<div class="copy-mini">Короткий підсумок останньої дії з’явиться тут. Повні деталі — у Журналі.</div>`}
   `;
   clearStateRollResult();
 }
@@ -1793,7 +1793,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19507`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19508`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2473,7 +2473,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19507`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19508`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3576,6 +3576,14 @@ function setCombatBrief({ shooterName="", actionTitle="", targetName="", targetT
   ].filter(Boolean);
 
   data.combat.lastBrief = lines.join("\n");
+}
+
+function formatBriefHtml(brief){
+  // Підтримуємо і новий формат з реальними переносами, і старий Firebase-формат з текстовими \\n.
+  return escapeHtml(String(brief || ""))
+    .replace(/\\\\n/g, "<br>")
+    .replace(/\\n/g, "<br>")
+    .replace(/\n/g, "<br>");
 }
 
 function clearStateRollResult(){
