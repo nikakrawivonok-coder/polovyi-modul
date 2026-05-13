@@ -203,17 +203,30 @@ const enemyTemplates = {
     weapon: "aks74u",
     range: "far",
     weaponCondition: "normal",
+    weaponJammed: false,
     state: "цілий",
     color: "green",
     position: "за укриттям / на лінії вогню",
-    danger: "дуже висока",
+    danger: "висока",
     action: "тримає сектор і готує вогонь",
     visible: true,
-    defense: 12,
+    defense: 11,
+    defenseMax: 11,
+    fatigue: 0,
+    infection: 0,
+    armor: 0,
+    stats: {
+      endurance: 1,
+      accuracy: 1,
+      agility: 1,
+      perception: 1,
+      intuition: 0,
+      charisma: -1
+    },
     gm: {
-      hp: 12,
-      hpMax: 12,
-      ammo: 6,
+      hp: 10,
+      hpMax: 10,
+      ammo: 9,
       morale: "середня",
       behavior: "тримається за укриттям, тисне вогнем, панікує при пораненні",
       lootText: "залишок набоїв; 1d4 додаткових набої; ніж або саморобний клинок; дріб’язок 10–40",
@@ -407,7 +420,16 @@ function makeEnemyFromTemplate(templateId){
   const enemy = clone(base);
   enemy.id = makeId(`enemy_${templateId}`);
   enemy.templateId = enemy.templateId || templateId;
-  enemy.defense = enemy.defense || 12;
+  enemy.defense = Number(enemy.defense ?? 12);
+  enemy.defenseMax = Number(enemy.defenseMax ?? enemy.defense ?? 12);
+  enemy.fatigue = Number(enemy.fatigue ?? 0);
+  enemy.infection = Number(enemy.infection ?? 0);
+  enemy.armor = Number(enemy.armor ?? 0);
+  enemy.stats = enemy.stats || {};
+  ["endurance","accuracy","agility","perception","intuition","charisma"].forEach(k => {
+    enemy.stats[k] = Number(enemy.stats[k] ?? 0);
+  });
+  if(typeof enemy.weaponJammed !== "boolean") enemy.weaponJammed = false;
   enemy.gm = enemy.gm || {};
   enemy.gm.hp = Number(enemy.gm.hp ?? enemy.gm.hpMax ?? 8);
   enemy.gm.hpMax = Number(enemy.gm.hpMax ?? enemy.gm.hp ?? 8);
@@ -583,6 +605,15 @@ function normalizeRoomDataLight(roomData){
     if(!e.state) e.state = "цілий";
     if(!e.color) e.color = "green";
     e.defense = Number(e.defense ?? 12);
+    e.defenseMax = Number(e.defenseMax ?? e.defense ?? 12);
+    e.fatigue = Number(e.fatigue ?? 0);
+    e.infection = Number(e.infection ?? 0);
+    e.armor = Number(e.armor ?? 0);
+    e.stats = e.stats || {};
+    ["endurance","accuracy","agility","perception","intuition","charisma"].forEach(k => {
+      e.stats[k] = Number(e.stats[k] ?? 0);
+    });
+    if(typeof e.weaponJammed !== "boolean") e.weaponJammed = false;
     e.visible = e.visible !== false;
     e.gm = e.gm || {};
     e.gm.hp = Number(e.gm.hp ?? 8);
@@ -1715,7 +1746,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19300`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19301`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2296,6 +2327,7 @@ function renderEnemyTemplateDock(){
           <span>${escapeHtml(String(tpl.gm?.ammo ?? 0))} наб.</span>
         </div>
         <div class="enemy-template-loot">Лут: ${escapeHtml(loot)}</div>
+        <div class="enemy-template-note">Характеристики: Вит +1 · Точ +1 · Впр +1 · Спр +1 · Інт 0 · Хар -1. Втома 0 · Зараження 0 · Броня 0.</div>
         <div class="enemy-template-note">Черга: 3d20 -2; повторна черга -4; після черги Захист -1 до наступного ходу.</div>
       </div>
       <button class="metal-btn enemy-template-add" type="button" data-add-enemy-template="auto">+ Автоматник</button>
@@ -2394,7 +2426,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19300`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19301`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
