@@ -234,15 +234,16 @@ const enemyTemplates = {
       imageKey: "bandit_automatic",
       lastAttackType: "",
       recoilLevel: 0,
-      exposedUntilNextTurn: false
+      exposedUntilNextTurn: false,
+      exposurePenalty: 0
     },
     attacks: [
       { id: "precise", name: "Точний постріл", ammo: 1, dice: "1d20 +2", note: "економний постріл, ціль у укритті або далеко" },
       { id: "combat", name: "Бойовий постріл", ammo: 2, dice: "2d20 -1", note: "якщо 0 влучань — стрілець розкривається" },
-      { id: "burst", name: "Черга", ammo: 3, dice: "3d20 -2/-4/-6...", note: "прогресивна віддача: кожна черга підряд ще -2; 1/2 патрони скидають віддачу" }
+      { id: "burst", name: "Черга", ammo: 3, dice: "3d20 -2/-4/-6...", note: "прогресивна віддача; по укриттю ще -1; після черги Захист -2; 1/2 патрони скидають віддачу" }
     ],
     special: "Притискний вогонь: при влучанні з бойового пострілу або черги ціль пригинається / втрачає темп за рішенням Майстра.",
-    weakness: "Погано контролює віддачу: черги підряд погіршують точність -2/-4/-6/-8; після черги автоматник розкривається.",
+    weakness: "Погано контролює віддачу: черги підряд погіршують точність -2/-4/-6/-8; по укриттю ще -1; після черги автоматник сильно розкривається на -2 Захисту.",
     tags:["бандит","автомат","шаблон"]
   },
   leader: { name: "Ватажок", state: "цілий", color: "green", position: "біля центру групи", danger: "висока", action: "кричить накази", visible: true, defense: 12, gm: { hp: 14, hpMax: 14, ammo: 8, morale: "контролює інших" }, tags:["бандит","лідер"] },
@@ -440,6 +441,7 @@ function makeEnemyFromTemplate(templateId){
   enemy.gm.lastAttackType = enemy.gm.lastAttackType || "";
   enemy.gm.recoilLevel = Number(enemy.gm.recoilLevel || 0);
   enemy.gm.exposedUntilNextTurn = !!enemy.gm.exposedUntilNextTurn;
+  enemy.gm.exposurePenalty = Number(enemy.gm.exposurePenalty || 0);
   return enemy;
 }
 
@@ -590,6 +592,7 @@ function normalizeRoomDataLight(roomData){
     if(typeof p.weaponJammed !== "boolean") p.weaponJammed = false;
     p.recoilLevel = Number(p.recoilLevel ?? 0);
     p.exposedUntilNextTurn = !!p.exposedUntilNextTurn;
+    p.exposurePenalty = Number(p.exposurePenalty ?? 0);
     p.defense = Number(p.defense ?? 12);
     p.defenseMax = Number(p.defenseMax ?? p.defense ?? 12);
     p.armor = Number(p.armor ?? 0);
@@ -1303,6 +1306,11 @@ function enemyAttack(enemyId, mode){
   }
   const cfg = attackModeConfig(mode, enemy);
   const mutant = enemyIsMutant(enemy);
+  if(!mutant && mode === "burst"){
+    const coverPenalty = target.cover ? -1 : 0;
+    cfg.mod += coverPenalty;
+    if(coverPenalty) cfg.label = `${cfg.label} по укриттю`;
+  }
   enemy.gm = enemy.gm || { hp: 8, hpMax: 8, ammo: 0, morale: "невідомо" };
 
   if(!mutant && Number(enemy.gm.ammo || 0) < cfg.ammo){
@@ -1749,7 +1757,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19400`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19402`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2331,7 +2339,7 @@ function renderEnemyTemplateDock(){
         </div>
         <div class="enemy-template-loot">Лут: ${escapeHtml(loot)}</div>
         <div class="enemy-template-note">Характеристики: Вит +1 · Точ +1 · Впр +1 · Спр +1 · Інт 0 · Хар -1. Втома 0 · Зараження 0 · Броня 0.</div>
-        <div class="enemy-template-note">Бойовий: 2d20 -1, при 0 влучань розкриття. Черга: -2/-4/-6/-8; після черги Захист -1.</div>
+        <div class="enemy-template-note">Бойовий: 2d20 -1, при 0 влучань розкриття -1. Черга: -2/-4/-6/-8, по укриттю ще -1; після черги Захист -2.</div>
       </div>
       <button class="metal-btn enemy-template-add" type="button" data-add-enemy-template="auto">+ Автоматник</button>
     </div>
@@ -2429,7 +2437,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19400`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19402`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2566,9 +2574,11 @@ function rollWeaponDamage(player, hits, extraDice=0){
   const profile = weaponDamageProfile(player);
   const condition = weaponConditionInfo(player);
   const sides = Number(String(profile.dice || "d4").replace("d","")) || 4;
+  const hitDice = Math.max(1, Number(hits || 1));
+  const critDice = Math.max(0, Number(extraDice || 0));
   const bonus = Number(profile.bonus || 0);
   const conditionMod = Number(condition.damageMod || 0);
-  const totalDice = Math.max(1, Number(hits || 1) + Number(extraDice || 0));
+  const totalDice = hitDice + critDice;
   const rolls = [];
   let sum = 0;
   for(let i=0; i<totalDice; i++){
@@ -2576,12 +2586,28 @@ function rollWeaponDamage(player, hits, extraDice=0){
     rolls.push(roll);
     sum += roll;
   }
+
+  // V19.14.1: flat weapon/condition bonus applies once per attack, not once per hit.
+  // Example: 3 hits with 1d4+2 = 1d4+2 + 1d4 + 1d4, not 3*(1d4+2).
   sum += bonus + conditionMod;
   if(sum < 1) sum = 1;
-  const formulaBase = damageFormulaText(player, hits);
-  const critPart = extraDice ? ` + крит ${extraDice}d${sides}` : "";
-  const condPart = conditionMod ? ` ${conditionMod > 0 ? "+" : ""}${conditionMod} стан` : "";
-  return { rolls, bonus, conditionMod, extraDice, total: sum, sides, formula: `${formulaBase}${critPart}${condPart}` };
+
+  const flat = bonus + conditionMod;
+  const flatText = flat ? ` ${flat > 0 ? "+" : ""}${flat}` : "";
+  const formulaBase = `${hitDice}d${sides}${flatText}`;
+  const critPart = critDice ? ` + крит ${critDice}d${sides}` : "";
+  const condPart = conditionMod ? ` (${conditionMod > 0 ? "+" : ""}${conditionMod} стан враховано один раз)` : "";
+  return {
+    rolls,
+    bonus,
+    conditionMod,
+    extraDice: critDice,
+    hitDice,
+    total: sum,
+    sides,
+    formula: `${formulaBase}${critPart}${condPart}`,
+    flatBonusOnce: true
+  };
 }
 
 
@@ -2610,16 +2636,36 @@ function burstAccuracyModForShooter(shooter){
   return -2 * (shooterRecoilLevel(shooter) + 1);
 }
 
-function markShooterExposed(shooter, reason="розкрився"){
+function targetHasCoverForBurst(target){
+  if(!target) return false;
+  if(target.type === "enemy"){
+    const e = findEnemyById(target.ref);
+    return !!(e?.cover || enemyEffects(e || {}).includes("inCover"));
+  }
+  if(target.type === "player"){
+    const p = playerById(target.ref);
+    return !!p?.cover;
+  }
+  return !!target.cover;
+}
+
+function burstCoverPenaltyForTarget(target){
+  return targetHasCoverForBurst(target) ? -1 : 0;
+}
+
+function markShooterExposed(shooter, reason="розкрився", severity=1){
   if(!shooter) return;
+  const level = Math.max(1, Number(severity || 1));
   if(shooter.gm){
     addEnemyEffect(shooter, "exposed");
     shooter.gm.exposedUntilNextTurn = true;
+    shooter.gm.exposurePenalty = level;
     shooter.action = reason;
   } else {
     shooter.activeEffects = Array.isArray(shooter.activeEffects) ? shooter.activeEffects : [];
     if(!shooter.activeEffects.includes("exposed")) shooter.activeEffects.push("exposed");
     shooter.exposedUntilNextTurn = true;
+    shooter.exposurePenalty = level;
   }
 }
 
@@ -2630,8 +2676,8 @@ function updateShooterAfterShot(shooter, action, hits){
   if(action === "shoot_burst" || action === "burst"){
     const nextRecoil = shooterRecoilLevel(shooter) + 1;
     setShooterRecoilLevel(shooter, nextRecoil);
-    markShooterExposed(shooter, "розкрився після черги");
-    notes.push(`Після черги стрілець розкрився: Захист -1 до наступного ходу.`);
+    markShooterExposed(shooter, "сильно розкрився після черги", 2);
+    notes.push(`Після черги стрілець сильно розкрився: Захист -2 до наступного ходу.`);
     notes.push(`Віддача: наступна черга підряд матиме ${-2 * (nextRecoil + 1)} до точності.`);
     return notes;
   }
@@ -2639,7 +2685,7 @@ function updateShooterAfterShot(shooter, action, hits){
   if(action === "shoot_normal" || action === "normal"){
     setShooterRecoilLevel(shooter, 0);
     if(Number(hits || 0) === 0){
-      markShooterExposed(shooter, "розкрився після невдалого бойового пострілу");
+      markShooterExposed(shooter, "розкрився після невдалого бойового пострілу", 1);
       notes.push(`Бойовий постріл без влучань: стрілець розкрився, Захист -1 до наступного ходу.`);
     }
     return notes;
@@ -2661,6 +2707,7 @@ function clearCombatantTemporaryExposure(combatant){
     if(p.exposedUntilNextTurn){
       p.activeEffects = Array.isArray(p.activeEffects) ? p.activeEffects.filter(e => e !== "exposed") : [];
       p.exposedUntilNextTurn = false;
+      p.exposurePenalty = 0;
     }
   }
   if(combatant.type === "enemy"){
@@ -2670,13 +2717,15 @@ function clearCombatantTemporaryExposure(combatant){
       removeEnemyEffect(e, "exposed");
       e.gm = e.gm || {};
       e.gm.exposedUntilNextTurn = false;
+      e.gm.exposurePenalty = 0;
     }
   }
 }
 
 function playerDefenseValue(player){
   const effects = Array.isArray(player.activeEffects) ? player.activeEffects : [];
-  return Number(player.defense || 12) + (player.cover ? 2 : 0) - (effects.includes("exposed") ? 1 : 0);
+  const exposedPenalty = effects.includes("exposed") ? Math.max(1, Number(player.exposurePenalty || 1)) : 0;
+  return Number(player.defense || 12) + (player.cover ? 2 : 0) - exposedPenalty;
 }
 function attrLabel(key){
   return {endurance:"Витривалість", accuracy:"Точність", agility:"Вправність", perception:"Сприйняття", intuition:"Інтуїція", charisma:"Харизма"}[key] || "";
@@ -2765,7 +2814,8 @@ function enemyEffectsText(enemy){
 
 function enemyDefenseValue(enemy){
   const effects = enemyEffects(enemy);
-  return Number(enemy.defense || 12) + (effects.includes("inCover") ? 2 : 0) - (effects.includes("exposed") ? 1 : 0);
+  const exposedPenalty = effects.includes("exposed") ? Math.max(1, Number(enemy.gm?.exposurePenalty || 1)) : 0;
+  return Number(enemy.defense || 12) + (effects.includes("inCover") ? 2 : 0) - exposedPenalty;
 }
 
 function applyEnemyReactionsAfterDamage(enemy, hits, damage){
@@ -2975,8 +3025,10 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
   }
 
   if(action === "shoot_burst"){
-    cfg.baseMod = burstAccuracyModForShooter(p);
-    cfg.extra = `3 набої, ${cfg.baseMod} до точності через віддачу; після черги стрілець розкривається.`;
+    const burstTarget = { type: "enemy", ref: enemyId };
+    const coverPenalty = burstCoverPenaltyForTarget(burstTarget);
+    cfg.baseMod = burstAccuracyModForShooter(p) + coverPenalty;
+    cfg.extra = `3 набої, ${cfg.baseMod} до точності${coverPenalty ? " (ціль в укритті: -1)" : ""}; після черги стрілець сильно розкривається.`;
   }
 
   if(cfg.cost) p.ammo = Number(p.ammo || 0) - cfg.cost;
@@ -3143,8 +3195,11 @@ function doAction(action){
   }
 
   if(isAttack && action === "shoot_burst"){
-    baseMod = burstAccuracyModForShooter(p);
-    extra = `3 набої, ${baseMod} до точності через віддачу; після черги стрілець розкривається.`;
+    const preTargetCombatant = currentCombatTargetForAction();
+    const preEnemy = preTargetCombatant?.type === "enemy" ? findEnemyById(preTargetCombatant.ref) : selectedTargetEnemy();
+    const coverPenalty = preEnemy ? burstCoverPenaltyForTarget({ type: "enemy", ref: preEnemy.id }) : 0;
+    baseMod = burstAccuracyModForShooter(p) + coverPenalty;
+    extra = `3 набої, ${baseMod} до точності${coverPenalty ? " (ціль в укритті: -1)" : ""}; після черги стрілець сильно розкривається.`;
   }
 
   if(action === "clear_jam"){
