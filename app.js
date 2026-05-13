@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.16.4";
-const BUILD_NUMBER = "19604";
-const BUILD_NAME = "Build / Debug Badge";
+const BUILD_VERSION = "V19.16.5";
+const BUILD_NUMBER = "19605";
+const BUILD_NAME = "Enemy Loot Draft";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -529,6 +529,62 @@ function rollLoot(type){
   addLog(`${p.name || pid}: ${result.text}`, "public");
   showToast("Лут додано.");
   render();
+}
+
+function addInventoryItemForPlayer(playerId, item, count=1, note=""){
+  const inv = inventoryForPlayer(playerId);
+  const cleanItem = String(item || "").trim();
+  if(!cleanItem) return null;
+  const cleanNote = String(note || "").trim();
+  const existing = inv.find(i => i.item === cleanItem && String(i.note || "") === cleanNote);
+  if(existing){
+    existing.count = Number(existing.count || 0) + Number(count || 1);
+    return existing;
+  }
+  const entry = { item: cleanItem, count: Number(count || 1), note: cleanNote };
+  inv.push(entry);
+  return entry;
+}
+
+function transferEnemyAmmoLoot(enemyId, playerId=currentPlayerId()){
+  const enemy = findEnemyById(enemyId);
+  if(!enemy) return;
+  enemy.gm = enemy.gm || {};
+  const ammo = Math.max(0, Number(enemy.gm.ammo || 0));
+  const p = playerById(playerId);
+  if(ammo <= 0){
+    showToast("У ворога немає набоїв.");
+    return;
+  }
+  p.ammo = Number(p.ammo || 0) + ammo;
+  enemy.gm.ammo = 0;
+  enemy.gm.lootTakenAmmo = true;
+  addLog(`${p.name || playerId} забрав ${ammo} наб. з ${enemy.name}.`, "public");
+  showToast(`Передано набої: ${ammo}`);
+  save();
+  render();
+}
+
+function transferEnemyLootNote(enemyId, playerId=currentPlayerId()){
+  const enemy = findEnemyById(enemyId);
+  if(!enemy) return;
+  enemy.gm = enemy.gm || {};
+  const p = playerById(playerId);
+  const lootText = enemy.gm.lootText || "трофеї ворога";
+  addInventoryItemForPlayer(playerId, `Лут: ${enemy.name}`, 1, lootText);
+  enemy.gm.lootTakenText = true;
+  addLog(`${p.name || playerId} отримав лут з ${enemy.name}: ${lootText}.`, "public");
+  showToast("Лут передано.");
+  save();
+  render();
+}
+
+function transferEnemyAllLoot(enemyId, playerId=currentPlayerId()){
+  const enemy = findEnemyById(enemyId);
+  if(!enemy) return;
+  const beforeAmmo = Number(enemy.gm?.ammo || 0);
+  transferEnemyLootNote(enemyId, playerId);
+  if(beforeAmmo > 0) transferEnemyAmmoLoot(enemyId, playerId);
 }
 
 
@@ -1917,7 +1973,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19604`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19605`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2533,6 +2589,13 @@ function enemyCardGm(e){
       <p><strong>Лут після бою:</strong> ${escapeHtml(loot)}</p>
     </div>
 
+    <div class="enemy-loot-actions">
+      <div class="enemy-loot-title">Лут активному гравцю: ${escapeHtml(playerById(currentPlayerId()).name || currentPlayerId())}</div>
+      <button class="metal-btn" data-transfer-enemy-loot="${escapeAttr(e.id)}">Передати лут</button>
+      <button class="metal-btn" data-transfer-enemy-ammo="${escapeAttr(e.id)}" ${Number(gm.ammo || 0) <= 0 ? "disabled" : ""}>Передати набої (${escapeHtml(String(gm.ammo || 0))})</button>
+      <button class="metal-btn success" data-transfer-enemy-all-loot="${escapeAttr(e.id)}">Передати все</button>
+    </div>
+
     <p class="enemy-gm-attrs"><strong>Характеристики:</strong> Вит ${fmtMod(stats.endurance ?? 0)} · Точ ${fmtMod(stats.accuracy ?? 0)} · Впр ${fmtMod(stats.agility ?? 0)} · Спр ${fmtMod(stats.perception ?? 0)} · Інт ${fmtMod(stats.intuition ?? 0)} · Хар ${fmtMod(stats.charisma ?? 0)}</p>
 
     <div class="quick-state-row enemy-card-actions">
@@ -2692,7 +2755,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19604`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19605`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -4325,6 +4388,30 @@ const enemyStep = e.target.closest("[data-enemy-step]");
       save();
       render();
     }
+    return;
+  }
+
+  const transferEnemyLootBtn = e.target.closest("[data-transfer-enemy-loot]");
+  if(transferEnemyLootBtn){
+    e.preventDefault();
+    e.stopPropagation();
+    transferEnemyLootNote(transferEnemyLootBtn.dataset.transferEnemyLoot, currentPlayerId());
+    return;
+  }
+
+  const transferEnemyAmmoBtn = e.target.closest("[data-transfer-enemy-ammo]");
+  if(transferEnemyAmmoBtn){
+    e.preventDefault();
+    e.stopPropagation();
+    transferEnemyAmmoLoot(transferEnemyAmmoBtn.dataset.transferEnemyAmmo, currentPlayerId());
+    return;
+  }
+
+  const transferEnemyAllLootBtn = e.target.closest("[data-transfer-enemy-all-loot]");
+  if(transferEnemyAllLootBtn){
+    e.preventDefault();
+    e.stopPropagation();
+    transferEnemyAllLoot(transferEnemyAllLootBtn.dataset.transferEnemyAllLoot, currentPlayerId());
     return;
   }
 

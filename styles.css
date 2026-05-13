@@ -2037,3 +2037,30 @@ body.role-player .gm-combat-sticky {
     grid-template-columns:1fr;
   }
 }
+
+
+/* V19.16.5 — enemy loot draft */
+.enemy-loot-actions{
+  margin:10px 0;
+  padding:10px;
+  border:1px solid rgba(230,180,94,.28);
+  border-radius:12px;
+  background:rgba(0,0,0,.18);
+  display:grid;
+  grid-template-columns:1fr;
+  gap:7px;
+}
+.enemy-loot-title{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.04em;
+}
+.enemy-loot-actions .metal-btn{
+  min-height:42px;
+  touch-action:manipulation;
+}
+.enemy-loot-actions .metal-btn[disabled]{
+  opacity:.45;
+  filter:grayscale(.35);
+}
