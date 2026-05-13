@@ -194,7 +194,43 @@ const enemyTemplates = {
   coward: { name: "Боягуз", weapon: "pm", state: "наляканий", color: "yellow", position: "тримається позаду", danger: "низька", action: "шукає шлях втечі", visible: true, defense: 12, gm: { hp: 8, hpMax: 8, ammo: 3, morale: "ламається" }, tags:["бандит","мораль"] },
   bandit: { name: "Бандит", weapon: "pm", state: "цілий", color: "green", position: "за укриттям", danger: "середня", action: "цілиться", visible: true, defense: 12, gm: { hp: 9, hpMax: 9, ammo: 6, morale: "нервує" }, tags:["бандит"] },
   shotgun: { name: "Бандит з обрізом", weapon: "obrez", state: "цілий", color: "green", position: "близько до проходу", danger: "висока зблизька", action: "чекає зближення", visible: true, defense: 12, gm: { hp: 8, hpMax: 8, ammo: 2, morale: "агресивний" }, tags:["бандит","обріз"] },
-  auto: { name: "Автоматник", weapon: "aks74u", state: "цілий", color: "green", position: "на відкритій лінії вогню", danger: "дуже висока", action: "готує чергу", visible: true, defense: 12, gm: { hp: 12, hpMax: 12, ammo: 15, morale: "тримається" }, tags:["бандит","автомат"] },
+  auto: {
+    templateId: "auto",
+    name: "Автоматник",
+    type: "human",
+    faction: "бандити",
+    role: "тиск вогнем, контроль простору",
+    weapon: "aks74u",
+    range: "far",
+    weaponCondition: "normal",
+    state: "цілий",
+    color: "green",
+    position: "за укриттям / на лінії вогню",
+    danger: "дуже висока",
+    action: "тримає сектор і готує вогонь",
+    visible: true,
+    defense: 12,
+    gm: {
+      hp: 12,
+      hpMax: 12,
+      ammo: 6,
+      morale: "середня",
+      behavior: "тримається за укриттям, тисне вогнем, панікує при пораненні",
+      lootText: "залишок набоїв; 1d4 додаткових набої; ніж або саморобний клинок; дріб’язок 10–40",
+      imageKey: "bandit_automatic",
+      lastAttackType: "",
+      recoilLevel: 0,
+      exposedUntilNextTurn: false
+    },
+    attacks: [
+      { id: "precise", name: "Точний постріл", ammo: 1, dice: "1d20 +2", note: "економний постріл, ціль у укритті або далеко" },
+      { id: "combat", name: "Бойовий постріл", ammo: 2, dice: "2d20 +0", note: "стандартна перестрілка" },
+      { id: "burst", name: "Черга", ammo: 3, dice: "3d20 -2", note: "після черги Захист -1 до наступного ходу; повторна черга -4; 1/2 патрони скидають віддачу" }
+    ],
+    special: "Притискний вогонь: при влучанні з бойового пострілу або черги ціль пригинається / втрачає темп за рішенням Майстра.",
+    weakness: "Погано контролює віддачу: друга черга підряд має -4 замість -2; після черги автоматник розкривається.",
+    tags:["бандит","автомат","шаблон"]
+  },
   leader: { name: "Ватажок", state: "цілий", color: "green", position: "біля центру групи", danger: "висока", action: "кричить накази", visible: true, defense: 12, gm: { hp: 14, hpMax: 14, ammo: 8, morale: "контролює інших" }, tags:["бандит","лідер"] },
   ambusher: { name: "Засадник", state: "цілий", color: "green", position: "у тіні збоку", danger: "середня, якщо його не помітили", action: "чекає нагоди для першого пострілу", visible: true, defense: 13, gm: { hp: 8, hpMax: 8, ammo: 5, morale: "терплячий" }, tags:["бандит","засідка"] },
   finisher: { name: "Добивач", state: "цілий", color: "green", position: "шукає поранених", danger: "висока для слабких цілей", action: "тисне на найслабшого", visible: true, defense: 12, gm: { hp: 9, hpMax: 9, ammo: 5, morale: "жорстокий" }, tags:["бандит","тиск"] },
@@ -370,7 +406,17 @@ function makeEnemyFromTemplate(templateId){
   const base = enemyTemplates[templateId] || enemyTemplates.bandit;
   const enemy = clone(base);
   enemy.id = makeId(`enemy_${templateId}`);
+  enemy.templateId = enemy.templateId || templateId;
   enemy.defense = enemy.defense || 12;
+  enemy.gm = enemy.gm || {};
+  enemy.gm.hp = Number(enemy.gm.hp ?? enemy.gm.hpMax ?? 8);
+  enemy.gm.hpMax = Number(enemy.gm.hpMax ?? enemy.gm.hp ?? 8);
+  enemy.gm.ammo = Number(enemy.gm.ammo ?? 0);
+  enemy.gm.lootText = enemy.gm.lootText || "залишок набоїв";
+  enemy.gm.imageKey = enemy.gm.imageKey || `${templateId}_placeholder`;
+  enemy.gm.lastAttackType = enemy.gm.lastAttackType || "";
+  enemy.gm.recoilLevel = Number(enemy.gm.recoilLevel || 0);
+  enemy.gm.exposedUntilNextTurn = !!enemy.gm.exposedUntilNextTurn;
   return enemy;
 }
 
@@ -427,7 +473,9 @@ function addEnemyTemplate(templateId){
   data.enemies = Array.isArray(data.enemies) ? data.enemies : [];
   data.enemies.push(enemy);
   if(data.combat?.active) buildTurnOrder();
-  addLog(`Майстер додав ворога: ${enemy.name}.`, "public");
+  const loot = enemy.gm?.lootText ? ` Лут: ${enemy.gm.lootText}.` : "";
+  addLog(`Майстер додав ворога: ${enemy.name}.${loot}`, "gm");
+  showToast(`Додано: ${enemy.name}`);
   render();
 }
 
@@ -1667,7 +1715,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19201`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19300`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2093,6 +2141,7 @@ function render(){
 
   const visible = (data.enemies || []).filter(e => e.visible !== false);
   safeSetHTML("#stateEnemies", visible.map(enemyRow).join(""));
+  renderEnemyTemplateDock();
   safeSetHTML("#enemyCards", visible.map(enemyCard).join(""));
   qs("#inventoryList").innerHTML = currentInventory().map(invItem).join("");
   const inlineInv = qs("#inventoryInlineList");
@@ -2220,33 +2269,46 @@ function logItem(j){
 }
 
 
+
+function renderEnemyTemplateDock(){
+  const box = qs("#enemyTemplateDock");
+  if(!box) return;
+  if(appSession.role !== "gm"){
+    box.innerHTML = "";
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+
+  const tpl = enemyTemplates.auto;
+  const loot = tpl.gm?.lootText || "залишок набоїв";
+  box.innerHTML = `
+    <div class="enemy-template-dock-card">
+      <div class="enemy-template-avatar" aria-hidden="true">☠️</div>
+      <div class="enemy-template-body">
+        <div class="enemy-template-kicker">Шаблон ворога · тест V19.13</div>
+        <h4>${escapeHtml(tpl.name)}</h4>
+        <p>${escapeHtml(tpl.role || "тиск вогнем")}</p>
+        <div class="enemy-template-stats">
+          <span>HP ${escapeHtml(String(tpl.gm?.hpMax ?? tpl.gm?.hp ?? "?"))}</span>
+          <span>Захист ${escapeHtml(String(tpl.defense ?? 12))}</span>
+          <span>${escapeHtml(weaponInfo({weapon: tpl.weapon}).name)}</span>
+          <span>${escapeHtml(String(tpl.gm?.ammo ?? 0))} наб.</span>
+        </div>
+        <div class="enemy-template-loot">Лут: ${escapeHtml(loot)}</div>
+        <div class="enemy-template-note">Черга: 3d20 -2; повторна черга -4; після черги Захист -1 до наступного ходу.</div>
+      </div>
+      <button class="metal-btn enemy-template-add" type="button" data-add-enemy-template="auto">+ Автоматник</button>
+    </div>
+  `;
+}
+
 function renderEnemyTemplateButtons(){
   const box = qs("#enemyTemplateButtons");
   if(!box) return;
-
-  const groups = [
-    ["Люди", ["coward","bandit","shotgun","auto","leader","ambusher","finisher","npc"]],
-    ["Мутанти", ["blinddog","pseudodog","tushkan"]]
-  ];
-
-  box.innerHTML = groups.map(([group, ids]) => `
-    <div class="enemy-template-group">
-      <div class="enemy-template-group-title">${escapeHtml(group)}</div>
-      <div class="enemy-template-grid">
-        ${ids.map(id => {
-          const tpl = enemyTemplates[id];
-          if(!tpl) return "";
-          const hp = tpl.gm?.hpMax ?? tpl.gm?.hp ?? "?";
-          const defense = tpl.defense ?? 12;
-          return `<button class="metal-btn enemy-template-btn" data-add-enemy-template="${escapeAttr(id)}">
-            <strong>${escapeHtml(tpl.name)}</strong>
-            <small>HP ${escapeHtml(String(hp))} · Захист ${escapeHtml(String(defense))}</small>
-          </button>`;
-        }).join("")}
-      </div>
-    </div>
-  `).join("");
+  box.innerHTML = "";
 }
+
 
 function fillMaster(){
   renderEnemyTemplateButtons();
@@ -2332,7 +2394,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19201`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19300`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;

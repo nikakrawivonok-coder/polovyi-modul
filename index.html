@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#120d09" />
   <title>Польовий Модуль — V19.12.1 Damage Dice Transparency Patch</title>
-  <link rel="stylesheet" href="./styles.css?v=19201">
+  <link rel="stylesheet" href="./styles.css?v=19300">
 
 </head>
 <body>
@@ -171,6 +171,7 @@
 
     <section class="screen" data-screen="enemies">
       <div class="section-title"><span>☠</span><h3>Видимі вороги</h3></div>
+      <div id="enemyTemplateDock" class="enemy-template-dock gm-only"></div>
       <div id="enemyCards" class="enemy-cards"></div>
     </section>
 
@@ -245,11 +246,6 @@
         <button class="metal-btn" id="saveScene">Оновити сцену</button><div class="save-hint">Поля сцени зберігаються після натискання цієї кнопки, щоб не перемальовувати екран під час набору тексту.</div>
       </details>
       <details class="gm-panel"><summary>Вороги</summary>
-          <div class="enemy-template-panel">
-            <strong>Шаблони ворогів</strong>
-            <div class="copy-mini">Швидке додавання типових ворогів у сцену. Додаються як звичайні вороги.</div>
-            <div id="enemyTemplateButtons" class="enemy-template-buttons"></div>
-          </div>
 <div id="gmEnemies"></div><button class="metal-btn" id="addEnemy">Додати ворога</button></details>
       <details class="gm-panel"><summary>Інвентар</summary><div id="gmInventory"></div><button class="metal-btn" id="addItem">Додати річ</button></details>
       <details class="gm-panel">
@@ -270,19 +266,6 @@
           <button class="metal-btn" data-load-scene="anomaly_field">Поле аномалій</button>
           <button class="metal-btn" data-load-scene="abandoned_basement">Підвал під блокпостом</button>
           <button class="metal-btn" data-load-scene="bandit_camp">Стоянка бандитів</button>
-        </div>
-      </details>
-
-      <details class="gm-panel">
-        <summary>Шаблони ворогів</summary>
-        <p class="room-model-note">Додає готових ворогів у поточну сцену. Вони одразу синхронізуються для гравців як видимі стани.</p>
-        <div class="button-row">
-          <button class="metal-btn" data-add-enemy-template="coward">Боягуз</button>
-          <button class="metal-btn" data-add-enemy-template="bandit">Бандит</button>
-          <button class="metal-btn" data-add-enemy-template="shotgun">Бандит з обрізом</button>
-          <button class="metal-btn" data-add-enemy-template="auto">Автоматник</button>
-          <button class="metal-btn" data-add-enemy-template="leader">Ватажок</button>
-          <button class="metal-btn danger" id="clearEnemies">Очистити ворогів</button>
         </div>
       </details>
 
@@ -376,6 +359,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   
-  <script src="./app.js?v=19201"></script>
+  <script src="./app.js?v=19300"></script>
 </body>
 </html>
