@@ -1769,3 +1769,15 @@ body.role-player .gm-combat-sticky {
 .state-enemy-card .state-enemy-hint{
   flex:0 0 auto;
 }
+
+
+/* V19.15.10 — hard screen isolation */
+.screen:not(.active){
+  display:none !important;
+}
+.screen[hidden]{
+  display:none !important;
+}
+.screen.active{
+  display:block !important;
+}

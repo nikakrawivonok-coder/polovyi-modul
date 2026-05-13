@@ -832,6 +832,24 @@ function currentInventory(){
 }
 
 
+function activeScreenName(){
+  return qs(".nav-btn.active")?.dataset?.target || qs(".screen.active")?.dataset?.screen || "state";
+}
+
+function enforceScreenIsolation(){
+  let target = activeScreenName();
+  if(target === "master" && appSession.role !== "gm") target = "state";
+
+  qsa(".screen").forEach(s => {
+    const isActive = s.dataset.screen === target;
+    s.classList.toggle("active", isActive);
+    s.hidden = !isActive;
+    s.style.display = isActive ? "" : "none";
+  });
+
+  qsa(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.target === target));
+}
+
 function enforcePlayerAccessGuards(){
   const isGm = appSession.role === "gm";
 
@@ -1793,7 +1811,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19509`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19510`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2247,6 +2265,7 @@ function render(){
   renderPlayerSpecificLinks();
   applyRoleMode();
   enforcePlayerAccessGuards();
+  enforceScreenIsolation();
   refreshActionLocks();
   save();
   restoreFocusState(focusState);
@@ -2476,7 +2495,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19509`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19510`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2531,9 +2550,17 @@ function escapeAttr(str){ return escapeHtml(str).replace(/"/g, "&quot;");}
 
 function switchScreen(target){
   if(target === "master" && appSession.role !== "gm") target = "state";
-  qsa(".screen").forEach(s => s.classList.toggle("active", s.dataset.screen === target));
+
+  qsa(".screen").forEach(s => {
+    const isActive = s.dataset.screen === target;
+    s.classList.toggle("active", isActive);
+    s.hidden = !isActive;
+    s.style.display = isActive ? "" : "none";
+  });
+
   qsa(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.target === target));
-  qs("#rollResult").hidden = true;
+  const roll = qs("#rollResult");
+  if(roll) roll.hidden = true;
   window.scrollTo({top:0, behavior:"smooth"});
 }
 
