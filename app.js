@@ -1429,6 +1429,22 @@ function enemyAttack(enemyId, mode){
     stateText: shotStateNotes.join(" ")
   }));
 
+  setCombatBrief({
+    shooterName: enemy.name,
+    actionTitle: cfg.label,
+    targetName,
+    targetType: "player",
+    rolls,
+    totals,
+    hits,
+    damage: totalDamage,
+    targetHp: target.hp,
+    targetHpMax: target.hpMax,
+    targetState: "",
+    shooterAmmo: appSession.role === "gm" && !mutant ? enemy.gm.ammo : null,
+    clarityLines
+  });
+
   showRollToast(`${enemy.name}: ${cfg.label} → ${targetName}`, rolls, totals, "", 0, popupExtra);
 
   render();
@@ -1606,12 +1622,14 @@ function renderCombatSummary(){
   const combat = data.combat || {active:false};
   const active = activeCombatant();
   const order = getCombatants();
+  const brief = combat.lastBrief || "";
   target.innerHTML = `
     <div class="turn-banner">${combat.active ? `Бій активний · Раунд ${combat.round || 1}${active ? " · Хід: " + escapeHtml(active.name) : ""}` : "Бій не активний"}</div>
     <div><span class="turn-mode ${combat.strictTurns ? "strict" : "free"}">${combat.strictTurns ? "Строгі ходи" : "Вільні дії"}</span>${!isCurrentPlayerTurn() && appSession.role !== "gm" ? `<span class="turn-mode strict">Дії заблоковано</span>` : ""}</div>
     <div>${order.map(c => `<span class="combat-pill ${active && active.id === c.id ? "active" : ""}">${escapeHtml(c.name)}</span>`).join("") || '<span class="combat-pill">Немає учасників</span>'}</div>
-    <div class="copy-mini">${escapeHtml(combat.lastEvent || "")}</div>
+    ${brief ? `<div class="state-last-action">${escapeHtml(brief).replace(/\n/g, "<br>")}</div>` : `<div class="copy-mini">Короткий підсумок останньої дії з’явиться тут. Повні деталі — у Журналі.</div>`}
   `;
+  clearStateRollResult();
 }
 
 function renderGmCombatPanel(){
@@ -1771,7 +1789,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19503`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19505`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2451,7 +2469,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19503`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19505`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2672,10 +2690,17 @@ function shotClarityLines({ action="", mode="", attackMod=0, coverPenalty=0, dam
   const lines = [];
 
   if(kind === "shoot_burst" || kind === "burst"){
-    const recoilStep = shooter ? shooterRecoilLevel(shooter) + 1 : 1;
-    lines.push(`Віддача: ${recoilStep}-а черга, ${attackMod} до точності.`);
-    if(coverPenalty){
-      lines.push(`Укриття: ще -1 до черги.`);
+    const currentRecoil = shooter ? shooterRecoilLevel(shooter) : 0;
+    const recoilStep = currentRecoil + 1;
+    const recoilPenalty = -2 * recoilStep;
+    const totalPenalty = Number(attackMod || 0);
+
+    lines.push(`Віддача: ${recoilStep}-а черга, ${recoilPenalty} до точності.`);
+    if(Number(coverPenalty || 0)){
+      lines.push(`Укриття: ще ${coverPenalty} до черги.`);
+      if(totalPenalty !== recoilPenalty){
+        lines.push(`Разом: ${totalPenalty} до точності.`);
+      }
     } else if(targetCovered){
       lines.push(`Укриття враховано.`);
     }
@@ -3158,6 +3183,22 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     stateText: shotStateNotes.join(" ")
   }));
 
+  setCombatBrief({
+    shooterName: p.name || playerId,
+    actionTitle: cfg.title,
+    targetName: enemy.name,
+    targetType: "enemy",
+    rolls: r.dice,
+    totals: r.totals,
+    hits,
+    damage,
+    targetHp: enemy.gm.hp,
+    targetHpMax: enemy.gm.hpMax,
+    targetState: publicEnemyStateText(enemy),
+    shooterAmmo: appSession.role === "gm" ? p.ammo : p.ammo,
+    clarityLines
+  });
+
   addLog(`${p.name || playerId}: ${cfg.title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}.${targetText}${hitText}. Набої: ${p.ammo}.`, "public");
   render();
   triggerFlicker();
@@ -3372,16 +3413,27 @@ function doAction(action){
       clarityLines,
       stateText: shotStateNotes.join(" ")
     }));
+
+    setCombatBrief({
+      shooterName: p.name,
+      actionTitle: title,
+      targetName: enemy.name,
+      targetType: "enemy",
+      rolls: r.dice,
+      totals: r.totals,
+      hits,
+      damage,
+      targetHp: enemy.gm.hp,
+      targetHpMax: enemy.gm.hpMax,
+      targetState: publicEnemyStateText(enemy),
+      shooterAmmo: p.ammo,
+      clarityLines
+    });
   } else {
     showRollToast(title, r.dice, r.totals, attrName, attrMod, extra);
-    const result = qs("#rollResult");
-    result.hidden = false;
-    result.innerHTML = `<h4>${title}</h4>
-      <div>${escapeHtml(extra)}</div>
-      <div class="roll-dice">🎲 ${r.dice.join(" · ")}</div>
-      <div><strong>Кидок:</strong> ${rollText}</div>
-      <div><strong>Підсумок:</strong> ${r.totals.join(" · ")}</div>
-      ${attrKey ? `<div><strong>${escapeHtml(attrName)}:</strong> ${attrMod > 0 ? "+" : ""}${attrMod}</div>` : ""}`;
+    data.combat = data.combat || {};
+    data.combat.lastBrief = `${p.name}: ${title}\n🎲 ${r.dice.join(", ")} → ${r.totals.join(", ")}\n${extra}`;
+    clearStateRollResult();
   }
 
   addLog(`${p.name}: ${title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}${attrKey ? `. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}` : ""}${targetText}${hitText}${cost ? `. Набої: ${p.ammo}` : ""}.`, "public");
@@ -3447,11 +3499,53 @@ function staticShotResultLines({
   return lines;
 }
 
-function setStaticRollResult(title, lines){
+
+
+function publicEnemyStateText(enemy){
+  if(!enemy) return "стан невідомий";
+  return enemy.state || "стан невідомий";
+}
+
+function targetResultTextForRole(targetType, targetName, targetHp, targetHpMax, targetState=""){
+  if(targetType === "enemy" && appSession.role !== "gm"){
+    return `${targetName}: ${targetState || "стан оновлено"}.`;
+  }
+  return `${targetName}: HP ${targetHp}/${targetHpMax}.`;
+}
+
+function setCombatBrief({ shooterName="", actionTitle="", targetName="", targetType="", rolls=[], totals=[], hits=0, damage=0, targetHp=0, targetHpMax=0, targetState="", shooterAmmo=null, clarityLines=[] } = {}){
+  data.combat = data.combat || {};
+  const rollText = Array.isArray(rolls) && rolls.length ? rolls.join(", ") : "";
+  const totalsText = Array.isArray(totals) && totals.length ? totals.join(", ") : "";
+  const resultText = hits > 0 ? `${hits} влуч., шкода ${damage}` : "промах";
+  const targetText = targetResultTextForRole(targetType, targetName, targetHp, targetHpMax, targetState);
+  const important = (Array.isArray(clarityLines) ? clarityLines : [])
+    .filter(line => /Віддача|Розкриття|Укриття|Разом/.test(line))
+    .slice(0, 4);
+
+  const lines = [
+    `${shooterName}: ${actionTitle} → ${targetName}`,
+    rollText ? `🎲 ${rollText}${totalsText && totalsText !== rollText ? ` → ${totalsText}` : ""}` : "",
+    `${resultText}. ${targetText}`,
+    shooterAmmo !== null && shooterAmmo !== undefined && shooterAmmo !== "" ? `Набої: ${shooterAmmo}.` : "",
+    ...important
+  ].filter(Boolean);
+
+  data.combat.lastBrief = lines.join("\\n");
+}
+
+function clearStateRollResult(){
   const result = qs("#rollResult");
-  if(!result) return;
-  result.hidden = false;
-  result.innerHTML = `<h4>${escapeHtml(title)}</h4>${(lines || []).map(line => `<div>${escapeHtml(line)}</div>`).join("")}`;
+  if(result){
+    result.hidden = true;
+    result.innerHTML = "";
+  }
+}
+
+function setStaticRollResult(title, lines){
+  // V19.15.4: State is not a second journal. Full combat text lives in Journal.
+  // This block is intentionally hidden; short status goes through data.combat.lastBrief.
+  clearStateRollResult();
 }
 
 function addLog(text, visibility="public"){

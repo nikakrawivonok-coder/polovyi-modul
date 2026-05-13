@@ -1730,3 +1730,19 @@ body.role-player .gm-combat-sticky {
   width: 100%;
   min-height: 44px;
 }
+
+
+/* V19.15.4 — State / Journal Separation */
+.state-last-action{
+  margin-top:8px;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid rgba(230,180,94,.45);
+  background:rgba(18,10,6,.58);
+  color:#f4ddb2;
+  font-size:14px;
+  line-height:1.35;
+}
+#rollResult{
+  display:none !important;
+}
