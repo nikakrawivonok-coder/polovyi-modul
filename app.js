@@ -1811,7 +1811,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19510`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19511`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2495,7 +2495,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19510`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19511`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3900,7 +3900,16 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   const panelToggle = e.target.closest("[data-toggle-panel]");
   if(panelToggle){
     const panel = qs(`#${panelToggle.dataset.togglePanel}`);
-    if(panel) panel.hidden = !panel.hidden;
+    if(panel){
+      const willOpen = panel.hidden || !panel.classList.contains("open");
+      panel.hidden = false;
+      panel.classList.toggle("open", willOpen);
+      if(!willOpen){
+        window.setTimeout(() => {
+          if(!panel.classList.contains("open")) panel.hidden = true;
+        }, 180);
+      }
+    }
   }
 
   const action = e.target.closest("[data-action]");

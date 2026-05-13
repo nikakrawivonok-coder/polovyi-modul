@@ -1781,3 +1781,41 @@ body.role-player .gm-combat-sticky {
 .screen.active{
   display:block !important;
 }
+
+
+/* V19.15.11 — Quick panels unfold above visible targets */
+.quick-panel-stack{
+  position:relative;
+  z-index:3;
+}
+.quick-panel{
+  overflow:hidden;
+  transform-origin:top center;
+  transition:
+    opacity .18s ease,
+    transform .18s ease,
+    max-height .22s ease,
+    margin-top .18s ease,
+    padding-top .18s ease,
+    padding-bottom .18s ease,
+    border-width .18s ease;
+}
+.quick-panel[hidden]{
+  display:block !important;
+  max-height:0 !important;
+  opacity:0;
+  transform:translateY(-6px) scaleY(.98);
+  margin-top:0 !important;
+  padding-top:0 !important;
+  padding-bottom:0 !important;
+  border-width:0 !important;
+  pointer-events:none;
+}
+.quick-panel.open{
+  max-height:620px;
+  opacity:1;
+  transform:translateY(0) scaleY(1);
+}
+.target-panel{
+  margin-top:10px;
+}
