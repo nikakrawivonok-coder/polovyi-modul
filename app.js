@@ -1380,10 +1380,9 @@ function enemyAttack(enemyId, mode){
   let result = `${enemy.name}: ${cfg.label} по ${targetName}. Кидки: ${rollText}. Ціль: ${targetNumber}. `;
   result += hits ? `Влучань: ${hits}${crits ? `, крит: +${crits} кубик шкоди` : ""}. Шкода: ${totalDamage}${damageFormula ? ` (${damageFormula})` : ""}${armor ? `, броня ${armor}` : ""}. ${targetName}: HP ${target.hp}/${target.hpMax}.` : "Промах.";
   if(notes.length) result += ` Ефекти: ${notes.join("; ")}.`;
-  if(mode === "burst") result += criticalFail ? " Провал лютої атаки: ворог розкрився і втратив позицію." : " Після атаки ворог розкрився: Захист -1 до його наступного ходу.";
+  if(mode === "burst" && criticalFail) result += " Провал лютої атаки: ворог розкрився і втратив позицію.";
   if(clarityLines?.length) result += ` ${clarityLines.join(" ")}`;
   if(shotStateNotes?.length) result += ` ${shotStateNotes.join(" ")}`;
-  if(!mutant && appSession.role === "gm") result += ` Набої ворога: ${enemy.gm.ammo}.`;
 
   data.combat = data.combat || {};
   data.combat.lastEvent = result;
@@ -1772,7 +1771,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19500`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19502`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2452,7 +2451,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19500`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19502`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2797,26 +2796,44 @@ function renderTargetSelector(){
     box.innerHTML = `<div class="detail-card full"><strong>Видимі цілі</strong><span>ворогів у полі зору немає</span></div>`;
     return;
   }
-  box.innerHTML = visible.map(e => `<button class="target-btn state-enemy-card ${e.id === active ? "active-target" : ""}" data-state-enemy="${escapeAttr(e.id)}">
-    <span class="state-enemy-main">
-      <span class="state-enemy-avatar">☠</span>
-      <span class="state-enemy-text">
-        <strong>${escapeHtml(e.name)}</strong>
-        <small>${escapeHtml(e.state || "стан невідомий")} · Захист ${escapeHtml(String(enemyDefenseValue(e)))}</small>
+  const isGm = appSession.role === "gm";
+  box.innerHTML = visible.map(e => {
+    const hpText = isGm
+      ? `<span><b>HP:</b> ${escapeHtml(String(e.gm?.hp ?? "?"))}/${escapeHtml(String(e.gm?.hpMax ?? "?"))}</span>`
+      : "";
+    const ammoText = isGm
+      ? `<span><b>Набої:</b> ${escapeHtml(String(e.gm?.ammo ?? "?"))}</span>`
+      : "";
+    const moraleText = isGm
+      ? `<span><b>Мораль:</b> ${escapeHtml(e.gm?.morale || "невідомо")}</span>`
+      : "";
+    const dangerText = isGm
+      ? `<span><b>Небезпека:</b> ${escapeHtml(e.danger || "невідомо")}</span>`
+      : "";
+    const actionText = isGm
+      ? `<span><b>Що робить:</b> ${escapeHtml(e.action || "невідомо")}</span>`
+      : `<span><b>Опис:</b> ${escapeHtml(e.visibleDescription || e.state || "деталі невідомі")}</span>`;
+    return `<button class="target-btn state-enemy-card ${e.id === active ? "active-target" : ""}" data-state-enemy="${escapeAttr(e.id)}">
+      <span class="state-enemy-main">
+        <span class="state-enemy-avatar">☠</span>
+        <span class="state-enemy-text">
+          <strong>${escapeHtml(e.name)}</strong>
+          <small>${escapeHtml(e.state || "стан невідомий")} · Захист ${escapeHtml(String(enemyDefenseValue(e)))}</small>
+        </span>
       </span>
-    </span>
-    <span class="state-enemy-hint">${expandedStateEnemyDetails[e.id] ? (e.id === active ? "ЦІЛЬ" : "ще тап — обрати") : "інфо"}</span>
-    <span class="state-enemy-detail" ${expandedStateEnemyDetails[e.id] ? "" : "hidden"}>
-      <span><b>Стан:</b> ${escapeHtml(e.state || "невідомо")}</span>
-      <span><b>Позиція:</b> ${escapeHtml(e.position || "невідомо")}</span>
-      <span><b>Небезпека:</b> ${escapeHtml(e.danger || "невідомо")}</span>
-      <span><b>Що робить:</b> ${escapeHtml(e.action || "невідомо")}</span>
-      <span><b>HP:</b> ${escapeHtml(String(e.gm?.hp ?? "?"))}/${escapeHtml(String(e.gm?.hpMax ?? "?"))}</span>
-      <span><b>Набої:</b> ${escapeHtml(String(e.gm?.ammo ?? "?"))}</span>
-      <span><b>Мораль:</b> ${escapeHtml(e.gm?.morale || "невідомо")}</span>
-      <span><b>Ефекти:</b> ${escapeHtml(enemyEffectsText(e))}</span>
-    </span>
-  </button>`).join("");
+      <span class="state-enemy-hint">${expandedStateEnemyDetails[e.id] ? (e.id === active ? "ЦІЛЬ" : "ще тап — обрати") : "інфо"}</span>
+      <span class="state-enemy-detail" ${expandedStateEnemyDetails[e.id] ? "" : "hidden"}>
+        <span><b>Стан:</b> ${escapeHtml(e.state || "невідомо")}</span>
+        <span><b>Позиція:</b> ${escapeHtml(isGm ? (e.position || "невідомо") : "видима позиція без точних деталей")}</span>
+        ${dangerText}
+        ${actionText}
+        ${hpText}
+        ${ammoText}
+        ${moraleText}
+        <span><b>Ефекти:</b> ${escapeHtml(enemyEffectsText(e))}</span>
+      </span>
+    </button>`;
+  }).join("");
 }
 function showRollToast(title, dice, totals, attrName="", attrMod=0, extra=""){
   const cls = attrMod > 0 ? "mod-pos" : attrMod < 0 ? "mod-neg" : "mod-zero";
