@@ -1,48 +1,38 @@
-# Польовий Модуль — V19.16.2 Hidden Enemy GM Recovery / Control Reliability
+# Польовий Модуль — V19.16.3 Enemy HP Control Runtime Fix
 
-Версія на базі V19.16.1.
+Версія на базі V19.16.2.
 
 ## Що виправлено
 
-### 1. Приховані вороги тепер лишаються видимими Майстру
+У V19.16.2 кнопки HP могли виглядати так, ніби не працюють одразу.
 
-У V19.16.1 кнопка `Сховати` прибирала ворога з видимості гравця, але водночас він зникав і з вкладки `Вороги` у Майстра.
-
-Тепер:
+Причина:
 
 ```text
-Майстер бачить усіх ворогів: видимих і прихованих.
-Гравець бачить тільки видимих ворогів.
+HP у data змінювався,
+але після цього код викликав updateEnemyStateByHp(enemy),
+а цієї функції не було визначено.
 ```
 
-### 2. Прихованого ворога можна повернути
+Через це виконання зупинялося до `save()` і `render()`.
 
-На прихованій картці Майстра тепер є кнопка:
+Коли потім натискалися кнопки набоїв, вони запускали новий render, і накопичені HP-зміни ставали видимими.
+
+## Що зроблено
+
+Додано відсутню функцію:
 
 ```text
-Показати гравцям
+updateEnemyStateByHp(enemy)
 ```
 
-### 3. Кнопки HP / набоїв зроблено надійнішими
-
-Для кнопок:
+Вона оновлює стан ворога за HP:
 
 ```text
-HP -1
-HP -3
-HP +1
-Набої -1
-Набої +1
-```
-
-додано:
-
-```text
-preventDefault
-stopPropagation
-миттєвий save()
-миттєвий render()
-більшу touch-зону
+0 HP = вибув
+<= 30% HP = ледь стоїть
+менше максимуму = поранений
+повний HP = цілий
 ```
 
 ## Що не змінювалося
@@ -62,14 +52,14 @@ stopPropagation
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19602">
-<script src="./app.js?v=19602"></script>
+<link rel="stylesheet" href="./styles.css?v=19603">
+<script src="./app.js?v=19603"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19602&gmKey=zona-master&v=19602`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19603&gmKey=zona-master&v=19603`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19602&player=fox&v=19602`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19603&player=fox&v=19603`

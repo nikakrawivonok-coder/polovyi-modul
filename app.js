@@ -1057,6 +1057,36 @@ function findEnemyById(enemyId){
   return (data.enemies || []).find(e => e.id === enemyId);
 }
 
+function updateEnemyStateByHp(enemy){
+  if(!enemy) return;
+  enemy.gm = enemy.gm || { hp: 8, hpMax: 8, ammo: 0, morale: "невідомо" };
+
+  const hp = Number(enemy.gm.hp ?? 0);
+  const hpMax = Math.max(1, Number(enemy.gm.hpMax ?? hp ?? 8));
+
+  if(hp <= 0){
+    enemy.state = "вибув";
+    enemy.color = "red";
+    enemy.visible = true;
+    return;
+  }
+
+  if(hp >= hpMax){
+    enemy.state = "цілий";
+    enemy.color = "green";
+    return;
+  }
+
+  if(hp <= Math.ceil(hpMax * 0.3)){
+    enemy.state = "ледь стоїть";
+    enemy.color = "red";
+    return;
+  }
+
+  enemy.state = "поранений";
+  enemy.color = "orange";
+}
+
 function damageEnemy(enemyId, amount){
   const enemy = findEnemyById(enemyId);
   if(!enemy) return;
@@ -1811,7 +1841,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19602`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19603`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2585,7 +2615,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19602`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19603`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
