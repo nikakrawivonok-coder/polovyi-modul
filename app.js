@@ -1000,6 +1000,7 @@ function startCombat(){
   data.combat.active = true;
   if(typeof data.combat.strictTurns !== "boolean") data.combat.strictTurns = true;
   data.combat.round = 1;
+  resetAllRecoilState();
   buildTurnOrder();
   const active = activeCombatant();
   data.combat.lastEvent = active ? `Перший хід: ${active.name}.` : "Бій почався.";
@@ -1792,7 +1793,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19506`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19507`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2472,7 +2473,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19506`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19507`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2667,8 +2668,31 @@ function setShooterRecoilLevel(shooter, value){
   }
 }
 
+function resetAllRecoilState(){
+  Object.values(data.players || {}).forEach(p => {
+    p.recoilLevel = 0;
+    p.exposedUntilNextTurn = false;
+    p.exposurePenalty = 0;
+    if(Array.isArray(p.activeEffects)){
+      p.activeEffects = p.activeEffects.filter(e => e !== "exposed");
+    }
+  });
+  (data.scene?.enemies || []).forEach(e => {
+    e.gm = e.gm || {};
+    e.gm.recoilLevel = 0;
+    e.gm.exposedUntilNextTurn = false;
+    e.gm.exposurePenalty = 0;
+    if(Array.isArray(e.gm.effects)){
+      e.gm.effects = e.gm.effects.filter(x => x !== "exposed");
+    }
+  });
+}
+
 function burstRecoilInfoForShooter(shooter){
-  const step = shooterRecoilLevel(shooter) + 1;
+  // Якщо бій не активний, не тягнемо стару віддачу з попередніх тестів / Firebase.
+  // Перша черга поза активним боєм завжди має бути першою: -2.
+  const current = data.combat?.active ? shooterRecoilLevel(shooter) : 0;
+  const step = current + 1;
   const penalty = -2 * step;
   return { step, penalty };
 }
@@ -3551,7 +3575,7 @@ function setCombatBrief({ shooterName="", actionTitle="", targetName="", targetT
     ...important
   ].filter(Boolean);
 
-  data.combat.lastBrief = lines.join("\\n");
+  data.combat.lastBrief = lines.join("\n");
 }
 
 function clearStateRollResult(){
