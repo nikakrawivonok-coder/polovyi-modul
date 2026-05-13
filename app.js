@@ -1793,7 +1793,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19508`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19509`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2218,7 +2218,6 @@ function render(){
   qs("#sceneObjects").innerHTML = (s.objects || []).map(o => `<li>${escapeHtml(o)}</li>`).join("");
 
   const visible = (data.enemies || []).filter(e => e.visible !== false);
-  safeSetHTML("#stateEnemies", visible.map(enemyRow).join(""));
   renderEnemyTemplateDock();
   safeSetHTML("#enemyCards", visible.map(enemyCard).join(""));
   qs("#inventoryList").innerHTML = currentInventory().map(invItem).join("");
@@ -2318,8 +2317,12 @@ function submitJournalQuickNote(visibility){
   showToast(visibility === "gm" ? "Записано тільки для Майстра." : visibility === "private" ? "Приватне повідомлення додано." : "Публічний запис додано.");
 }
 
+function enemyStatusIcon(e){
+  return e.color === "green" ? "⌁" : e.color === "orange" ? "✚" : e.color === "yellow" ? ")))" : "!";
+}
+
 function enemyRow(e){
-  const icon = e.color === "green" ? "⌁" : e.color === "orange" ? "✚" : e.color === "yellow" ? ")))" : "!";
+  const icon = enemyStatusIcon(e);
   return `<div class="enemy-row">
     <div class="enemy-thumb"></div>
     <div><h4>${escapeHtml(e.name)}</h4><p class="${enemyColorClass(e.color)}">${escapeHtml(e.state)}</p></div>
@@ -2473,7 +2476,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19508`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19509`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2874,14 +2877,17 @@ function renderTargetSelector(){
     const actionText = isGm
       ? `<span><b>Що робить:</b> ${escapeHtml(e.action || "невідомо")}</span>`
       : `<span><b>Опис:</b> ${escapeHtml(e.visibleDescription || e.state || "деталі невідомі")}</span>`;
+    const statusIcon = enemyStatusIcon(e);
+    const statusClass = enemyColorClass(e.color);
     return `<button class="target-btn state-enemy-card ${e.id === active ? "active-target" : ""}" data-state-enemy="${escapeAttr(e.id)}">
       <span class="state-enemy-main">
         <span class="state-enemy-avatar">☠</span>
         <span class="state-enemy-text">
           <strong>${escapeHtml(e.name)}</strong>
-          <small>${escapeHtml(e.state || "стан невідомий")} · Захист ${escapeHtml(String(enemyDefenseValue(e)))}</small>
+          <small><span class="${statusClass}">${escapeHtml(e.state || "стан невідомий")}</span> · Захист ${escapeHtml(String(enemyDefenseValue(e)))}</small>
         </span>
       </span>
+      <span class="state-enemy-status-icon ${statusClass}" aria-label="стан">${escapeHtml(statusIcon)}</span>
       <span class="state-enemy-hint">${expandedStateEnemyDetails[e.id] ? (e.id === active ? "ЦІЛЬ" : "ще тап — обрати") : "інфо"}</span>
       <span class="state-enemy-detail" ${expandedStateEnemyDetails[e.id] ? "" : "hidden"}>
         <span><b>Стан:</b> ${escapeHtml(e.state || "невідомо")}</span>

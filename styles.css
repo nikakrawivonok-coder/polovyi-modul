@@ -1746,3 +1746,26 @@ body.role-player .gm-combat-sticky {
 #rollResult{
   display:none !important;
 }
+
+
+/* V19.15.9 — status icon moved into visible targets */
+.state-enemy-status-icon{
+  margin-left:auto;
+  min-width:34px;
+  height:34px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  font-size:20px;
+  border:1px solid rgba(230,180,94,.45);
+  background:rgba(18,10,6,.42);
+  box-shadow:inset 0 0 12px rgba(0,0,0,.25);
+}
+.state-enemy-card .state-enemy-main{
+  flex:1 1 auto;
+}
+.state-enemy-card .state-enemy-hint{
+  flex:0 0 auto;
+}
