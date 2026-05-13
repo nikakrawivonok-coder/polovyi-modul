@@ -1811,7 +1811,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19511`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19600`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2336,6 +2336,11 @@ function submitJournalQuickNote(visibility){
   showToast(visibility === "gm" ? "Записано тільки для Майстра." : visibility === "private" ? "Приватне повідомлення додано." : "Публічний запис додано.");
 }
 
+function fmtMod(value){
+  const n = Number(value || 0);
+  return n > 0 ? `+${n}` : String(n);
+}
+
 function enemyStatusIcon(e){
   return e.color === "green" ? "⌁" : e.color === "orange" ? "✚" : e.color === "yellow" ? ")))" : "!";
 }
@@ -2349,16 +2354,74 @@ function enemyRow(e){
   </div>`;
 }
 
-function enemyCard(e){
-  return `<article class="enemy-card">
-    <h4>${escapeHtml(e.name)}</h4>
-    <p><strong>Стан:</strong> <span class="${enemyColorClass(e.color)}">${escapeHtml(e.state)}</span></p>
-    <p><strong>Позиція:</strong> ${escapeHtml(e.position)}</p>
-    <p><strong>Небезпека:</strong> ${escapeHtml(e.danger)}</p>
-    <p><strong>Що робить:</strong> ${escapeHtml(e.action)}</p>
+function enemyCardPublic(e){
+  const icon = enemyStatusIcon(e);
+  const colorClass = enemyColorClass(e.color);
+  return `<article class="enemy-card enemy-card-public">
+    <div class="enemy-card-head">
+      <div class="enemy-thumb"></div>
+      <div>
+        <h4>${escapeHtml(e.name)}</h4>
+        <p><span class="${colorClass}">${escapeHtml(e.state || "стан невідомий")}</span> · Захист ${escapeHtml(String(enemyDefenseValue(e)))}</p>
+      </div>
+      <div class="enemy-icon ${colorClass}">${escapeHtml(icon)}</div>
+    </div>
+    <p><strong>Позиція:</strong> ${escapeHtml(e.position || "невідомо")}</p>
+    <p><strong>Опис:</strong> ${escapeHtml(e.visibleDescription || e.state || "деталі невідомі")}</p>
   </article>`;
 }
 
+function enemyCardGm(e){
+  const icon = enemyStatusIcon(e);
+  const colorClass = enemyColorClass(e.color);
+  const gm = e.gm || {};
+  const hp = `${escapeHtml(String(gm.hp ?? "?"))}/${escapeHtml(String(gm.hpMax ?? "?"))}`;
+  const ammo = escapeHtml(String(gm.ammo ?? 0));
+  const weapon = escapeHtml(weaponInfo({weapon: e.weapon}).name);
+  const stats = e.stats || {};
+  const loot = gm.lootText || "залишок набоїв";
+  const effects = enemyEffectsText(e) || "немає";
+
+  return `<article class="enemy-card enemy-card-gm">
+    <div class="enemy-card-head">
+      <div class="enemy-thumb"></div>
+      <div>
+        <h4>${escapeHtml(e.name)}</h4>
+        <p><span class="${colorClass}">${escapeHtml(e.state || "стан невідомий")}</span> · Захист ${escapeHtml(String(enemyDefenseValue(e)))}</p>
+      </div>
+      <div class="enemy-icon ${colorClass}">${escapeHtml(icon)}</div>
+    </div>
+
+    <div class="enemy-gm-stats">
+      <span>HP ${hp}</span>
+      <span>Набої ${ammo}</span>
+      <span>Броня ${escapeHtml(String(e.armor ?? 0))}</span>
+      <span>Втома ${escapeHtml(String(e.fatigue ?? 0))}</span>
+      <span>Зараження ${escapeHtml(String(e.infection ?? 0))}</span>
+      <span>${weapon}</span>
+    </div>
+
+    <p><strong>Позиція:</strong> ${escapeHtml(e.position || "невідомо")}</p>
+    <p><strong>Небезпека:</strong> ${escapeHtml(e.danger || "невідомо")}</p>
+    <p><strong>Що робить:</strong> ${escapeHtml(e.action || "невідомо")}</p>
+    <p><strong>Мораль:</strong> ${escapeHtml(gm.morale || "невідомо")}</p>
+    <p><strong>Ефекти:</strong> ${escapeHtml(effects)}</p>
+    <p><strong>Лут:</strong> ${escapeHtml(loot)}</p>
+    <p class="enemy-gm-attrs"><strong>Характеристики:</strong> Вит ${fmtMod(stats.endurance ?? 0)} · Точ ${fmtMod(stats.accuracy ?? 0)} · Впр ${fmtMod(stats.agility ?? 0)} · Спр ${fmtMod(stats.perception ?? 0)} · Інт ${fmtMod(stats.intuition ?? 0)} · Хар ${fmtMod(stats.charisma ?? 0)}</p>
+
+    <div class="quick-state-row enemy-card-actions">
+      <button class="metal-btn" data-enemy-state-by-id="${escapeAttr(e.id)}" data-state="цілий" data-color="green">Цілий</button>
+      <button class="metal-btn" data-enemy-state-by-id="${escapeAttr(e.id)}" data-state="поранений" data-color="orange">Поранений</button>
+      <button class="metal-btn" data-enemy-state-by-id="${escapeAttr(e.id)}" data-state="ледь стоїть" data-color="red">Ледь стоїть</button>
+      <button class="metal-btn" data-enemy-state-by-id="${escapeAttr(e.id)}" data-state="наляканий" data-color="yellow">Наляканий</button>
+      <button class="metal-btn danger" data-enemy-state-by-id="${escapeAttr(e.id)}" data-state="вибув" data-color="red">Вибув</button>
+    </div>
+  </article>`;
+}
+
+function enemyCard(e){
+  return appSession.role === "gm" ? enemyCardGm(e) : enemyCardPublic(e);
+}
 function invItem(i){
   return `<div class="inventory-item"><div><h4>${escapeHtml(i.item)}</h4><p>${escapeHtml(i.note || "")}</p></div><div class="inventory-count">${escapeHtml(String(i.count))}</div></div>`;
 }
@@ -2383,15 +2446,25 @@ function renderEnemyTemplateDock(){
   const tpl = enemyTemplates.auto;
   const loot = tpl.gm?.lootText || "залишок набоїв";
   box.innerHTML = `
+    <div class="enemy-tools-head">
+      <div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.16</div>
+        <h4>Шаблони ворогів</h4>
+        <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
+      </div>
+      <button class="metal-btn danger" id="clearEnemies" type="button">Очистити ворогів</button>
+    </div>
+
     <div class="enemy-template-dock-card">
       <div class="enemy-template-avatar" aria-hidden="true">☠️</div>
       <div class="enemy-template-body">
-        <div class="enemy-template-kicker">Шаблон ворога · тест V19.13</div>
+        <div class="enemy-template-kicker">Шаблон ворога · бандити</div>
         <h4>${escapeHtml(tpl.name)}</h4>
         <p>${escapeHtml(tpl.role || "тиск вогнем")}</p>
         <div class="enemy-template-stats">
           <span>HP ${escapeHtml(String(tpl.gm?.hpMax ?? tpl.gm?.hp ?? "?"))}</span>
           <span>Захист ${escapeHtml(String(tpl.defense ?? 12))}</span>
+          <span>Броня ${escapeHtml(String(tpl.armor ?? 0))}</span>
           <span>${escapeHtml(weaponInfo({weapon: tpl.weapon}).name)}</span>
           <span>${escapeHtml(String(tpl.gm?.ammo ?? 0))} наб.</span>
         </div>
@@ -2399,11 +2472,10 @@ function renderEnemyTemplateDock(){
         <div class="enemy-template-note">Характеристики: Вит +1 · Точ +1 · Впр +1 · Спр +1 · Інт 0 · Хар -1. Втома 0 · Зараження 0 · Броня 0.</div>
         <div class="enemy-template-note">Бойовий: 2d20 -1, при 0 влучань розкриття -1. Черга: -2/-4/-6/-8, по укриттю ще -1; після черги Захист -2.</div>
       </div>
-      <button class="metal-btn enemy-template-add" type="button" data-add-enemy-template="auto">+ Автоматник</button>
+      <button class="metal-btn enemy-template-add" type="button" data-add-enemy-template="auto">+ Додати автоматника</button>
     </div>
   `;
 }
-
 function renderEnemyTemplateButtons(){
   const box = qs("#enemyTemplateButtons");
   if(!box) return;
@@ -2495,7 +2567,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19511`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19600`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;

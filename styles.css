@@ -1819,3 +1819,67 @@ body.role-player .gm-combat-sticky {
 .target-panel{
   margin-top:10px;
 }
+
+
+/* V19.16 — Enemy tab master tools */
+.enemy-tools-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px;
+  margin-bottom:12px;
+  border:1px solid rgba(230,180,94,.35);
+  border-radius:14px;
+  background:rgba(18,10,6,.54);
+}
+.enemy-tools-head h4{
+  margin:2px 0 4px;
+  font-size:22px;
+}
+.enemy-tools-head p{
+  margin:0;
+  color:var(--muted);
+  line-height:1.25;
+}
+.enemy-card-head{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.enemy-card-head h4{
+  margin:0;
+}
+.enemy-card-head p{
+  margin:2px 0 0;
+}
+.enemy-card-gm{
+  border-color:rgba(230,180,94,.42);
+}
+.enemy-card-public .enemy-card-head,
+.enemy-card-gm .enemy-card-head{
+  margin-bottom:10px;
+}
+.enemy-gm-stats{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:6px;
+  margin:10px 0;
+}
+.enemy-gm-stats span{
+  border:1px solid rgba(230,180,94,.28);
+  border-radius:10px;
+  padding:6px 8px;
+  background:rgba(0,0,0,.16);
+  font-weight:800;
+}
+.enemy-gm-attrs{
+  color:var(--muted);
+}
+.enemy-card-actions{
+  margin-top:10px;
+}
+.enemy-card-actions .metal-btn{
+  padding:8px 10px;
+  font-size:13px;
+}
