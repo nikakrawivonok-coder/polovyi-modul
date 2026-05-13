@@ -1306,10 +1306,11 @@ function enemyAttack(enemyId, mode){
   }
   const cfg = attackModeConfig(mode, enemy);
   const mutant = enemyIsMutant(enemy);
+  let burstCoverPenalty = 0;
   if(!mutant && mode === "burst"){
-    const coverPenalty = target.cover ? -1 : 0;
-    cfg.mod += coverPenalty;
-    if(coverPenalty) cfg.label = `${cfg.label} по укриттю`;
+    burstCoverPenalty = target.cover ? -1 : 0;
+    cfg.mod += burstCoverPenalty;
+    if(burstCoverPenalty) cfg.label = `${cfg.label} по укриттю`;
   }
   enemy.gm = enemy.gm || { hp: 8, hpMax: 8, ammo: 0, morale: "невідомо" };
 
@@ -1353,6 +1354,15 @@ function enemyAttack(enemyId, mode){
     damageFormula = "";
   }
 
+  const clarityLines = shotClarityLines({
+    mode,
+    attackMod: cfg.mod,
+    coverPenalty: burstCoverPenalty,
+    damageRoll: damageDetails,
+    shooter: enemy,
+    targetCovered: !!target.cover
+  });
+
   const armor = Number(target.armor || 0);
   const totalDamage = Math.max(0, rawDamage - armor);
 
@@ -1371,12 +1381,14 @@ function enemyAttack(enemyId, mode){
   result += hits ? `Влучань: ${hits}${crits ? `, крит: +${crits} кубик шкоди` : ""}. Шкода: ${totalDamage}${damageFormula ? ` (${damageFormula})` : ""}${armor ? `, броня ${armor}` : ""}. ${targetName}: HP ${target.hp}/${target.hpMax}.` : "Промах.";
   if(notes.length) result += ` Ефекти: ${notes.join("; ")}.`;
   if(mode === "burst") result += criticalFail ? " Провал лютої атаки: ворог розкрився і втратив позицію." : " Після атаки ворог розкрився: Захист -1 до його наступного ходу.";
+  if(clarityLines?.length) result += ` ${clarityLines.join(" ")}`;
   if(shotStateNotes?.length) result += ` ${shotStateNotes.join(" ")}`;
-  if(!mutant) result += ` Набої ворога: ${enemy.gm.ammo}.`;
+  if(!mutant && appSession.role === "gm") result += ` Набої ворога: ${enemy.gm.ammo}.`;
 
   data.combat = data.combat || {};
   data.combat.lastEvent = result;
   addLog(result, "public");
+  if(!mutant) addLog(`${enemy.name}: після атаки лишилось набоїв: ${enemy.gm.ammo}.`, "gm");
 
   if(target.hp <= 0){
     addLog(`${targetName} вибув зі сцени. Майстер вирішує наслідок: поранення, полон, втрата спорядження або тиха сцена.`, "public");
@@ -1390,9 +1402,10 @@ function enemyAttack(enemyId, mode){
     : "";
 
   const mainDie = rolls.length === 1 ? String(rolls[0]) : rolls.join(" · ");
+  const enemyAmmoPopup = !mutant && appSession.role === "gm" ? " · Набої: " + enemy.gm.ammo : "";
   const popupExtra = hits
-    ? `Влучань: ${hits}, шкода: ${totalDamage}${damageFormula ? " · " + damageFormula : ""}${crits ? " · КРИТ" : ""} · ${targetName} HP ${target.hp}/${target.hpMax}${!mutant ? " · Набої: " + enemy.gm.ammo : ""}`
-    : `Промах${!mutant ? " · Набої: " + enemy.gm.ammo : ""}`;
+    ? `Влучань: ${hits}, шкода: ${totalDamage}${damageFormula ? " · " + damageFormula : ""}${crits ? " · КРИТ" : ""} · ${targetName} HP ${target.hp}/${target.hpMax}${enemyAmmoPopup}`
+    : `Промах${enemyAmmoPopup}`;
 
   const enemyDamageDice = damageDetails?.formula?.match(/d\d+/)?.[0] || "";
   setStaticRollResult(`${enemy.name}: ${cfg.label} → ${targetName}`, staticShotResultLines({
@@ -1412,6 +1425,8 @@ function enemyAttack(enemyId, mode){
     shooterName: enemy.name,
     shooterAmmo: mutant ? "не витрачаються" : enemy.gm.ammo,
     rolledText: damageRollsTextForStatic(damageDetails, crits),
+    clarityLines,
+    hideShooterAmmo: !mutant && appSession.role !== "gm",
     stateText: shotStateNotes.join(" ")
   }));
 
@@ -1757,7 +1772,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19402`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19500`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2437,7 +2452,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19402`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19500`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2651,6 +2666,32 @@ function targetHasCoverForBurst(target){
 
 function burstCoverPenaltyForTarget(target){
   return targetHasCoverForBurst(target) ? -1 : 0;
+}
+
+function shotClarityLines({ action="", mode="", attackMod=0, coverPenalty=0, damageRoll=null, shooter=null, targetCovered=false } = {}){
+  const kind = action || mode || "";
+  const lines = [];
+
+  if(kind === "shoot_burst" || kind === "burst"){
+    const recoilStep = shooter ? shooterRecoilLevel(shooter) + 1 : 1;
+    lines.push(`Віддача черги: ${recoilStep}-а черга підряд, штраф ${attackMod} до точності.`);
+    if(coverPenalty){
+      lines.push(`Укриття цілі: додатково -1 до точності черги.`);
+    } else if(targetCovered){
+      lines.push(`Укриття цілі враховано.`);
+    }
+    lines.push(`Сильне розкриття: Захист стрільця -2 до його наступного ходу.`);
+  }
+
+  if(kind === "shoot_normal" || kind === "normal"){
+    lines.push(`Бойовий постріл: 2d20 -1; якщо 0 влучань — Захист стрільця -1 до наступного ходу.`);
+  }
+
+  if(damageRoll?.flatBonusOnce){
+    lines.push(`Бонус шкоди зброї / стану застосовано один раз; додаткові влучання дають тільки кубик шкоди.`);
+  }
+
+  return lines;
 }
 
 function markShooterExposed(shooter, reason="розкрився", severity=1){
@@ -3024,11 +3065,12 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     return true;
   }
 
+  let burstCoverPenalty = 0;
   if(action === "shoot_burst"){
     const burstTarget = { type: "enemy", ref: enemyId };
-    const coverPenalty = burstCoverPenaltyForTarget(burstTarget);
-    cfg.baseMod = burstAccuracyModForShooter(p) + coverPenalty;
-    cfg.extra = `3 набої, ${cfg.baseMod} до точності${coverPenalty ? " (ціль в укритті: -1)" : ""}; після черги стрілець сильно розкривається.`;
+    burstCoverPenalty = burstCoverPenaltyForTarget(burstTarget);
+    cfg.baseMod = burstAccuracyModForShooter(p) + burstCoverPenalty;
+    cfg.extra = `3 набої, ${cfg.baseMod} до точності${burstCoverPenalty ? " (ціль в укритті: -1)" : ""}; після черги стрілець сильно розкривається.`;
   }
 
   if(cfg.cost) p.ammo = Number(p.ammo || 0) - cfg.cost;
@@ -3053,6 +3095,15 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     damage = applyPlayerHitsToEnemy(enemy, hits, damageRoll.total);
   }
   if(jammedNow) p.weaponJammed = true;
+
+  const clarityLines = shotClarityLines({
+    action,
+    attackMod: cfg.baseMod,
+    coverPenalty: burstCoverPenalty,
+    damageRoll,
+    shooter: p,
+    targetCovered: !!(enemy.cover || enemyEffects(enemy).includes("inCover"))
+  });
 
   let targetText = ` Ціль: ${enemy.name}. Захист цілі: ${threshold}.`;
   let hitText = hits ? ` Влучань: ${hits}. Шкода: ${damage}. Формула: ${damageRoll.formula}. Кубики шкоди: ${damageRoll.rolls.join(", ")}${damageRoll.bonus ? " +" + damageRoll.bonus : ""}${damageRoll.conditionMod ? " " + damageRoll.conditionMod : ""}.` : " Промах.";
@@ -3088,6 +3139,7 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     reactionText: enemy.lastReactions?.join(", ") || "",
     effectText: enemyEffects(enemy).length ? enemyEffectsText(enemy) : "",
     rolledText: damageRollsTextForStatic(damageRoll, crits),
+    clarityLines,
     stateText: shotStateNotes.join(" ")
   }));
 
@@ -3194,12 +3246,13 @@ function doAction(action){
     if(routedAttack?.playerId) p = playerById(routedAttack.playerId);
   }
 
+  let burstCoverPenalty = 0;
   if(isAttack && action === "shoot_burst"){
     const preTargetCombatant = currentCombatTargetForAction();
     const preEnemy = preTargetCombatant?.type === "enemy" ? findEnemyById(preTargetCombatant.ref) : selectedTargetEnemy();
-    const coverPenalty = preEnemy ? burstCoverPenaltyForTarget({ type: "enemy", ref: preEnemy.id }) : 0;
-    baseMod = burstAccuracyModForShooter(p) + coverPenalty;
-    extra = `3 набої, ${baseMod} до точності${coverPenalty ? " (ціль в укритті: -1)" : ""}; після черги стрілець сильно розкривається.`;
+    burstCoverPenalty = preEnemy ? burstCoverPenaltyForTarget({ type: "enemy", ref: preEnemy.id }) : 0;
+    baseMod = burstAccuracyModForShooter(p) + burstCoverPenalty;
+    extra = `3 набої, ${baseMod} до точності${burstCoverPenalty ? " (ціль в укритті: -1)" : ""}; після черги стрілець сильно розкривається.`;
   }
 
   if(action === "clear_jam"){
@@ -3259,6 +3312,15 @@ function doAction(action){
     }
     if(jammedNow) p.weaponJammed = true;
 
+    const clarityLines = shotClarityLines({
+      action,
+      attackMod: baseMod,
+      coverPenalty: burstCoverPenalty,
+      damageRoll,
+      shooter: p,
+      targetCovered: !!(enemy.cover || enemyEffects(enemy).includes("inCover"))
+    });
+
     targetText = ` Ціль: ${enemy.name}. Захист цілі: ${threshold}.`;
     hitText = hits ? ` Влучань: ${hits}. Шкода: ${damage}. Формула: ${damageRoll.formula}. Кубики шкоди: ${damageRoll.rolls.join(", ")}${damageRoll.bonus ? " +" + damageRoll.bonus : ""}${damageRoll.conditionMod ? " " + damageRoll.conditionMod : ""}.` : " Промах.";
     if(crits) hitText += ` Крит: +${crits} кубик шкоди.`;
@@ -3290,7 +3352,10 @@ function doAction(action){
       shooterName: p.name,
       shooterAmmo: p.ammo,
       reactionText: enemy.lastReactions?.join(", ") || "",
-      effectText: enemyEffects(enemy).length ? enemyEffectsText(enemy) : ""
+      effectText: enemyEffects(enemy).length ? enemyEffectsText(enemy) : "",
+      rolledText: damageRollsTextForStatic(damageRoll, crits),
+      clarityLines,
+      stateText: shotStateNotes.join(" ")
     }));
   } else {
     showRollToast(title, r.dice, r.totals, attrName, attrMod, extra);
@@ -3343,7 +3408,9 @@ function staticShotResultLines({
   reactionText="",
   effectText="",
   rolledText="",
-  stateText=""
+  stateText="",
+  clarityLines=[],
+  hideShooterAmmo=false
 }){
   const quotedTarget = `“${targetName}”`;
   const quotedShooter = `“${shooterName || actorName}”`;
@@ -3356,7 +3423,8 @@ function staticShotResultLines({
     isHit ? `Шкода зброї: ${damage} (${formulaDisplay})` : `Шкода зброї: 0 (${formulaDisplay})`,
     isHit && rolledText ? rolledText : "",
     `${quotedTarget} тепер має ${targetHp}/${targetHpMax} HP.`,
-    `У ${quotedShooter} лишилось набоїв: ${shooterAmmo}.`,
+    hideShooterAmmo ? `Набої ${quotedShooter}: приховано для гравців.` : `У ${quotedShooter} лишилось набоїв: ${shooterAmmo}.`,
+    ...(Array.isArray(clarityLines) ? clarityLines : []),
     stateText || ""
   ];
   if(reactionText) lines.push(`Реакція ворога: ${reactionText}.`);
