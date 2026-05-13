@@ -1771,7 +1771,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19502`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19503`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2451,7 +2451,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19502`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19503`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2673,21 +2673,21 @@ function shotClarityLines({ action="", mode="", attackMod=0, coverPenalty=0, dam
 
   if(kind === "shoot_burst" || kind === "burst"){
     const recoilStep = shooter ? shooterRecoilLevel(shooter) + 1 : 1;
-    lines.push(`Віддача черги: ${recoilStep}-а черга підряд, штраф ${attackMod} до точності.`);
+    lines.push(`Віддача: ${recoilStep}-а черга, ${attackMod} до точності.`);
     if(coverPenalty){
-      lines.push(`Укриття цілі: додатково -1 до точності черги.`);
+      lines.push(`Укриття: ще -1 до черги.`);
     } else if(targetCovered){
-      lines.push(`Укриття цілі враховано.`);
+      lines.push(`Укриття враховано.`);
     }
-    lines.push(`Сильне розкриття: Захист стрільця -2 до його наступного ходу.`);
+    lines.push(`Розкриття: -2 Захист до наступного ходу.`);
   }
 
   if(kind === "shoot_normal" || kind === "normal"){
-    lines.push(`Бойовий постріл: 2d20 -1; якщо 0 влучань — Захист стрільця -1 до наступного ходу.`);
+    lines.push(`Бойовий: 2d20 -1; при 0 влучань — розкриття -1.`);
   }
 
   if(damageRoll?.flatBonusOnce){
-    lines.push(`Бонус шкоди зброї / стану застосовано один раз; додаткові влучання дають тільки кубик шкоди.`);
+    lines.push(`Бонус шкоди: 1 раз.`);
   }
 
   return lines;
@@ -2717,8 +2717,6 @@ function updateShooterAfterShot(shooter, action, hits){
     const nextRecoil = shooterRecoilLevel(shooter) + 1;
     setShooterRecoilLevel(shooter, nextRecoil);
     markShooterExposed(shooter, "сильно розкрився після черги", 2);
-    notes.push(`Після черги стрілець сильно розкрився: Захист -2 до наступного ходу.`);
-    notes.push(`Віддача: наступна черга підряд матиме ${-2 * (nextRecoil + 1)} до точності.`);
     return notes;
   }
 
@@ -2726,7 +2724,7 @@ function updateShooterAfterShot(shooter, action, hits){
     setShooterRecoilLevel(shooter, 0);
     if(Number(hits || 0) === 0){
       markShooterExposed(shooter, "розкрився після невдалого бойового пострілу", 1);
-      notes.push(`Бойовий постріл без влучань: стрілець розкрився, Захист -1 до наступного ходу.`);
+      notes.push(`Розкриття: -1 Захист до наступного ходу.`);
     }
     return notes;
   }
@@ -3436,16 +3434,16 @@ function staticShotResultLines({
   const formulaDisplay = diceText ? `${weaponName} · ${rangeText} · ${diceText}` : `${weaponName} · ${rangeText}`;
   const lines = [
     `🎲 ${attackDie}${accuracyPart}`,
-    `Захист цілі: ${quotedTarget} ${targetDefense} ${isHit ? "пробитий" : "не пробитий"}`,
-    isHit ? `Шкода зброї: ${damage} (${formulaDisplay})` : `Шкода зброї: 0 (${formulaDisplay})`,
+    `Захист: ${quotedTarget} ${targetDefense} ${isHit ? "пробитий" : "не пробитий"}.`,
+    isHit ? `Шкода: ${damage} (${formulaDisplay}).` : `Шкода: 0 (${formulaDisplay}).`,
     isHit && rolledText ? rolledText : "",
-    `${quotedTarget} тепер має ${targetHp}/${targetHpMax} HP.`,
-    hideShooterAmmo ? `Набої ${quotedShooter}: приховано для гравців.` : `У ${quotedShooter} лишилось набоїв: ${shooterAmmo}.`,
+    `${quotedTarget}: HP ${targetHp}/${targetHpMax}.`,
+    hideShooterAmmo ? "" : `Набої ${quotedShooter}: ${shooterAmmo}.`,
     ...(Array.isArray(clarityLines) ? clarityLines : []),
     stateText || ""
   ];
-  if(reactionText) lines.push(`Реакція ворога: ${reactionText}.`);
-  if(effectText) lines.push(`Ефекти ворога: ${effectText}.`);
+  if(reactionText) lines.push(`Реакція: ${reactionText}.`);
+  if(effectText) lines.push(`Ефекти: ${effectText}.`);
   return lines;
 }
 
