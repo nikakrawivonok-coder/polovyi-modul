@@ -1307,9 +1307,11 @@ function enemyAttack(enemyId, mode){
   const cfg = attackModeConfig(mode, enemy);
   const mutant = enemyIsMutant(enemy);
   let burstCoverPenalty = 0;
+  let burstRecoilInfo = null;
   if(!mutant && mode === "burst"){
+    burstRecoilInfo = burstRecoilInfoForShooter(enemy);
     burstCoverPenalty = target.cover ? -1 : 0;
-    cfg.mod += burstCoverPenalty;
+    cfg.mod = burstRecoilInfo.penalty + burstCoverPenalty;
     if(burstCoverPenalty) cfg.label = `${cfg.label} по укриттю`;
   }
   enemy.gm = enemy.gm || { hp: 8, hpMax: 8, ammo: 0, morale: "невідомо" };
@@ -1360,7 +1362,8 @@ function enemyAttack(enemyId, mode){
     coverPenalty: burstCoverPenalty,
     damageRoll: damageDetails,
     shooter: enemy,
-    targetCovered: !!target.cover
+    targetCovered: !!target.cover,
+    recoilInfo: burstRecoilInfo
   });
 
   const armor = Number(target.armor || 0);
@@ -1789,7 +1792,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19505`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19506`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2469,7 +2472,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19505`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19506`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2664,8 +2667,14 @@ function setShooterRecoilLevel(shooter, value){
   }
 }
 
+function burstRecoilInfoForShooter(shooter){
+  const step = shooterRecoilLevel(shooter) + 1;
+  const penalty = -2 * step;
+  return { step, penalty };
+}
+
 function burstAccuracyModForShooter(shooter){
-  return -2 * (shooterRecoilLevel(shooter) + 1);
+  return burstRecoilInfoForShooter(shooter).penalty;
 }
 
 function targetHasCoverForBurst(target){
@@ -2685,14 +2694,19 @@ function burstCoverPenaltyForTarget(target){
   return targetHasCoverForBurst(target) ? -1 : 0;
 }
 
-function shotClarityLines({ action="", mode="", attackMod=0, coverPenalty=0, damageRoll=null, shooter=null, targetCovered=false } = {}){
+function shotClarityLines({ action="", mode="", attackMod=0, coverPenalty=0, damageRoll=null, shooter=null, targetCovered=false, recoilInfo=null } = {}){
   const kind = action || mode || "";
   const lines = [];
 
   if(kind === "shoot_burst" || kind === "burst"){
-    const currentRecoil = shooter ? shooterRecoilLevel(shooter) : 0;
-    const recoilStep = currentRecoil + 1;
-    const recoilPenalty = -2 * recoilStep;
+    const info = recoilInfo || (() => {
+      const recoilPenalty = Number(attackMod || 0) - Number(coverPenalty || 0);
+      const step = Math.max(1, Math.round(Math.abs(recoilPenalty) / 2));
+      return { step, penalty: recoilPenalty };
+    })();
+
+    const recoilStep = Number(info.step || 1);
+    const recoilPenalty = Number(info.penalty || (-2 * recoilStep));
     const totalPenalty = Number(attackMod || 0);
 
     lines.push(`Віддача: ${recoilStep}-а черга, ${recoilPenalty} до точності.`);
@@ -3106,10 +3120,12 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
   }
 
   let burstCoverPenalty = 0;
+  let burstRecoilInfo = null;
   if(action === "shoot_burst"){
     const burstTarget = { type: "enemy", ref: enemyId };
     burstCoverPenalty = burstCoverPenaltyForTarget(burstTarget);
-    cfg.baseMod = burstAccuracyModForShooter(p) + burstCoverPenalty;
+    burstRecoilInfo = burstRecoilInfoForShooter(p);
+    cfg.baseMod = burstRecoilInfo.penalty + burstCoverPenalty;
     cfg.extra = `3 набої, ${cfg.baseMod} до точності${burstCoverPenalty ? " (ціль в укритті: -1)" : ""}; після черги стрілець сильно розкривається.`;
   }
 
@@ -3142,7 +3158,8 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     coverPenalty: burstCoverPenalty,
     damageRoll,
     shooter: p,
-    targetCovered: !!(enemy.cover || enemyEffects(enemy).includes("inCover"))
+    targetCovered: !!(enemy.cover || enemyEffects(enemy).includes("inCover")),
+    recoilInfo: burstRecoilInfo
   });
 
   let targetText = ` Ціль: ${enemy.name}. Захист цілі: ${threshold}.`;
@@ -3303,11 +3320,13 @@ function doAction(action){
   }
 
   let burstCoverPenalty = 0;
+  let burstRecoilInfo = null;
   if(isAttack && action === "shoot_burst"){
     const preTargetCombatant = currentCombatTargetForAction();
     const preEnemy = preTargetCombatant?.type === "enemy" ? findEnemyById(preTargetCombatant.ref) : selectedTargetEnemy();
     burstCoverPenalty = preEnemy ? burstCoverPenaltyForTarget({ type: "enemy", ref: preEnemy.id }) : 0;
-    baseMod = burstAccuracyModForShooter(p) + burstCoverPenalty;
+    burstRecoilInfo = burstRecoilInfoForShooter(p);
+    baseMod = burstRecoilInfo.penalty + burstCoverPenalty;
     extra = `3 набої, ${baseMod} до точності${burstCoverPenalty ? " (ціль в укритті: -1)" : ""}; після черги стрілець сильно розкривається.`;
   }
 
@@ -3374,7 +3393,8 @@ function doAction(action){
       coverPenalty: burstCoverPenalty,
       damageRoll,
       shooter: p,
-      targetCovered: !!(enemy.cover || enemyEffects(enemy).includes("inCover"))
+      targetCovered: !!(enemy.cover || enemyEffects(enemy).includes("inCover")),
+      recoilInfo: burstRecoilInfo
     });
 
     targetText = ` Ціль: ${enemy.name}. Захист цілі: ${threshold}.`;
