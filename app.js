@@ -1811,7 +1811,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19600`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19601`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2381,32 +2381,50 @@ function enemyCardGm(e){
   const stats = e.stats || {};
   const loot = gm.lootText || "залишок набоїв";
   const effects = enemyEffectsText(e) || "немає";
+  const visibleText = e.visible === false ? "Прихований" : "Видимий";
+  const visibleClass = e.visible === false ? "red" : "green";
 
-  return `<article class="enemy-card enemy-card-gm">
+  return `<article class="enemy-card enemy-card-gm enemy-card-polished">
     <div class="enemy-card-head">
-      <div class="enemy-thumb"></div>
+      <div class="enemy-portrait-slot">
+        <span>☠️</span>
+        <small>${escapeHtml(gm.imageKey || "портрет")}</small>
+      </div>
       <div>
         <h4>${escapeHtml(e.name)}</h4>
         <p><span class="${colorClass}">${escapeHtml(e.state || "стан невідомий")}</span> · Захист ${escapeHtml(String(enemyDefenseValue(e)))}</p>
+        <p class="enemy-gm-mini-line"><span class="${enemyColorClass(visibleClass)}">${visibleText}</span> · ${weapon}</p>
       </div>
       <div class="enemy-icon ${colorClass}">${escapeHtml(icon)}</div>
     </div>
 
-    <div class="enemy-gm-stats">
+    <div class="enemy-gm-stats enemy-gm-stats-polished">
       <span>HP ${hp}</span>
       <span>Набої ${ammo}</span>
       <span>Броня ${escapeHtml(String(e.armor ?? 0))}</span>
       <span>Втома ${escapeHtml(String(e.fatigue ?? 0))}</span>
       <span>Зараження ${escapeHtml(String(e.infection ?? 0))}</span>
-      <span>${weapon}</span>
+      <span>Віддача ${escapeHtml(String(gm.recoilLevel ?? 0))}</span>
     </div>
 
-    <p><strong>Позиція:</strong> ${escapeHtml(e.position || "невідомо")}</p>
-    <p><strong>Небезпека:</strong> ${escapeHtml(e.danger || "невідомо")}</p>
-    <p><strong>Що робить:</strong> ${escapeHtml(e.action || "невідомо")}</p>
-    <p><strong>Мораль:</strong> ${escapeHtml(gm.morale || "невідомо")}</p>
-    <p><strong>Ефекти:</strong> ${escapeHtml(effects)}</p>
-    <p><strong>Лут:</strong> ${escapeHtml(loot)}</p>
+    <div class="enemy-card-control-grid">
+      <button class="metal-btn danger" data-enemy-hp-delta="${escapeAttr(e.id)}" data-delta="-1">HP -1</button>
+      <button class="metal-btn danger" data-enemy-hp-delta="${escapeAttr(e.id)}" data-delta="-3">HP -3</button>
+      <button class="metal-btn" data-enemy-hp-delta="${escapeAttr(e.id)}" data-delta="1">HP +1</button>
+      <button class="metal-btn" data-enemy-ammo-delta="${escapeAttr(e.id)}" data-delta="-1">Набої -1</button>
+      <button class="metal-btn" data-enemy-ammo-delta="${escapeAttr(e.id)}" data-delta="1">Набої +1</button>
+      <button class="metal-btn" data-toggle-enemy-visibility="${escapeAttr(e.id)}">${e.visible === false ? "Показати" : "Сховати"}</button>
+    </div>
+
+    <div class="enemy-card-info-grid">
+      <p><strong>Позиція:</strong> ${escapeHtml(e.position || "невідомо")}</p>
+      <p><strong>Небезпека:</strong> ${escapeHtml(e.danger || "невідомо")}</p>
+      <p><strong>Що робить:</strong> ${escapeHtml(e.action || "невідомо")}</p>
+      <p><strong>Мораль:</strong> ${escapeHtml(gm.morale || "невідомо")}</p>
+      <p><strong>Ефекти:</strong> ${escapeHtml(effects)}</p>
+      <p><strong>Лут після бою:</strong> ${escapeHtml(loot)}</p>
+    </div>
+
     <p class="enemy-gm-attrs"><strong>Характеристики:</strong> Вит ${fmtMod(stats.endurance ?? 0)} · Точ ${fmtMod(stats.accuracy ?? 0)} · Впр ${fmtMod(stats.agility ?? 0)} · Спр ${fmtMod(stats.perception ?? 0)} · Інт ${fmtMod(stats.intuition ?? 0)} · Хар ${fmtMod(stats.charisma ?? 0)}</p>
 
     <div class="quick-state-row enemy-card-actions">
@@ -2418,7 +2436,6 @@ function enemyCardGm(e){
     </div>
   </article>`;
 }
-
 function enemyCard(e){
   return appSession.role === "gm" ? enemyCardGm(e) : enemyCardPublic(e);
 }
@@ -2567,7 +2584,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19600`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19601`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -4153,6 +4170,45 @@ const enemyStep = e.target.closest("[data-enemy-step]");
       addLog(`${enemy.name}: ${enemy.state}.`, "public");
       render();
     }
+  }
+
+  const enemyHpDelta = e.target.closest("[data-enemy-hp-delta]");
+  if(enemyHpDelta){
+    const enemy = findEnemyById(enemyHpDelta.dataset.enemyHpDelta);
+    if(enemy){
+      enemy.gm = enemy.gm || {};
+      const max = Number(enemy.gm.hpMax ?? enemy.gm.hp ?? 10);
+      const delta = Number(enemyHpDelta.dataset.delta || 0);
+      enemy.gm.hp = clamp(Number(enemy.gm.hp ?? max) + delta, 0, max);
+      updateEnemyStateByHp(enemy);
+      addLog(`${enemy.name}: HP ${enemy.gm.hp}/${max}.`, "gm");
+      render();
+    }
+    return;
+  }
+
+  const enemyAmmoDelta = e.target.closest("[data-enemy-ammo-delta]");
+  if(enemyAmmoDelta){
+    const enemy = findEnemyById(enemyAmmoDelta.dataset.enemyAmmoDelta);
+    if(enemy){
+      enemy.gm = enemy.gm || {};
+      const delta = Number(enemyAmmoDelta.dataset.delta || 0);
+      enemy.gm.ammo = Math.max(0, Number(enemy.gm.ammo || 0) + delta);
+      addLog(`${enemy.name}: набої ${enemy.gm.ammo}.`, "gm");
+      render();
+    }
+    return;
+  }
+
+  const enemyVisibilityToggle = e.target.closest("[data-toggle-enemy-visibility]");
+  if(enemyVisibilityToggle){
+    const enemy = findEnemyById(enemyVisibilityToggle.dataset.toggleEnemyVisibility);
+    if(enemy){
+      enemy.visible = enemy.visible === false ? true : false;
+      addLog(`${enemy.name}: ${enemy.visible === false ? "прихований від гравців" : "видимий для гравців"}.`, "gm");
+      render();
+    }
+    return;
   }
 
 

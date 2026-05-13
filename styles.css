@@ -1883,3 +1883,71 @@ body.role-player .gm-combat-sticky {
   padding:8px 10px;
   font-size:13px;
 }
+
+
+/* V19.16.1 — Enemy details polish */
+.enemy-card-polished{
+  position:relative;
+}
+.enemy-portrait-slot{
+  width:64px;
+  min-width:64px;
+  height:76px;
+  border-radius:14px;
+  border:1px solid rgba(230,180,94,.42);
+  background:
+    radial-gradient(circle at 50% 28%, rgba(230,180,94,.18), transparent 36%),
+    linear-gradient(180deg, rgba(22,13,8,.95), rgba(5,3,2,.92));
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  box-shadow:inset 0 0 18px rgba(0,0,0,.55);
+}
+.enemy-portrait-slot span{
+  font-size:30px;
+}
+.enemy-portrait-slot small{
+  max-width:58px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:9px;
+  color:var(--muted);
+}
+.enemy-gm-mini-line{
+  margin-top:4px !important;
+  font-size:12px;
+}
+.enemy-gm-stats-polished{
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+}
+.enemy-card-control-grid{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:7px;
+  margin:10px 0;
+}
+.enemy-card-control-grid .metal-btn{
+  padding:8px 8px;
+  font-size:12px;
+}
+.enemy-card-info-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:4px;
+  padding:8px;
+  border-radius:12px;
+  border:1px solid rgba(230,180,94,.22);
+  background:rgba(0,0,0,.14);
+}
+.enemy-card-info-grid p{
+  margin:0;
+}
+@media(max-width:390px){
+  .enemy-gm-stats-polished,
+  .enemy-card-control-grid{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+  }
+}
