@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.16.6
+# DATA_SCHEMA.md — Польовий Модуль V19.17
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.16.6"
-BUILD_NUMBER = "19606"
-BUILD_NAME = "Enemy Loot Polish / Target Player Select"
+BUILD_VERSION = "V19.17"
+BUILD_NUMBER = "19617"
+BUILD_NAME = "Enemy Template: Bandit with Obrez"
 ```
 
 ## appSession
@@ -130,3 +130,62 @@ burstRecoilInfoForShooter(shooter)
 - гравець бачить `Приватно`;
 - візуальний відступ після службової мітки додається CSS;
 - початкове ім'я/ID гравця в деяких записах береться в лапки для читабельності.
+
+
+## V19.17 — Enemy Template: Бандит з обрізом
+
+Структура `enemyTemplates.shotgun` доведена до повнішого шаблону за зразком `enemyTemplates.auto`.
+
+Додані/уточнені поля шаблону:
+
+```js
+enemyTemplates.shotgun = {
+  templateId: "shotgun",
+  name: "Бандит з обрізом",
+  type: "human",
+  faction: "бандити",
+  role: string,
+  weapon: "obrez",
+  range: "near",
+  weaponCondition: "normal",
+  weaponJammed: false,
+  defense: 12,
+  defenseMax: 12,
+  fatigue: 0,
+  infection: 0,
+  armor: 0,
+  stats: {
+    endurance: 2,
+    accuracy: 2,
+    agility: 1,
+    perception: 1,
+    intuition: 2,
+    charisma: 2
+  },
+  gm: {
+    hp: 8,
+    hpMax: 8,
+    ammo: 3,
+    morale: string,
+    behavior: string,
+    lootText: string,
+    imageKey: "bandit_obrez",
+    lastAttackType: string,
+    recoilLevel: number,
+    exposedUntilNextTurn: boolean,
+    exposurePenalty: number
+  },
+  attacks: [
+    { id: string, name: string, ammo: number, dice: string, note: string }
+  ],
+  special: string,
+  weakness: string,
+  tags: string[]
+}
+```
+
+UI-зміна:
+
+- `renderEnemyTemplateDock()` тепер показує grid із двома шаблонами: `auto` і `shotgun`;
+- додано допоміжну функцію `renderEnemyTemplateCard(templateId, avatar)`;
+- нова структура не змінює Firebase-схему кімнати радикально, бо створений ворог і далі проходить через `makeEnemyFromTemplate()` і нормалізується наявними полями.

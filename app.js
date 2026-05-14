@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.16.7";
-const BUILD_NUMBER = "19607";
-const BUILD_NAME = "Journal Visibility Labels Polish";
+const BUILD_VERSION = "V19.17";
+const BUILD_NUMBER = "19617";
+const BUILD_NAME = "Enemy Template: Bandit with Obrez";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -201,7 +201,57 @@ const sceneTemplates = {
 const enemyTemplates = {
   coward: { name: "Боягуз", weapon: "pm", state: "наляканий", color: "yellow", position: "тримається позаду", danger: "низька", action: "шукає шлях втечі", visible: true, defense: 12, gm: { hp: 8, hpMax: 8, ammo: 3, morale: "ламається" }, tags:["бандит","мораль"] },
   bandit: { name: "Бандит", weapon: "pm", state: "цілий", color: "green", position: "за укриттям", danger: "середня", action: "цілиться", visible: true, defense: 12, gm: { hp: 9, hpMax: 9, ammo: 6, morale: "нервує" }, tags:["бандит"] },
-  shotgun: { name: "Бандит з обрізом", weapon: "obrez", state: "цілий", color: "green", position: "близько до проходу", danger: "висока зблизька", action: "чекає зближення", visible: true, defense: 12, gm: { hp: 8, hpMax: 8, ammo: 2, morale: "агресивний" }, tags:["бандит","обріз"] },
+  shotgun: {
+    templateId: "shotgun",
+    name: "Бандит з обрізом",
+    type: "human",
+    faction: "бандити",
+    role: "засідка, ближній тиск, небезпека у проходах",
+    weapon: "obrez",
+    range: "near",
+    weaponCondition: "normal",
+    weaponJammed: false,
+    state: "цілий",
+    color: "green",
+    position: "близько до проходу / за машиною",
+    danger: "дуже висока зблизька, нижча на дистанції",
+    action: "чекає зближення і тримає короткий сектор",
+    visible: true,
+    defense: 12,
+    defenseMax: 12,
+    fatigue: 0,
+    infection: 0,
+    armor: 0,
+    stats: {
+      endurance: 2,
+      accuracy: 2,
+      agility: 1,
+      perception: 1,
+      intuition: 2,
+      charisma: 2
+    },
+    gm: {
+      hp: 8,
+      hpMax: 8,
+      ammo: 3,
+      morale: "агресивний, але нервує після промаху",
+      behavior: "підпускає ближче, погрожує, різко вискакує з укриття; неефективний на дальній дистанції",
+      lootText: "обріз у поганому стані; 1d3 набої; дріб’язок 5–25; брудний ніж або саморобний ремінь",
+      imageKey: "bandit_obrez",
+      lastAttackType: "",
+      recoilLevel: 0,
+      exposedUntilNextTurn: false,
+      exposurePenalty: 0
+    },
+    attacks: [
+      { id: "precise", name: "Прицільний постріл", ammo: 1, dice: "1d20 +2", note: "економить останні набої або стріляє у вузький прохід" },
+      { id: "combat", name: "Різкий постріл", ammo: 2, dice: "2d20 -1", note: "стандартний тиск; при 0 влучань розкривається" },
+      { id: "shotgun", name: "Обріз зблизька", ammo: 1, dice: "1d20 +1", note: "окрема кнопка атаки ворога; небезпека саме на близькій дистанції" }
+    ],
+    special: "Гоп-стоп зблизька: найкращий у вузьких проходах, біля дверей і за машиною; змушує гравців поважати позицію.",
+    weakness: "Дальня дистанція і відкрита місцевість: якщо гравці тримають дистанцію або змушують його вийти з укриття, він швидко втрачає перевагу.",
+    tags:["бандит","обріз","шаблон"]
+  },
   auto: {
     templateId: "auto",
     name: "Автоматник",
@@ -1990,7 +2040,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19607`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19617`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2670,6 +2720,39 @@ function logItem(j){
 
 
 
+function renderEnemyTemplateCard(templateId, avatar){
+  const tpl = enemyTemplates[templateId];
+  if(!tpl) return "";
+  const loot = tpl.gm?.lootText || "залишок набоїв";
+  const stats = tpl.stats || {};
+  const attackNotes = Array.isArray(tpl.attacks)
+    ? tpl.attacks.map(a => `${a.name}: ${a.dice}`).join(" · ")
+    : "Бойова математика стандартна для поточної зброї.";
+
+  return `
+    <div class="enemy-template-dock-card">
+      <div class="enemy-template-avatar" aria-hidden="true">${escapeHtml(avatar)}</div>
+      <div class="enemy-template-body">
+        <div class="enemy-template-kicker">Шаблон ворога · ${escapeHtml(tpl.faction || "бандити")}</div>
+        <h4>${escapeHtml(tpl.name)}</h4>
+        <p>${escapeHtml(tpl.role || "бойовий ворог")}</p>
+        <div class="enemy-template-stats">
+          <span>HP ${escapeHtml(String(tpl.gm?.hpMax ?? tpl.gm?.hp ?? "?"))}</span>
+          <span>Захист ${escapeHtml(String(tpl.defense ?? 12))}</span>
+          <span>Броня ${escapeHtml(String(tpl.armor ?? 0))}</span>
+          <span>${escapeHtml(weaponInfo({weapon: tpl.weapon}).name)}</span>
+          <span>${escapeHtml(String(tpl.gm?.ammo ?? 0))} наб.</span>
+        </div>
+        <div class="enemy-template-loot">Лут: ${escapeHtml(loot)}</div>
+        <div class="enemy-template-note">Характеристики: Вит ${fmtMod(stats.endurance ?? 0)} · Точ ${fmtMod(stats.accuracy ?? 0)} · Впр ${fmtMod(stats.agility ?? 0)} · Спр ${fmtMod(stats.perception ?? 0)} · Інт ${fmtMod(stats.intuition ?? 0)} · Хар ${fmtMod(stats.charisma ?? 0)}. Втома ${escapeHtml(String(tpl.fatigue ?? 0))} · Зараження ${escapeHtml(String(tpl.infection ?? 0))} · Броня ${escapeHtml(String(tpl.armor ?? 0))}.</div>
+        <div class="enemy-template-note">Атаки: ${escapeHtml(attackNotes)}</div>
+        <div class="enemy-template-note">Слабкість: ${escapeHtml(tpl.weakness || "немає окремої слабкості")}</div>
+      </div>
+      <button class="metal-btn enemy-template-add" type="button" data-add-enemy-template="${escapeAttr(templateId)}">+ Додати: ${escapeHtml(tpl.name)}</button>
+    </div>
+  `;
+}
+
 function renderEnemyTemplateDock(){
   const box = qs("#enemyTemplateDock");
   if(!box) return;
@@ -2680,36 +2763,19 @@ function renderEnemyTemplateDock(){
   }
   box.hidden = false;
 
-  const tpl = enemyTemplates.auto;
-  const loot = tpl.gm?.lootText || "залишок набоїв";
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.16</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.17</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
       <button class="metal-btn danger" id="clearEnemies" type="button">Очистити ворогів</button>
     </div>
 
-    <div class="enemy-template-dock-card">
-      <div class="enemy-template-avatar" aria-hidden="true">☠️</div>
-      <div class="enemy-template-body">
-        <div class="enemy-template-kicker">Шаблон ворога · бандити</div>
-        <h4>${escapeHtml(tpl.name)}</h4>
-        <p>${escapeHtml(tpl.role || "тиск вогнем")}</p>
-        <div class="enemy-template-stats">
-          <span>HP ${escapeHtml(String(tpl.gm?.hpMax ?? tpl.gm?.hp ?? "?"))}</span>
-          <span>Захист ${escapeHtml(String(tpl.defense ?? 12))}</span>
-          <span>Броня ${escapeHtml(String(tpl.armor ?? 0))}</span>
-          <span>${escapeHtml(weaponInfo({weapon: tpl.weapon}).name)}</span>
-          <span>${escapeHtml(String(tpl.gm?.ammo ?? 0))} наб.</span>
-        </div>
-        <div class="enemy-template-loot">Лут: ${escapeHtml(loot)}</div>
-        <div class="enemy-template-note">Характеристики: Вит +1 · Точ +1 · Впр +1 · Спр +1 · Інт 0 · Хар -1. Втома 0 · Зараження 0 · Броня 0.</div>
-        <div class="enemy-template-note">Бойовий: 2d20 -1, при 0 влучань розкриття -1. Черга: -2/-4/-6/-8, по укриттю ще -1; після черги Захист -2.</div>
-      </div>
-      <button class="metal-btn enemy-template-add" type="button" data-add-enemy-template="auto">+ Додати автоматника</button>
+    <div class="enemy-template-grid">
+      ${renderEnemyTemplateCard("auto", "☠️")}
+      ${renderEnemyTemplateCard("shotgun", "💥")}
     </div>
   `;
 }
@@ -2804,7 +2870,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19607`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19617`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
