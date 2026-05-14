@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.17.7";
-const BUILD_NUMBER = "19624";
-const BUILD_NAME = "Shield Sync + Cover Accuracy Text";
+const BUILD_VERSION = "V19.17.8";
+const BUILD_NUMBER = "19625";
+const BUILD_NAME = "Unified Combat Summary Text";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -1607,6 +1607,11 @@ function enemyAttack(enemyId, mode){
   const targetName = target.name || targetId;
   const targetCoveredForClarity = !!target.cover;
   const targetDefenseBaseForClarity = Number(target.defense || 12);
+  const targetEffectsForBrief = Array.isArray(target.activeEffects) ? target.activeEffects : [];
+  const targetExposurePenaltyForBrief = targetEffectsForBrief.includes("exposed") ? Math.max(1, Number(target.exposurePenalty || 1)) : 0;
+  const targetDefenseReasonsForBrief = [];
+  if(targetCoveredForClarity) targetDefenseReasonsForBrief.push("+2 через укриття");
+  if(targetExposurePenaltyForBrief) targetDefenseReasonsForBrief.push(`-${targetExposurePenaltyForBrief} через розкриття`);
   const targetDefenseWithCoverForClarity = targetDefenseBaseForClarity + (targetCoveredForClarity ? 2 : 0);
   const shooterDefenseBeforeExposureForClarity = Number(enemy.defense || 12) + ((enemy.cover || enemyEffects(enemy).includes("inCover")) ? 2 : 0);
   const shooterDefenseAfterExposureForClarity = enemyDefenseValue(enemy);
@@ -1693,17 +1698,30 @@ function enemyAttack(enemyId, mode){
 
   setCombatBrief({
     shooterName: enemy.name,
+    shooterType: "enemy",
     actionTitle: cfg.label,
+    mode,
     targetName,
     targetType: "player",
     rolls,
     totals,
     hits,
     damage: totalDamage,
+    damageRoll: damageDetails,
+    crits,
     targetHp: target.hp,
     targetHpMax: target.hpMax,
     targetState: "",
-    shooterAmmo: appSession.role === "gm" && !mutant ? enemy.gm.ammo : null,
+    shooterAmmo: !mutant ? enemy.gm.ammo : null,
+    targetDefense: targetNumber,
+    targetDefenseBase: targetDefenseBaseForClarity,
+    targetDefenseReasons: targetDefenseReasonsForBrief,
+    attackMod: cfg.mod,
+    attrMod: 0,
+    coverPenalty: burstCoverPenalty,
+    recoilInfo: burstRecoilInfo,
+    shooterDefenseBeforeExposure: shooterDefenseBeforeExposureForClarity,
+    shooterDefenseAfterExposure: shooterDefenseAfterExposureForClarity,
     clarityLines
   });
 
@@ -2079,7 +2097,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19624`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19625`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2805,7 +2823,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.7</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.8</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2909,7 +2927,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19624`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19625`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3672,6 +3690,11 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
 
   const targetCoveredForClarity = !!(enemy.cover || enemyEffects(enemy).includes("inCover"));
   const targetDefenseBaseForClarity = Number(enemy.defense || 12);
+  const enemyEffectsForBrief = enemyEffects(enemy);
+  const targetExposurePenaltyForBrief = enemyEffectsForBrief.includes("exposed") ? Math.max(1, Number(enemy.gm?.exposurePenalty || 1)) : 0;
+  const targetDefenseReasonsForBrief = [];
+  if(targetCoveredForClarity) targetDefenseReasonsForBrief.push("+2 через укриття");
+  if(targetExposurePenaltyForBrief) targetDefenseReasonsForBrief.push(`-${targetExposurePenaltyForBrief} через розкриття`);
   const targetDefenseWithCoverForClarity = targetDefenseBaseForClarity + (targetCoveredForClarity ? 2 : 0);
   const shooterDefenseBeforeExposureForClarity = Number(p.defense || 12) + (p.cover ? 2 : 0);
   const shooterDefenseAfterExposureForClarity = playerDefenseValue(p);
@@ -3731,7 +3754,9 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
 
   setCombatBrief({
     shooterName: p.name || playerId,
+    shooterType: "player",
     actionTitle: cfg.title,
+    action,
     targetName: enemy.name,
     targetType: "enemy",
     rolls: r.dice,
@@ -3743,7 +3768,16 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     targetHp: enemy.gm.hp,
     targetHpMax: enemy.gm.hpMax,
     targetState: publicEnemyStateText(enemy),
-    shooterAmmo: appSession.role === "gm" ? p.ammo : p.ammo,
+    shooterAmmo: p.ammo,
+    targetDefense: threshold,
+    targetDefenseBase: targetDefenseBaseForClarity,
+    targetDefenseReasons: targetDefenseReasonsForBrief,
+    attackMod: cfg.baseMod,
+    attrMod,
+    coverPenalty: burstCoverPenalty,
+    recoilInfo: burstRecoilInfo,
+    shooterDefenseBeforeExposure: shooterDefenseBeforeExposureForClarity,
+    shooterDefenseAfterExposure: shooterDefenseAfterExposureForClarity,
     clarityLines
   });
 
@@ -3920,6 +3954,11 @@ function doAction(action){
 
     const targetCoveredForClarity = !!(enemy.cover || enemyEffects(enemy).includes("inCover"));
     const targetDefenseBaseForClarity = Number(enemy.defense || 12);
+    const enemyEffectsForBrief = enemyEffects(enemy);
+    const targetExposurePenaltyForBrief = enemyEffectsForBrief.includes("exposed") ? Math.max(1, Number(enemy.gm?.exposurePenalty || 1)) : 0;
+    const targetDefenseReasonsForBrief = [];
+    if(targetCoveredForClarity) targetDefenseReasonsForBrief.push("+2 через укриття");
+    if(targetExposurePenaltyForBrief) targetDefenseReasonsForBrief.push(`-${targetExposurePenaltyForBrief} через розкриття`);
     const targetDefenseWithCoverForClarity = targetDefenseBaseForClarity + (targetCoveredForClarity ? 2 : 0);
     const shooterDefenseBeforeExposureForClarity = Number(p.defense || 12) + (p.cover ? 2 : 0);
     const shooterDefenseAfterExposureForClarity = playerDefenseValue(p);
@@ -3978,7 +4017,9 @@ function doAction(action){
 
     setCombatBrief({
       shooterName: p.name,
+      shooterType: "player",
       actionTitle: title,
+      action,
       targetName: enemy.name,
       targetType: "enemy",
       rolls: r.dice,
@@ -3991,6 +4032,15 @@ function doAction(action){
       targetHpMax: enemy.gm.hpMax,
       targetState: publicEnemyStateText(enemy),
       shooterAmmo: p.ammo,
+      targetDefense: threshold,
+      targetDefenseBase: targetDefenseBaseForClarity,
+      targetDefenseReasons: targetDefenseReasonsForBrief,
+      attackMod: baseMod,
+      attrMod,
+      coverPenalty: burstCoverPenalty,
+      recoilInfo: burstRecoilInfo,
+      shooterDefenseBeforeExposure: shooterDefenseBeforeExposureForClarity,
+      shooterDefenseAfterExposure: shooterDefenseAfterExposureForClarity,
       clarityLines
     });
   } else {
@@ -4097,42 +4147,154 @@ function targetResultTextForBrief(targetType, targetName, targetHp, targetHpMax,
   return `${targetName}: HP ${targetHp}/${targetHpMax}.`;
 }
 
-function setCombatBrief({ shooterName="", actionTitle="", targetName="", targetType="", rolls=[], totals=[], hits=0, damage=0, damageRoll=null, crits=0, targetHp=0, targetHpMax=0, targetState="", shooterAmmo=null, clarityLines=[] } = {}){
-  data.combat = data.combat || {};
+function ordinalQueueWord(step){
+  const n = Number(step || 1);
+  if(n === 1) return "першу";
+  if(n === 2) return "другу";
+  if(n === 3) return "третю";
+  return `${n}-у`;
+}
+
+function signedModText(value){
+  const n = Number(value || 0);
+  return n > 0 ? `+${n}` : String(n);
+}
+
+function targetDefenseBriefLine(targetName, effectiveDefense, baseDefense=null, reasons=[]){
+  const name = targetName || "цілі";
+  const effective = Number(effectiveDefense ?? baseDefense ?? 12);
+  const base = baseDefense === null || baseDefense === undefined ? effective : Number(baseDefense);
+  const cleanReasons = (Array.isArray(reasons) ? reasons : []).filter(Boolean);
+  if(cleanReasons.length){
+    return `Захист ${name}: ${effective} (${cleanReasons.join(", ")})`;
+  }
+  if(base !== effective){
+    const delta = effective - base;
+    return `Захист ${name}: ${effective} (${signedModText(delta)} до базового ${base})`;
+  }
+  return `Захист ${name}: ${effective}`;
+}
+
+function accuracyReasonText({ actionTitle="", action="", mode="", shooterName="", attackMod=0, attrMod=0, coverPenalty=0, recoilInfo=null } = {}){
+  const kind = action || mode || "";
+  const total = Number(attackMod || 0) + Number(attrMod || 0);
+  if(!total) return "";
+
+  const shooter = shooterName || "стрільця";
+  const parts = [];
+
+  if(kind === "shoot_burst" || kind === "burst" || /черг/i.test(String(actionTitle))){
+    const info = recoilInfo || (() => {
+      const recoilPenalty = Number(attackMod || 0) - Number(coverPenalty || 0);
+      const step = Math.max(1, Math.round(Math.abs(recoilPenalty) / 2));
+      return { step, penalty: recoilPenalty };
+    })();
+    const step = Number(info.step || 1);
+    const recoilPenalty = Number(info.penalty || (-2 * step));
+    if(recoilPenalty) parts.push(`${signedModText(recoilPenalty)} за ${ordinalQueueWord(step)} чергу поспіль`);
+    if(Number(coverPenalty || 0)) parts.push(`${signedModText(coverPenalty)} через ціль в укритті`);
+  } else if(Number(attackMod || 0)) {
+    parts.push(`${signedModText(attackMod)} від режиму атаки`);
+  }
+
+  if(Number(attrMod || 0)) parts.push(`${signedModText(attrMod)} від Точності ${shooter}`);
+
+  if(parts.length) return `точність ${signedModText(total)}: ${parts.join(", ")}`;
+  return `точність ${signedModText(total)}`;
+}
+
+function rollBriefLine(rolls=[], totals=[], accuracyText=""){
   const rollText = Array.isArray(rolls) && rolls.length ? rolls.join(", ") : "";
   const totalsText = Array.isArray(totals) && totals.length ? totals.join(", ") : "";
-  const resultText = hits > 0 ? `${hits} влуч., шкода ${damage}` : "промах";
-  const damageRollText = hits > 0 ? damageRollsTextForBrief(damageRoll, crits) : "";
+  if(!rollText) return "";
+  const transformed = totalsText && totalsText !== rollText ? ` → ${totalsText}` : "";
+  return `🎲 ${rollText}${transformed}${accuracyText ? ` (${accuracyText})` : ""}`;
+}
+
+function damageRollsTextForUnifiedBrief(damageResult, crits=0){
+  const base = damageRollsTextForBrief(damageResult, crits);
+  return base ? `${base} (кубики шкоди)` : "";
+}
+
+function exposureBriefLine(shooterName="", before=null, after=null){
+  if(before === null || before === undefined || after === null || after === undefined) return "";
+  const b = Number(before);
+  const a = Number(after);
+  if(!Number.isFinite(b) || !Number.isFinite(a) || b === a) return "";
+  const name = shooterName || "Стрілець";
+  return `${name} розкрився: Захист ${name} ${b} → ${a} до його наступного ходу.`;
+}
+
+function setCombatBrief({
+  shooterName="",
+  shooterType="player",
+  actionTitle="",
+  action="",
+  mode="",
+  targetName="",
+  targetType="",
+  rolls=[],
+  totals=[],
+  hits=0,
+  damage=0,
+  damageRoll=null,
+  crits=0,
+  targetHp=0,
+  targetHpMax=0,
+  targetState="",
+  shooterAmmo=null,
+  targetDefense=null,
+  targetDefenseBase=null,
+  targetDefenseReasons=[],
+  attackMod=0,
+  attrMod=0,
+  coverPenalty=0,
+  recoilInfo=null,
+  shooterDefenseBeforeExposure=null,
+  shooterDefenseAfterExposure=null,
+  clarityLines=[]
+} = {}){
+  data.combat = data.combat || {};
+
+  const accuracyText = accuracyReasonText({ actionTitle, action, mode, shooterName, attackMod, attrMod, coverPenalty, recoilInfo });
+  const rollLine = rollBriefLine(rolls, totals, accuracyText);
+  const defenseLine = targetDefense !== null && targetDefense !== undefined
+    ? targetDefenseBriefLine(targetName, targetDefense, targetDefenseBase, targetDefenseReasons)
+    : "";
+  const damageRollText = hits > 0 ? damageRollsTextForUnifiedBrief(damageRoll, crits) : "";
   const publicTargetText = targetResultTextForBrief(targetType, targetName, targetHp, targetHpMax, targetState, false);
   const gmTargetText = targetResultTextForBrief(targetType, targetName, targetHp, targetHpMax, targetState, true);
-  const important = (Array.isArray(clarityLines) ? clarityLines : [])
-    .filter(line => /Точність|Віддача|Розкриття|Укриття|розкрився|Разом/.test(line))
-    .slice(0, 5);
+  const hitWord = Number(hits || 0) === 1 ? "1 влуч." : `${Number(hits || 0)} влуч.`;
+  const resultPrefix = hits > 0 ? `${hitWord}, завдана шкода: ${damage}` : "промах";
+  const ammoPublic = shooterType === "enemy" ? "" : (shooterAmmo !== null && shooterAmmo !== undefined && shooterAmmo !== "" ? `Залишилося набоїв: ${shooterAmmo}.` : "");
+  const ammoGm = shooterAmmo !== null && shooterAmmo !== undefined && shooterAmmo !== "" ? `Залишилося набоїв: ${shooterAmmo}.` : "";
+  const exposureLine = exposureBriefLine(shooterName, shooterDefenseBeforeExposure, shooterDefenseAfterExposure);
+
+  const fallbackImportant = (Array.isArray(clarityLines) ? clarityLines : [])
+    .filter(line => /розкрився/.test(line))
+    .slice(0, 1);
 
   const baseLines = [
     `${shooterName}: ${actionTitle} → ${targetName}`,
-    rollText ? `🎲 ${rollText}${totalsText && totalsText !== rollText ? ` → ${totalsText}` : ""}` : ""
+    defenseLine,
+    rollLine,
+    damageRollText
   ].filter(Boolean);
 
   const publicLines = [
     ...baseLines,
-    damageRollText,
-    `${resultText}. ${publicTargetText}`,
-    shooterAmmo !== null && shooterAmmo !== undefined && shooterAmmo !== "" ? `Набої: ${shooterAmmo}.` : "",
-    ...important
+    `${resultPrefix}. ${publicTargetText}`,
+    ammoPublic,
+    exposureLine || fallbackImportant[0] || ""
   ].filter(Boolean);
 
   const gmLines = [
     ...baseLines,
-    damageRollText,
-    `${resultText}. ${gmTargetText}`,
-    shooterAmmo !== null && shooterAmmo !== undefined && shooterAmmo !== "" ? `Набої: ${shooterAmmo}.` : "",
-    ...important
+    `${resultPrefix}. ${gmTargetText}`,
+    ammoGm,
+    exposureLine || fallbackImportant[0] || ""
   ].filter(Boolean);
 
-  // V19.17.1–V19.17.5: lastBrief is synchronized through Firebase, so the default value must be player-safe.
-  // GM receives the exact HP version through lastBriefGm; players receive lastBriefPublic without enemy HP.
-  // V19.17.2+ also redacts legacy/cached lastBrief on player clients during rendering.
   data.combat.lastBriefPublic = publicLines.join("\n");
   data.combat.lastBriefGm = gmLines.join("\n");
   data.combat.lastBrief = data.combat.lastBriefPublic;
