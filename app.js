@@ -78,8 +78,8 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.17.2";
-const BUILD_NUMBER = "19619";
+const BUILD_VERSION = "V19.17.3";
+const BUILD_NUMBER = "19620";
 const BUILD_NAME = "Enemy Template: Bandit with Obrez";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
@@ -2068,7 +2068,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19619`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19620`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2794,7 +2794,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.2</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.3</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2898,7 +2898,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19619`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19620`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3669,6 +3669,8 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     totals: r.totals,
     hits,
     damage,
+    damageRoll,
+    crits,
     targetHp: enemy.gm.hp,
     targetHpMax: enemy.gm.hpMax,
     targetState: publicEnemyStateText(enemy),
@@ -3903,6 +3905,8 @@ function doAction(action){
       totals: r.totals,
       hits,
       damage,
+      damageRoll,
+      crits,
       targetHp: enemy.gm.hp,
       targetHpMax: enemy.gm.hpMax,
       targetState: publicEnemyStateText(enemy),
@@ -3934,6 +3938,26 @@ function damageRollsTextForStatic(damageResult, crits=0){
   const critical = rolls.slice(splitAt);
   if(!critical.length) return `Випало: ${rolls.join(", ")}`;
   return `Випало: ${normal.join(", ")} +${critical.join(", ")} за крит. шкоду`;
+}
+
+function damageRollsTextForBrief(damageResult, crits=0){
+  const rolls = Array.isArray(damageResult?.rolls) ? damageResult.rolls : [];
+  if(!rolls.length) return "";
+
+  const sides = Number(damageResult?.sides || 0);
+  const critDice = Math.max(0, Number(crits || damageResult?.extraDice || 0));
+  const normalRolls = critDice ? rolls.slice(0, Math.max(0, rolls.length - critDice)) : rolls;
+  const critRolls = critDice ? rolls.slice(Math.max(0, rolls.length - critDice)) : [];
+  const normalDiceCount = normalRolls.length || Math.max(1, Number(damageResult?.hitDice || 1));
+  const dieText = sides ? `${normalDiceCount}d${sides}` : "кубику шкоди";
+  const normalText = `Випало: ${normalRolls.join(", ") || rolls.join(", ")} на ${dieText}`;
+
+  if(critRolls.length){
+    const critDieText = sides ? `${critRolls.length}d${sides}` : "крит. кубику";
+    return `${normalText} + ${critRolls.join(", ")} на крит. ${critDieText}`;
+  }
+
+  return normalText;
 }
 
 function staticShotResultLines({
@@ -3993,11 +4017,12 @@ function targetResultTextForBrief(targetType, targetName, targetHp, targetHpMax,
   return `${targetName}: HP ${targetHp}/${targetHpMax}.`;
 }
 
-function setCombatBrief({ shooterName="", actionTitle="", targetName="", targetType="", rolls=[], totals=[], hits=0, damage=0, targetHp=0, targetHpMax=0, targetState="", shooterAmmo=null, clarityLines=[] } = {}){
+function setCombatBrief({ shooterName="", actionTitle="", targetName="", targetType="", rolls=[], totals=[], hits=0, damage=0, damageRoll=null, crits=0, targetHp=0, targetHpMax=0, targetState="", shooterAmmo=null, clarityLines=[] } = {}){
   data.combat = data.combat || {};
   const rollText = Array.isArray(rolls) && rolls.length ? rolls.join(", ") : "";
   const totalsText = Array.isArray(totals) && totals.length ? totals.join(", ") : "";
   const resultText = hits > 0 ? `${hits} влуч., шкода ${damage}` : "промах";
+  const damageRollText = hits > 0 ? damageRollsTextForBrief(damageRoll, crits) : "";
   const publicTargetText = targetResultTextForBrief(targetType, targetName, targetHp, targetHpMax, targetState, false);
   const gmTargetText = targetResultTextForBrief(targetType, targetName, targetHp, targetHpMax, targetState, true);
   const important = (Array.isArray(clarityLines) ? clarityLines : [])
@@ -4011,6 +4036,7 @@ function setCombatBrief({ shooterName="", actionTitle="", targetName="", targetT
 
   const publicLines = [
     ...baseLines,
+    damageRollText,
     `${resultText}. ${publicTargetText}`,
     shooterAmmo !== null && shooterAmmo !== undefined && shooterAmmo !== "" ? `Набої: ${shooterAmmo}.` : "",
     ...important
@@ -4018,14 +4044,15 @@ function setCombatBrief({ shooterName="", actionTitle="", targetName="", targetT
 
   const gmLines = [
     ...baseLines,
+    damageRollText,
     `${resultText}. ${gmTargetText}`,
     shooterAmmo !== null && shooterAmmo !== undefined && shooterAmmo !== "" ? `Набої: ${shooterAmmo}.` : "",
     ...important
   ].filter(Boolean);
 
-  // V19.17.1–V19.17.2: lastBrief is synchronized through Firebase, so the default value must be player-safe.
+  // V19.17.1–V19.17.3: lastBrief is synchronized through Firebase, so the default value must be player-safe.
   // GM receives the exact HP version through lastBriefGm; players receive lastBriefPublic without enemy HP.
-  // V19.17.2 also redacts legacy/cached lastBrief on player clients during rendering.
+  // V19.17.2+ also redacts legacy/cached lastBrief on player clients during rendering.
   data.combat.lastBriefPublic = publicLines.join("\n");
   data.combat.lastBriefGm = gmLines.join("\n");
   data.combat.lastBrief = data.combat.lastBriefPublic;

@@ -1,12 +1,12 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.17.2
+# DATA_SCHEMA.md — Польовий Модуль V19.17.3
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.17.2"
-BUILD_NUMBER = "19619"
+BUILD_VERSION = "V19.17.3"
+BUILD_NUMBER = "19620"
 BUILD_NAME = "Enemy HP Privacy Guard"
 ```
 
@@ -207,8 +207,30 @@ combat: {
 - `lastBriefGm` показується тільки Майстру;
 - `lastBriefPublic` показується гравцям;
 - `lastBrief` лишається як fallback і має зберігатися у player-safe форматі;
-- V19.17.2: якщо legacy/cached `lastBrief` усе ж містить точні HP ворога, клієнт гравця редагує його перед рендером через `sanitizePlayerCombatBrief()`.
+- V19.17.2+: якщо legacy/cached `lastBrief` усе ж містить точні HP ворога, клієнт гравця редагує його перед рендером через `sanitizePlayerCombatBrief()`.
 
 Це не змінює бойову математику і не змінює основну структуру ворогів/гравців.
-Build/cache: `19619`.
+Build/cache: `19620`.
 
+
+
+## V19.17.3 — Damage Roll Line in Combat Brief
+
+`setCombatBrief()` приймає додаткові поля для відображення шкоди у вкладці `Стан`:
+
+```js
+setCombatBrief({
+  damageRoll: object | null,
+  crits: number
+})
+```
+
+Відображення:
+
+- якщо атака влучила і `damageRoll.rolls` існує, після рядка d20-кидків додається рядок `Випало: ... на ...`;
+- цей рядок однаковий для `lastBriefPublic` і `lastBriefGm`;
+- рядок не містить точних HP ворога і тому безпечний для гравця;
+- при критичній шкоді критичний кубик показується окремо;
+- бойова математика не змінена, використовується вже наявний об’єкт `damageRoll`.
+
+Build/cache: `19620`.
