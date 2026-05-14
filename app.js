@@ -78,8 +78,8 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.17";
-const BUILD_NUMBER = "19617";
+const BUILD_VERSION = "V19.17.1";
+const BUILD_NUMBER = "19618";
 const BUILD_NAME = "Enemy Template: Bandit with Obrez";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
@@ -1873,7 +1873,9 @@ function renderCombatSummary(){
   const combat = data.combat || {active:false};
   const active = activeCombatant();
   const order = getCombatants();
-  const brief = combat.lastBrief || "";
+  const brief = appSession.role === "gm"
+    ? (combat.lastBriefGm || combat.lastBrief || "")
+    : (combat.lastBriefPublic || combat.lastBrief || "");
   target.innerHTML = `
     <div class="turn-banner">${combat.active ? `Бій активний · Раунд ${combat.round || 1}${active ? " · Хід: " + escapeHtml(active.name) : ""}` : "Бій не активний"}</div>
     <div><span class="turn-mode ${combat.strictTurns ? "strict" : "free"}">${combat.strictTurns ? "Строгі ходи" : "Вільні дії"}</span>${!isCurrentPlayerTurn() && appSession.role !== "gm" ? `<span class="turn-mode strict">Дії заблоковано</span>` : ""}</div>
@@ -2040,7 +2042,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19617`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19618`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2766,7 +2768,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.17</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.1</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2870,7 +2872,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19617`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19618`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3958,8 +3960,8 @@ function publicEnemyStateText(enemy){
   return enemy.state || "стан невідомий";
 }
 
-function targetResultTextForRole(targetType, targetName, targetHp, targetHpMax, targetState=""){
-  if(targetType === "enemy" && appSession.role !== "gm"){
+function targetResultTextForBrief(targetType, targetName, targetHp, targetHpMax, targetState="", revealEnemyHp=false){
+  if(targetType === "enemy" && !revealEnemyHp){
     return `${targetName}: ${targetState || "стан оновлено"}.`;
   }
   return `${targetName}: HP ${targetHp}/${targetHpMax}.`;
@@ -3970,20 +3972,36 @@ function setCombatBrief({ shooterName="", actionTitle="", targetName="", targetT
   const rollText = Array.isArray(rolls) && rolls.length ? rolls.join(", ") : "";
   const totalsText = Array.isArray(totals) && totals.length ? totals.join(", ") : "";
   const resultText = hits > 0 ? `${hits} влуч., шкода ${damage}` : "промах";
-  const targetText = targetResultTextForRole(targetType, targetName, targetHp, targetHpMax, targetState);
+  const publicTargetText = targetResultTextForBrief(targetType, targetName, targetHp, targetHpMax, targetState, false);
+  const gmTargetText = targetResultTextForBrief(targetType, targetName, targetHp, targetHpMax, targetState, true);
   const important = (Array.isArray(clarityLines) ? clarityLines : [])
     .filter(line => /Віддача|Розкриття|Укриття|Разом/.test(line))
     .slice(0, 4);
 
-  const lines = [
+  const baseLines = [
     `${shooterName}: ${actionTitle} → ${targetName}`,
-    rollText ? `🎲 ${rollText}${totalsText && totalsText !== rollText ? ` → ${totalsText}` : ""}` : "",
-    `${resultText}. ${targetText}`,
+    rollText ? `🎲 ${rollText}${totalsText && totalsText !== rollText ? ` → ${totalsText}` : ""}` : ""
+  ].filter(Boolean);
+
+  const publicLines = [
+    ...baseLines,
+    `${resultText}. ${publicTargetText}`,
     shooterAmmo !== null && shooterAmmo !== undefined && shooterAmmo !== "" ? `Набої: ${shooterAmmo}.` : "",
     ...important
   ].filter(Boolean);
 
-  data.combat.lastBrief = lines.join("\n");
+  const gmLines = [
+    ...baseLines,
+    `${resultText}. ${gmTargetText}`,
+    shooterAmmo !== null && shooterAmmo !== undefined && shooterAmmo !== "" ? `Набої: ${shooterAmmo}.` : "",
+    ...important
+  ].filter(Boolean);
+
+  // V19.17.1: lastBrief is synchronized through Firebase, so the default value must be player-safe.
+  // GM receives the exact HP version through lastBriefGm; players receive lastBriefPublic without enemy HP.
+  data.combat.lastBriefPublic = publicLines.join("\n");
+  data.combat.lastBriefGm = gmLines.join("\n");
+  data.combat.lastBrief = data.combat.lastBriefPublic;
 }
 
 function formatBriefHtml(brief){

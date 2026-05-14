@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.17
+# DATA_SCHEMA.md — Польовий Модуль V19.17.1
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.17"
-BUILD_NUMBER = "19617"
-BUILD_NAME = "Enemy Template: Bandit with Obrez"
+BUILD_VERSION = "V19.17.1"
+BUILD_NUMBER = "19618"
+BUILD_NAME = "Enemy HP Privacy Patch"
 ```
 
 ## appSession
@@ -189,3 +189,25 @@ UI-зміна:
 - `renderEnemyTemplateDock()` тепер показує grid із двома шаблонами: `auto` і `shotgun`;
 - додано допоміжну функцію `renderEnemyTemplateCard(templateId, avatar)`;
 - нова структура не змінює Firebase-схему кімнати радикально, бо створений ворог і далі проходить через `makeEnemyFromTemplate()` і нормалізується наявними полями.
+
+## V19.17.1 — Combat Brief Privacy Fields
+
+У `data.combat` додано розділення короткого бойового підсумку за видимістю:
+
+```js
+combat: {
+  lastBrief: string,        // player-safe fallback
+  lastBriefPublic: string,  // публічна версія без точних HP ворогів
+  lastBriefGm: string       // GM-версія з точними HP ворогів
+}
+```
+
+Правило видимості:
+
+- `lastBriefGm` показується тільки Майстру;
+- `lastBriefPublic` показується гравцям;
+- `lastBrief` лишається як fallback і зберігається у player-safe форматі.
+
+Це не змінює бойову математику і не змінює основну структуру ворогів/гравців.
+Build/cache: `19618`.
+
