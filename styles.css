@@ -2107,3 +2107,15 @@ body.role-player .gm-combat-sticky {
     grid-template-columns:1fr;
   }
 }
+
+
+/* V19.16.7 — Journal visibility labels polish */
+.journal-entry .journal-badge{
+  margin-right:8px;
+}
+.journal-entry .journal-text{
+  overflow-wrap:anywhere;
+}
+.role-player .journal-badge.public{
+  display:none !important;
+}

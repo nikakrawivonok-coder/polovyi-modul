@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.16.6";
-const BUILD_NUMBER = "19606";
-const BUILD_NAME = "Enemy Loot Polish / Target Player Select";
+const BUILD_VERSION = "V19.16.7";
+const BUILD_NUMBER = "19607";
+const BUILD_NAME = "Journal Visibility Labels Polish";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -1990,7 +1990,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19606`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19607`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2641,9 +2641,31 @@ function invItem(i){
   return `<div class="inventory-item"><div><h4>${escapeHtml(i.item)}</h4><p>${escapeHtml(i.note || "")}</p></div><div class="inventory-count">${escapeHtml(String(i.count))}</div></div>`;
 }
 
+function quoteLogActors(text){
+  let s = String(text || "");
+
+  s = s.replace(/^Приватно для ([^:]+):\s*/u, (m, name) => `Приватно для “${name.trim()}”: `);
+
+  s = s.replace(/^([^“"':]{1,32})(?=\s+(отримав|забрав|додав|втратив|має|виконав|кинув|використав|активував|пішов|стріляє|атакує)\b)/u, (m) => `“${m.trim()}”`);
+
+  return s;
+}
+
+function logBadgeForDisplay(j){
+  if(appSession.role === "gm"){
+    if(j.visibility === "gm") return `<span class="journal-badge gm">Майстру</span>`;
+    if(j.visibility === "private") return `<span class="journal-badge private">Приватно</span>`;
+    return `<span class="journal-badge public">Публічно</span>`;
+  }
+
+  if(j.visibility === "private") return `<span class="journal-badge private">Приватно</span>`;
+  return "";
+}
+
 function logItem(j){
-  const badge = j.visibility === "gm" ? `<span class="journal-badge gm">Майстру</span>` : j.visibility === "private" ? `<span class="journal-badge private">Приватно</span>` : `<span class="journal-badge public">Публічно</span>`;
-  return `<div class="journal-entry"><time>${escapeHtml(j.time)}</time>${badge}${escapeHtml(j.text)}</div>`;
+  const badge = logBadgeForDisplay(j);
+  const text = quoteLogActors(j.text);
+  return `<div class="journal-entry"><time>${escapeHtml(j.time)}</time>${badge}<span class="journal-text">${escapeHtml(text)}</span></div>`;
 }
 
 
@@ -2782,7 +2804,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19606`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19607`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
