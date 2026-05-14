@@ -1,6 +1,6 @@
-# Польовий Модуль — V19.17.1 Enemy HP Privacy Patch
+# Польовий Модуль — V19.17.2 Enemy HP Privacy Guard
 
-Точкова версія на базі стабільної V19.17.
+Точкова версія на базі V19.17.1.
 
 ## Що виправлено
 
@@ -11,10 +11,11 @@
 - у короткому підсумку останньої бойової дії гравець міг бачити точні HP ворога, наприклад `Бандит з обрізом: HP 7/8`;
 - це суперечило правилу приватності: точні HP ворогів має бачити тільки Майстер.
 
-У V19.17.1 короткий бойовий підсумок розділено на дві версії:
+У V19.17.2 короткий бойовий підсумок не лише розділяється на дві версії, а й додатково очищається на боці гравця:
 
 - `lastBriefGm` — для Майстра, з точними HP ворога;
-- `lastBriefPublic` — для гравця, без точних HP ворога.
+- `lastBriefPublic` — для гравця, без точних HP ворога;
+- якщо через старий кеш / legacy `lastBrief` у Firebase все ж прилетів текст із `HP 7/8`, клієнт гравця вирізає ці числа перед показом у вкладці `Стан`.
 
 Гравець тепер бачить тільки публічний стан ворога, наприклад:
 
@@ -46,14 +47,14 @@
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19618">
-<script src="./app.js?v=19618"></script>
+<link rel="stylesheet" href="./styles.css?v=19619">
+<script src="./app.js?v=19619"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19618&gmKey=zona-master&v=19618`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19619&gmKey=zona-master&v=19619`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19618&player=fox&v=19618`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19619&player=fox&v=19619`

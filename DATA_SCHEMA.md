@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.17.1
+# DATA_SCHEMA.md — Польовий Модуль V19.17.2
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.17.1"
-BUILD_NUMBER = "19618"
-BUILD_NAME = "Enemy HP Privacy Patch"
+BUILD_VERSION = "V19.17.2"
+BUILD_NUMBER = "19619"
+BUILD_NAME = "Enemy HP Privacy Guard"
 ```
 
 ## appSession
@@ -190,7 +190,7 @@ UI-зміна:
 - додано допоміжну функцію `renderEnemyTemplateCard(templateId, avatar)`;
 - нова структура не змінює Firebase-схему кімнати радикально, бо створений ворог і далі проходить через `makeEnemyFromTemplate()` і нормалізується наявними полями.
 
-## V19.17.1 — Combat Brief Privacy Fields
+## V19.17.2 — Combat Brief Privacy Fields
 
 У `data.combat` додано розділення короткого бойового підсумку за видимістю:
 
@@ -206,8 +206,9 @@ combat: {
 
 - `lastBriefGm` показується тільки Майстру;
 - `lastBriefPublic` показується гравцям;
-- `lastBrief` лишається як fallback і зберігається у player-safe форматі.
+- `lastBrief` лишається як fallback і має зберігатися у player-safe форматі;
+- V19.17.2: якщо legacy/cached `lastBrief` усе ж містить точні HP ворога, клієнт гравця редагує його перед рендером через `sanitizePlayerCombatBrief()`.
 
 Це не змінює бойову математику і не змінює основну структуру ворогів/гравців.
-Build/cache: `19618`.
+Build/cache: `19619`.
 

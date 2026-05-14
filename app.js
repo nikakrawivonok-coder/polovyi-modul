@@ -78,8 +78,8 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.17.1";
-const BUILD_NUMBER = "19618";
+const BUILD_VERSION = "V19.17.2";
+const BUILD_NUMBER = "19619";
 const BUILD_NAME = "Enemy Template: Bandit with Obrez";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
@@ -1867,15 +1867,41 @@ function renderGmCombatStickyBar(){
   `;
 }
 
+function sanitizePlayerCombatBrief(brief){
+  let text = String(brief || "");
+  if(!text) return "";
+
+  // V19.17.2: defensive privacy fallback.
+  // Even if an older/cached GM client writes exact enemy HP into legacy lastBrief,
+  // player clients must redact it before rendering the State tab.
+  (data.enemies || []).forEach(enemy => {
+    if(!enemy?.name) return;
+    const name = String(enemy.name);
+    const safeState = publicEnemyStateText(enemy);
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    text = text.replace(new RegExp(`${escaped}:\\s*HP\\s*\\d+\\s*/\\s*\\d+`, "g"), `${name}: ${safeState}`);
+    text = text.replace(new RegExp(`${escaped}\\s+HP\\s*\\d+\\s*/\\s*\\d+`, "g"), `${name}: ${safeState}`);
+  });
+
+  // Generic fallback for enemy-like names if the specific enemy list does not catch it.
+  text = text.replace(/((?:Автоматник|Бандит з обрізом|Боягуз|Бандит|Шулер|Панікер|Засадник|Добивач|Сліпий пес|Псевдособака|Кровосос|Контролер)[^:\n]*):\s*HP\s*\d+\s*\/\s*\d+/g, "$1: стан оновлено");
+  text = text.replace(/((?:Автоматник|Бандит з обрізом|Боягуз|Бандит|Шулер|Панікер|Засадник|Добивач|Сліпий пес|Псевдособака|Кровосос|Контролер)[^\n]*)\s+HP\s*\d+\s*\/\s*\d+/g, "$1: стан оновлено");
+  return text;
+}
+
+function combatBriefForCurrentRole(combat){
+  if(appSession.role === "gm") return combat.lastBriefGm || combat.lastBrief || "";
+  if(combat.lastBriefPublic) return sanitizePlayerCombatBrief(combat.lastBriefPublic);
+  return sanitizePlayerCombatBrief(combat.lastBrief || "");
+}
+
 function renderCombatSummary(){
   const target = qs("#combatSummary");
   if(!target) return;
   const combat = data.combat || {active:false};
   const active = activeCombatant();
   const order = getCombatants();
-  const brief = appSession.role === "gm"
-    ? (combat.lastBriefGm || combat.lastBrief || "")
-    : (combat.lastBriefPublic || combat.lastBrief || "");
+  const brief = combatBriefForCurrentRole(combat);
   target.innerHTML = `
     <div class="turn-banner">${combat.active ? `Бій активний · Раунд ${combat.round || 1}${active ? " · Хід: " + escapeHtml(active.name) : ""}` : "Бій не активний"}</div>
     <div><span class="turn-mode ${combat.strictTurns ? "strict" : "free"}">${combat.strictTurns ? "Строгі ходи" : "Вільні дії"}</span>${!isCurrentPlayerTurn() && appSession.role !== "gm" ? `<span class="turn-mode strict">Дії заблоковано</span>` : ""}</div>
@@ -2042,7 +2068,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19618`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19619`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2768,7 +2794,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.1</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.2</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2872,7 +2898,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19618`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19619`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3997,8 +4023,9 @@ function setCombatBrief({ shooterName="", actionTitle="", targetName="", targetT
     ...important
   ].filter(Boolean);
 
-  // V19.17.1: lastBrief is synchronized through Firebase, so the default value must be player-safe.
+  // V19.17.1–V19.17.2: lastBrief is synchronized through Firebase, so the default value must be player-safe.
   // GM receives the exact HP version through lastBriefGm; players receive lastBriefPublic without enemy HP.
+  // V19.17.2 also redacts legacy/cached lastBrief on player clients during rendering.
   data.combat.lastBriefPublic = publicLines.join("\n");
   data.combat.lastBriefGm = gmLines.join("\n");
   data.combat.lastBrief = data.combat.lastBriefPublic;
