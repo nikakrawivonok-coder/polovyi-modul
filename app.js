@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.17.4";
-const BUILD_NUMBER = "19621";
-const BUILD_NAME = "Combat Clarity: Cover and Exposure";
+const BUILD_VERSION = "V19.17.5";
+const BUILD_NUMBER = "19622";
+const BUILD_NAME = "Burst Recoil Progression Fix";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2079,7 +2079,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19621`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19622`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2805,7 +2805,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.4</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.5</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2909,7 +2909,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19621`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19622`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3133,9 +3133,11 @@ function resetAllRecoilState(){
 }
 
 function burstRecoilInfoForShooter(shooter){
-  // Якщо бій не активний, не тягнемо стару віддачу з попередніх тестів / Firebase.
-  // Перша черга поза активним боєм завжди має бути першою: -2.
-  const current = data.combat?.active ? shooterRecoilLevel(shooter) : 0;
+  // V19.17.5: послідовна віддача має працювати і в активному бою,
+  // і в ручних GM/тестових пострілах з панелі “Остання дія”.
+  // 1-а черга = -2, 2-а підряд = -4, 3-я підряд = -6.
+  // Постріл 1 або 2 патронами скидає лічильник у updateShooterAfterShot().
+  const current = shooterRecoilLevel(shooter);
   const step = current + 1;
   const penalty = -2 * step;
   return { step, penalty };
@@ -4108,7 +4110,7 @@ function setCombatBrief({ shooterName="", actionTitle="", targetName="", targetT
     ...important
   ].filter(Boolean);
 
-  // V19.17.1–V19.17.4: lastBrief is synchronized through Firebase, so the default value must be player-safe.
+  // V19.17.1–V19.17.5: lastBrief is synchronized through Firebase, so the default value must be player-safe.
   // GM receives the exact HP version through lastBriefGm; players receive lastBriefPublic without enemy HP.
   // V19.17.2+ also redacts legacy/cached lastBrief on player clients during rendering.
   data.combat.lastBriefPublic = publicLines.join("\n");

@@ -1,8 +1,8 @@
-# Польовий Модуль — V19.17.4 Combat Clarity
+# Польовий Модуль — V19.17.5 Recoil Progression Fix
 
-Точкова версія на базі V19.17.3.
+Точкова версія на базі V19.17.4.
 
-## Що додано
+## Що збережено з попередніх версій
 
 ### Рядок випаду шкоди у короткому бойовому підсумку
 
@@ -50,17 +50,17 @@
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19621">
-<script src="./app.js?v=19621"></script>
+<link rel="stylesheet" href="./styles.css?v=19622">
+<script src="./app.js?v=19622"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19621&gmKey=zona-master&v=19621`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19622&gmKey=zona-master&v=19622`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19621&player=fox&v=19621`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19622&player=fox&v=19622`
 
 
 ## V19.17.4 — Combat Clarity: Cover and Exposure
@@ -76,3 +76,17 @@
 ```
 
 Якщо укриття додає ще окремий штраф до черги, він показується в рядку точності, наприклад: `укриття цілі — -1`.
+
+
+## V19.17.5 — Burst Recoil Progression Fix
+
+Build/cache: `19622`.
+
+Виправлено прогресію віддачі черги для повторних пострілів 3 патронами підряд:
+
+- 1-а черга поспіль: `-2` до точності;
+- 2-а черга поспіль: `-4` до точності;
+- 3-я черга поспіль: `-6` до точності;
+- постріл 1 або 2 патронами скидає лічильник віддачі.
+
+Виправлення застосовується також тоді, коли бій формально не активний, але Майстер або гравець тестово робить кілька черг підряд у блоці “Остання дія”. Бойова математика не змінена — код приведено до вже погодженого правила.

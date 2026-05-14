@@ -1,12 +1,12 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.17.4
+# DATA_SCHEMA.md — Польовий Модуль V19.17.5
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.17.4"
-BUILD_NUMBER = "19621"
+BUILD_VERSION = "V19.17.5"
+BUILD_NUMBER = "19622"
 BUILD_NAME = "Enemy HP Privacy Guard"
 ```
 
@@ -266,3 +266,15 @@ Build/cache: `19621`.
 ```text
 Укриття цілі: Захист Автоматник 12 → 14.
 ```
+
+
+## V19.17.5 — Recoil Progression Note
+
+Build/cache: `19622`.
+
+Дані стрільця вже містять лічильник послідовних черг:
+
+- гравець: `player.recoilLevel`;
+- ворог/NPC: `enemy.gm.recoilLevel`.
+
+Правило: під час `shoot_burst`/`burst` наступний штраф рахується як `-(recoilLevel + 1) * 2`. Після пострілу чергою лічильник збільшується на 1. Постріл 1 або 2 патронами скидає лічильник у 0. Початок бою скидає стару віддачу через `resetAllRecoilState()`.
