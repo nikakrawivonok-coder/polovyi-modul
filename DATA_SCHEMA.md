@@ -1,12 +1,12 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.17.3
+# DATA_SCHEMA.md — Польовий Модуль V19.17.4
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.17.3"
-BUILD_NUMBER = "19620"
+BUILD_VERSION = "V19.17.4"
+BUILD_NUMBER = "19621"
 BUILD_NAME = "Enemy HP Privacy Guard"
 ```
 
@@ -234,3 +234,35 @@ setCombatBrief({
 - бойова математика не змінена, використовується вже наявний об’єкт `damageRoll`.
 
 Build/cache: `19620`.
+
+
+## V19.17.4 — Combat Clarity / Cover and Exposure
+
+Build/cache: `19621`.
+
+Додані/уточнені поля не змінюють схему Firebase як обов’язкову структуру, але бойовий підсумок тепер активніше використовує розділення:
+
+- `combat.lastBriefPublic` — без точних HP ворогів;
+- `combat.lastBriefGm` — з точними HP ворогів для Майстра;
+- `combat.lastBrief` — player-safe fallback;
+- `player.exposedUntilNextTurn`, `player.exposurePenalty`;
+- `enemy.gm.exposedUntilNextTurn`, `enemy.gm.exposurePenalty`;
+- `enemy.cover` або effect `inCover` — укриття ворога, що дає +2 до ефективного Захисту.
+
+Поточний очікуваний формат короткого бойового підсумку:
+
+```text
+Лис: Черга → Автоматник
+🎲 8, 14, 20 → 6, 12, 18
+Випало: 3, 3 на 2d4 + 3 на крит. 1d4
+2 влуч., шкода 9. Автоматник: вибув.
+Набої: 11.
+Точність: черга, 1-а поспіль — -2.
+Лис розкрився: Захист 12 → 10 до його наступного ходу.
+```
+
+Якщо ціль в укритті, додається рядок на кшталт:
+
+```text
+Укриття цілі: Захист Автоматник 12 → 14.
+```
