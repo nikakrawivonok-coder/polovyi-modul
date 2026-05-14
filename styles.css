@@ -2064,3 +2064,46 @@ body.role-player .gm-combat-sticky {
   opacity:.45;
   filter:grayscale(.35);
 }
+
+
+/* V19.16.6 — enemy loot polish */
+.enemy-loot-select-label{
+  display:grid;
+  gap:4px;
+}
+.enemy-loot-select-label span{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:900;
+}
+.enemy-loot-select{
+  width:100%;
+  min-height:42px;
+  border-radius:12px;
+  border:1px solid rgba(230,180,94,.38);
+  background:rgba(18,10,6,.88);
+  color:var(--paper);
+  font-weight:900;
+  padding:8px 10px;
+}
+.enemy-loot-status-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+.enemy-loot-status-row span{
+  border:1px solid rgba(230,180,94,.22);
+  border-radius:10px;
+  background:rgba(0,0,0,.18);
+  padding:6px 8px;
+  font-size:12px;
+  font-weight:900;
+}
+.enemy-loot-status-row .muted{
+  color:var(--muted);
+}
+@media(max-width:390px){
+  .enemy-loot-status-row{
+    grid-template-columns:1fr;
+  }
+}

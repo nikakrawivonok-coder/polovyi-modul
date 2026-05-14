@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.16.5";
-const BUILD_NUMBER = "19605";
-const BUILD_NAME = "Enemy Loot Draft";
+const BUILD_VERSION = "V19.16.6";
+const BUILD_NUMBER = "19606";
+const BUILD_NAME = "Enemy Loot Polish / Target Player Select";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -559,6 +559,8 @@ function transferEnemyAmmoLoot(enemyId, playerId=currentPlayerId()){
   p.ammo = Number(p.ammo || 0) + ammo;
   enemy.gm.ammo = 0;
   enemy.gm.lootTakenAmmo = true;
+  enemy.gm.lootTakenAmmoBy = playerId;
+  enemy.gm.lootTakenAmmoAt = new Date().toISOString();
   addLog(`${p.name || playerId} забрав ${ammo} наб. з ${enemy.name}.`, "public");
   showToast(`Передано набої: ${ammo}`);
   save();
@@ -573,6 +575,8 @@ function transferEnemyLootNote(enemyId, playerId=currentPlayerId()){
   const lootText = enemy.gm.lootText || "трофеї ворога";
   addInventoryItemForPlayer(playerId, `Лут: ${enemy.name}`, 1, lootText);
   enemy.gm.lootTakenText = true;
+  enemy.gm.lootTakenTextBy = playerId;
+  enemy.gm.lootTakenTextAt = new Date().toISOString();
   addLog(`${p.name || playerId} отримав лут з ${enemy.name}: ${lootText}.`, "public");
   showToast("Лут передано.");
   save();
@@ -585,6 +589,19 @@ function transferEnemyAllLoot(enemyId, playerId=currentPlayerId()){
   const beforeAmmo = Number(enemy.gm?.ammo || 0);
   transferEnemyLootNote(enemyId, playerId);
   if(beforeAmmo > 0) transferEnemyAmmoLoot(enemyId, playerId);
+}
+
+function selectedLootPlayerIdForEnemy(enemy){
+  const selected = enemy?.gm?.lootTargetPlayer;
+  if(selected && data.players?.[selected]) return selected;
+  return currentPlayerId();
+}
+
+function playerOptionsHtml(selectedId){
+  return Object.entries(data.players || {}).map(([id, p]) => {
+    const selected = id === selectedId ? "selected" : "";
+    return `<option value="${escapeAttr(id)}" ${selected}>${escapeHtml(p.name || id)}</option>`;
+  }).join("");
 }
 
 
@@ -1973,7 +1990,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19605`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19606`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2590,7 +2607,17 @@ function enemyCardGm(e){
     </div>
 
     <div class="enemy-loot-actions">
-      <div class="enemy-loot-title">Лут активному гравцю: ${escapeHtml(playerById(currentPlayerId()).name || currentPlayerId())}</div>
+      <div class="enemy-loot-title">Лут гравцю</div>
+      <label class="enemy-loot-select-label">
+        <span>Кому передати:</span>
+        <select class="enemy-loot-select" data-enemy-loot-target="${escapeAttr(e.id)}">
+          ${playerOptionsHtml(selectedLootPlayerIdForEnemy(e))}
+        </select>
+      </label>
+      <div class="enemy-loot-status-row">
+        <span class="${gm.lootTakenText ? "green" : "muted"}">${gm.lootTakenText ? "Лут передано" : "Лут ще не передано"}</span>
+        <span class="${gm.lootTakenAmmo ? "green" : "muted"}">${gm.lootTakenAmmo ? "Набої передано" : "Набої ще не передано"}</span>
+      </div>
       <button class="metal-btn" data-transfer-enemy-loot="${escapeAttr(e.id)}">Передати лут</button>
       <button class="metal-btn" data-transfer-enemy-ammo="${escapeAttr(e.id)}" ${Number(gm.ammo || 0) <= 0 ? "disabled" : ""}>Передати набої (${escapeHtml(String(gm.ammo || 0))})</button>
       <button class="metal-btn success" data-transfer-enemy-all-loot="${escapeAttr(e.id)}">Передати все</button>
@@ -2755,7 +2782,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19605`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19606`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -4395,7 +4422,8 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   if(transferEnemyLootBtn){
     e.preventDefault();
     e.stopPropagation();
-    transferEnemyLootNote(transferEnemyLootBtn.dataset.transferEnemyLoot, currentPlayerId());
+    const enemy = findEnemyById(transferEnemyLootBtn.dataset.transferEnemyLoot);
+    transferEnemyLootNote(transferEnemyLootBtn.dataset.transferEnemyLoot, selectedLootPlayerIdForEnemy(enemy));
     return;
   }
 
@@ -4403,7 +4431,8 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   if(transferEnemyAmmoBtn){
     e.preventDefault();
     e.stopPropagation();
-    transferEnemyAmmoLoot(transferEnemyAmmoBtn.dataset.transferEnemyAmmo, currentPlayerId());
+    const enemy = findEnemyById(transferEnemyAmmoBtn.dataset.transferEnemyAmmo);
+    transferEnemyAmmoLoot(transferEnemyAmmoBtn.dataset.transferEnemyAmmo, selectedLootPlayerIdForEnemy(enemy));
     return;
   }
 
@@ -4411,7 +4440,8 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   if(transferEnemyAllLootBtn){
     e.preventDefault();
     e.stopPropagation();
-    transferEnemyAllLoot(transferEnemyAllLootBtn.dataset.transferEnemyAllLoot, currentPlayerId());
+    const enemy = findEnemyById(transferEnemyAllLootBtn.dataset.transferEnemyAllLoot);
+    transferEnemyAllLoot(transferEnemyAllLootBtn.dataset.transferEnemyAllLoot, selectedLootPlayerIdForEnemy(enemy));
     return;
   }
 
@@ -4492,6 +4522,20 @@ if(e.target.id === "copyPlayerLink"){
     }
   }
 
+});
+
+document.addEventListener("change", e => {
+  const lootTarget = e.target.closest("[data-enemy-loot-target]");
+  if(lootTarget){
+    const enemy = findEnemyById(lootTarget.dataset.enemyLootTarget);
+    if(enemy){
+      enemy.gm = enemy.gm || {};
+      enemy.gm.lootTargetPlayer = lootTarget.value;
+      save();
+      render();
+    }
+    return;
+  }
 });
 
 document.addEventListener("input", e => {
