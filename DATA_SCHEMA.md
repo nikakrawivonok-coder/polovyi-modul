@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.17.5
+# DATA_SCHEMA.md — Польовий Модуль V19.17.6
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.17.5"
-BUILD_NUMBER = "19622"
-BUILD_NAME = "Enemy HP Privacy Guard"
+BUILD_VERSION = "V19.17.6"
+BUILD_NUMBER = "19623"
+BUILD_NAME = "Effective Defense + Compact GM Meta"
 ```
 
 ## appSession
@@ -278,3 +278,10 @@ Build/cache: `19622`.
 - ворог/NPC: `enemy.gm.recoilLevel`.
 
 Правило: під час `shoot_burst`/`burst` наступний штраф рахується як `-(recoilLevel + 1) * 2`. Після пострілу чергою лічильник збільшується на 1. Постріл 1 або 2 патронами скидає лічильник у 0. Початок бою скидає стару віддачу через `resetAllRecoilState()`.
+
+
+## V19.17.6 — Effective defense + compact GM meta
+
+- `playerDefenseValue(player)` лишається джерелом істини для ефективного Захисту гравця.
+- У UI Захист гравця може показуватись як `ефективний / баз. базовий`, якщо на нього впливають укриття або розкриття.
+- Діагностика Майстра скорочена: дубльовані `Build / Cache / Room / Role / Player / Sync` прибрані з debug-панелі, бо їх уже видно в meta-блоці.

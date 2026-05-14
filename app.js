@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.17.5";
-const BUILD_NUMBER = "19622";
-const BUILD_NAME = "Burst Recoil Progression Fix";
+const BUILD_VERSION = "V19.17.6";
+const BUILD_NUMBER = "19623";
+const BUILD_NAME = "Effective Defense + Compact GM Meta";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -1798,7 +1798,7 @@ function combatantMiniInfo(c){
   if(c.type === "player"){
     const p = data.players?.[c.ref];
     if(!p) return "";
-    return `${Number(p.hp ?? 0)}/${Number(p.hpMax ?? 0)} HP · ${Number(p.ammo ?? 0)} наб.`;
+    return `${Number(p.hp ?? 0)}/${Number(p.hpMax ?? 0)} HP · Зах. ${playerDefenseDisplay(p, true)} · ${Number(p.ammo ?? 0)} наб.`;
   }
   if(c.type === "enemy"){
     const e = findEnemyById(c.ref);
@@ -2017,7 +2017,7 @@ function renderCharacterDetails(p = currentPlayer()){
   if(!target) return;
   const effects = Array.isArray(p.activeEffects) && p.activeEffects.length ? p.activeEffects.join(", ") : "немає активних ефектів";
   target.innerHTML = `<div class="character-details-grid">
-    <div class="detail-card"><strong>Захист</strong><span>${escapeHtml(String(p.defense ?? 12))}</span></div>
+    <div class="detail-card"><strong>Захист</strong><span>${escapeHtml(playerDefenseDisplay(p, true))}</span></div>
     <div class="detail-card"><strong>Броня</strong><span>${escapeHtml(String(p.armor ?? 0))}</span></div>
     <div class="detail-card"><strong>Укриття</strong><span>${p.cover ? "так" : "ні"}</span></div>
     <div class="detail-card"><strong>Набої</strong><span>${escapeHtml(String(p.ammo ?? 0))}</span></div>
@@ -2079,7 +2079,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19622`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19623`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2288,7 +2288,7 @@ function renderGmQuickPanel(){
     const p = data.players[pid] || {};
     return `<button class="gm-mini-card ${pid === activePlayerId ? "active" : ""}" data-gm-mini-player="${escapeAttr(pid)}">
       <strong>${escapeHtml(p.name || pid)}</strong>
-      <span>HP ${escapeHtml(String(p.hp ?? "?"))}/${escapeHtml(String(p.hpMax ?? "?"))} · 🛡 ${escapeHtml(String(p.defense ?? "?"))} · 🎒 ${escapeHtml(String(p.ammo ?? "?"))}</span>
+      <span>HP ${escapeHtml(String(p.hp ?? "?"))}/${escapeHtml(String(p.hpMax ?? "?"))} · 🛡 ${escapeHtml(playerDefenseDisplay(p, true))} · 🎒 ${escapeHtml(String(p.ammo ?? "?"))}</span>
     </button>`;
   }).join("");
 
@@ -2313,7 +2313,7 @@ function renderGmQuickPanel(){
       <div class="gm-enemy-line">
         <span>Захист</span>
         <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="defense" data-delta="-1">−</button>
-        <strong>${escapeHtml(String(activePlayer.defense ?? 12))}/${escapeHtml(String(activePlayer.defenseMax ?? activePlayer.defense ?? 12))}</strong>
+        <strong>${escapeHtml(playerDefenseDisplay(activePlayer, true))}</strong>
         <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="defense" data-delta="1">+</button>
       </div>
 
@@ -2805,7 +2805,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.5</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.6</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2909,7 +2909,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19622`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19623`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3298,6 +3298,14 @@ function playerDefenseValue(player){
   const effects = Array.isArray(player.activeEffects) ? player.activeEffects : [];
   const exposedPenalty = effects.includes("exposed") ? Math.max(1, Number(player.exposurePenalty || 1)) : 0;
   return Number(player.defense || 12) + (player.cover ? 2 : 0) - exposedPenalty;
+}
+function playerDefenseDisplay(player, compact=false){
+  const base = Number(player?.defense || 12);
+  const effective = playerDefenseValue(player || {});
+  const effects = Array.isArray(player?.activeEffects) ? player.activeEffects : [];
+  const dynamic = !!player?.cover || effects.includes("exposed") || effective !== base;
+  if(!dynamic) return String(effective);
+  return compact ? `${effective} / баз. ${base}` : `${effective} / баз. ${base}`;
 }
 function attrLabel(key){
   return {endurance:"Витривалість", accuracy:"Точність", agility:"Вправність", perception:"Сприйняття", intuition:"Інтуїція", charisma:"Харизма"}[key] || "";
