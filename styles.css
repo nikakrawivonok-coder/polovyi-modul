@@ -2177,3 +2177,13 @@ body.role-gm .compact-gm-debug strong{
 .role-player .journal-badge.public{
   display:none !important;
 }
+
+/* V19.17.7 — shield current/max reason */
+.defense-strip{
+  flex-wrap:wrap;
+}
+.defense-value{
+  max-width:100%;
+  white-space:normal;
+  line-height:1.05;
+}

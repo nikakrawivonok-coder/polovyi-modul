@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.17.6";
-const BUILD_NUMBER = "19623";
-const BUILD_NAME = "Effective Defense + Compact GM Meta";
+const BUILD_VERSION = "V19.17.7";
+const BUILD_NUMBER = "19624";
+const BUILD_NAME = "Shield Sync + Cover Accuracy Text";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2079,7 +2079,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19623`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19624`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2485,7 +2485,7 @@ function render(){
   qs("#hpNow").textContent = p.hp;
   qs("#hpMax").textContent = p.hpMax;
   qs("#fatigueNow").textContent = p.fatigue;
-  qs("#defenseNow").textContent = p.defense ?? 12;
+  qs("#defenseNow").textContent = playerDefenseDisplay(p, true);
   qs("#radiationNow").textContent = p.infection ?? p.radiation ?? 0;
   qs("#ammoNow").textContent = p.ammo;
   qs("#hpDots").innerHTML = dots(p.hp, p.hpMax);
@@ -2805,7 +2805,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.6</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.7</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2909,7 +2909,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19623`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19624`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3194,10 +3194,11 @@ function shotClarityLines({
     const recoilPenalty = Number(info.penalty || (-2 * recoilStep));
     const totalPenalty = Number(attackMod || 0);
     const coverMod = Number(coverPenalty || 0);
+    const shooterLabel = shooterName || shooter?.name || "Стрілець";
     const accuracyParts = [`черга, ${recoilStep}-а поспіль — ${recoilPenalty}`];
-    if(coverMod) accuracyParts.push(`укриття цілі — ${coverMod}`);
     if(totalPenalty !== recoilPenalty + coverMod) accuracyParts.push(`інші модифікатори — ${totalPenalty - recoilPenalty - coverMod}`);
     lines.push(`Точність: ${accuracyParts.join("; ")}.`);
+    if(coverMod) lines.push(`Через укриття цілі: ${coverMod} до точності ${shooterAccuracyName(shooterLabel)} при стрільбі чергою.`);
 
     if(targetCovered){
       const target = targetName || "цілі";
@@ -3208,7 +3209,6 @@ function shotClarityLines({
       }
     }
 
-    const shooterLabel = shooterName || shooter?.name || "Стрілець";
     if(shooterDefenseBeforeExposure !== null && shooterDefenseAfterExposure !== null){
       lines.push(`${shooterLabel} розкрився: Захист ${shooterDefenseBeforeExposure} → ${shooterDefenseAfterExposure} до його наступного ходу.`);
     } else {
@@ -3299,13 +3299,25 @@ function playerDefenseValue(player){
   const exposedPenalty = effects.includes("exposed") ? Math.max(1, Number(player.exposurePenalty || 1)) : 0;
   return Number(player.defense || 12) + (player.cover ? 2 : 0) - exposedPenalty;
 }
-function playerDefenseDisplay(player, compact=false){
-  const base = Number(player?.defense || 12);
-  const effective = playerDefenseValue(player || {});
+function playerDefenseReasonText(player){
   const effects = Array.isArray(player?.activeEffects) ? player.activeEffects : [];
-  const dynamic = !!player?.cover || effects.includes("exposed") || effective !== base;
+  const reasons = [];
+  if(player?.cover) reasons.push("укриття");
+  if(effects.includes("exposed")) reasons.push("розкриття");
+  return reasons.join(", ");
+}
+function playerDefenseDisplay(player, compact=false){
+  const max = Number(player?.defenseMax ?? player?.defense ?? 12);
+  const effective = playerDefenseValue(player || {});
+  const reason = playerDefenseReasonText(player || {});
+  const dynamic = !!reason || effective !== max;
   if(!dynamic) return String(effective);
-  return compact ? `${effective} / баз. ${base}` : `${effective} / баз. ${base}`;
+  return reason ? `${effective}/${max} · ${reason}` : `${effective}/${max}`;
+}
+function shooterAccuracyName(name){
+  const value = String(name || "стрільця").trim();
+  if(value === "Лис") return "Лиса";
+  return value;
 }
 function attrLabel(key){
   return {endurance:"Витривалість", accuracy:"Точність", agility:"Вправність", perception:"Сприйняття", intuition:"Інтуїція", charisma:"Харизма"}[key] || "";

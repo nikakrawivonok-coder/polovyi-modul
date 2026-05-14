@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.17.6
+# DATA_SCHEMA.md — Польовий Модуль V19.17.7
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.17.6"
-BUILD_NUMBER = "19623"
-BUILD_NAME = "Effective Defense + Compact GM Meta"
+BUILD_VERSION = "V19.17.7"
+BUILD_NUMBER = "19624"
+BUILD_NAME = "Shield Sync + Cover Accuracy Text"
 ```
 
 ## appSession
@@ -285,3 +285,10 @@ Build/cache: `19622`.
 - `playerDefenseValue(player)` лишається джерелом істини для ефективного Захисту гравця.
 - У UI Захист гравця може показуватись як `ефективний / баз. базовий`, якщо на нього впливають укриття або розкриття.
 - Діагностика Майстра скорочена: дубльовані `Build / Cache / Room / Role / Player / Sync` прибрані з debug-панелі, бо їх уже видно в meta-блоці.
+
+
+## V19.17.7 — Shield sync + cover accuracy text
+
+- `playerDefenseDisplay(player)` показує `ефективний/максимальний · причина`, коли Захист змінено тимчасовими факторами.
+- Основний `#defenseNow` у вкладці `Стан` тепер використовує `playerDefenseDisplay(...)`, а не сире `player.defense`.
+- Штраф черги по цілі в укритті виводиться окремим зрозумілим рядком: `Через укриття цілі: -1 до точності Лиса при стрільбі чергою.`

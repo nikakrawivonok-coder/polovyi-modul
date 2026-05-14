@@ -1,13 +1,13 @@
-# Польовий Модуль — V19.17.6 Effective Defense + Compact GM Meta
+# Польовий Модуль — V19.17.7 Shield Sync + Cover Accuracy Text
 
-Точкова UX-версія на базі V19.17.5.
+Точкова UX-версія на базі V19.17.6.
 
-## Що додано у V19.17.6
+## Що додано у V19.17.7
 
-- для гравця і Майстра захист персонажа тепер показується як **ефективне значення**, а якщо є тимчасові модифікатори — у форматі `ефективний / баз. базовий`;
-- після черги / розкриття Майстер швидше бачить, що реальний захист, наприклад, став `10 / баз. 12`;
-- у блоці Майстра прибрано дублювання `Room / Role / Player / Build / Cache` у діагностиці;
-- нижній мета-блок Майстра й діагностика стали компактнішими.
+- головний щит у вкладці `Стан` тепер показує ефективний Захист, наприклад `10/12 · розкриття`;
+- ключові компактні місця, де показується Захист гравця, також використовують формат `поточний/максимальний · причина`;
+- текст додаткового штрафу черги по цілі в укритті уточнено як: `Через укриття цілі: -1 до точності Лиса при стрільбі чергою.`;
+- бойова математика не змінювалася.
 
 ## Що збережено з попередніх версій
 
@@ -57,17 +57,17 @@
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19623">
-<script src="./app.js?v=19623"></script>
+<link rel="stylesheet" href="./styles.css?v=19624">
+<script src="./app.js?v=19624"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19623&gmKey=zona-master&v=19623`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19624&gmKey=zona-master&v=19624`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19623&player=fox&v=19623`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19624&player=fox&v=19624`
 
 
 ## V19.17.4 — Combat Clarity: Cover and Exposure
