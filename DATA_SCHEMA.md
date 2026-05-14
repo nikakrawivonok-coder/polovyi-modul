@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.17.9
+# DATA_SCHEMA.md — Польовий Модуль V19.17.10
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.17.9"
-BUILD_NUMBER = "19626"
-BUILD_NAME = "Unified Combat Summary Real Fix"
+BUILD_VERSION = "V19.17.10"
+BUILD_NUMBER = "19627"
+BUILD_NAME = "Exposure Trigger Fix"
 ```
 
 ## appSession
@@ -301,3 +301,11 @@ Build/cache: `19622`.
 - `showCombatBriefToastForCurrentRole()` показує той самий role-aware підсумок у toast.
 - `lastBriefGm` містить HP ворога; `lastBriefPublic` лишається без точних HP ворога.
 - Бойова математика не змінена.
+
+
+## V19.17.10 — Exposure Trigger Fix
+
+- `shotCausesExposure(action, hits)` визначає, чи поточний постріл має створювати рядок розкриття.
+- 1 патрон / `shoot_aimed`: не створює розкриття.
+- 2 патрони / `shoot_normal`: створює розкриття -1 тільки при 0 влучань.
+- 3 патрони / `shoot_burst`: створює розкриття -2 після кожної черги.

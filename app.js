@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.17.9";
-const BUILD_NUMBER = "19626";
-const BUILD_NAME = "Unified Combat Summary Real Fix";
+const BUILD_VERSION = "V19.17.10";
+const BUILD_NUMBER = "19627";
+const BUILD_NAME = "Exposure Trigger Fix";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -1610,6 +1610,7 @@ function enemyAttack(enemyId, mode){
   const targetDefenseWithCoverForClarity = targetDefenseBaseForClarity + (targetCoveredForClarity ? 2 : 0);
   const shooterDefenseBeforeExposureForClarity = Number(enemy.defense || 12) + ((enemy.cover || enemyEffects(enemy).includes("inCover")) ? 2 : 0);
   const shooterDefenseAfterExposureForClarity = enemyDefenseValue(enemy);
+  const exposureClarity = exposureClarityBeforeAfter(enemy, mode, hits, shooterDefenseBeforeExposureForClarity, shooterDefenseAfterExposureForClarity);
   const clarityLines = shotClarityLines({
     mode,
     attackMod: cfg.mod,
@@ -1617,8 +1618,8 @@ function enemyAttack(enemyId, mode){
     damageRoll: damageDetails,
     shooter: enemy,
     shooterName: enemy.name,
-    shooterDefenseBeforeExposure: shooterDefenseBeforeExposureForClarity,
-    shooterDefenseAfterExposure: shooterDefenseAfterExposureForClarity,
+    shooterDefenseBeforeExposure: exposureClarity.before,
+    shooterDefenseAfterExposure: exposureClarity.after,
     targetCovered: targetCoveredForClarity,
     targetName,
     targetDefenseBase: targetDefenseBaseForClarity,
@@ -1713,8 +1714,8 @@ function enemyAttack(enemyId, mode){
     attrMod: 0,
     coverPenalty: burstCoverPenalty,
     recoilInfo: burstRecoilInfo,
-    shooterDefenseBeforeExposure: shooterDefenseBeforeExposureForClarity,
-    shooterDefenseAfterExposure: shooterDefenseAfterExposureForClarity,
+    shooterDefenseBeforeExposure: exposureClarity.before,
+    shooterDefenseAfterExposure: exposureClarity.after,
     damageRoll: damageDetails,
     crits
   });
@@ -2091,7 +2092,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19626`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19627`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2817,7 +2818,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.9</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.10</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2921,7 +2922,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19626`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19627`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3281,6 +3282,16 @@ function updateShooterAfterShot(shooter, action, hits){
   }
 
   return notes;
+}
+
+function shotCausesExposure(action, hits){
+  if(action === "shoot_burst" || action === "burst") return true;
+  if(action === "shoot_normal" || action === "normal") return Number(hits || 0) === 0;
+  return false;
+}
+function exposureClarityBeforeAfter(shooter, action, hits, beforeValue, afterValue){
+  if(!shotCausesExposure(action, hits)) return { before: null, after: null };
+  return { before: beforeValue, after: afterValue };
 }
 
 function clearCombatantTemporaryExposure(combatant){
@@ -3687,6 +3698,7 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
   const targetDefenseWithCoverForClarity = targetDefenseBaseForClarity + (targetCoveredForClarity ? 2 : 0);
   const shooterDefenseBeforeExposureForClarity = Number(p.defense || 12) + (p.cover ? 2 : 0);
   const shooterDefenseAfterExposureForClarity = playerDefenseValue(p);
+  const exposureClarity = exposureClarityBeforeAfter(p, action, hits, shooterDefenseBeforeExposureForClarity, shooterDefenseAfterExposureForClarity);
   const clarityLines = shotClarityLines({
     action,
     attackMod: cfg.baseMod,
@@ -3694,8 +3706,8 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     damageRoll,
     shooter: p,
     shooterName: p.name || playerId,
-    shooterDefenseBeforeExposure: shooterDefenseBeforeExposureForClarity,
-    shooterDefenseAfterExposure: shooterDefenseAfterExposureForClarity,
+    shooterDefenseBeforeExposure: exposureClarity.before,
+    shooterDefenseAfterExposure: exposureClarity.after,
     targetCovered: targetCoveredForClarity,
     targetName: enemy.name,
     targetDefenseBase: targetDefenseBaseForClarity,
@@ -3945,6 +3957,7 @@ function doAction(action){
     const targetDefenseWithCoverForClarity = targetDefenseBaseForClarity + (targetCoveredForClarity ? 2 : 0);
     const shooterDefenseBeforeExposureForClarity = Number(p.defense || 12) + (p.cover ? 2 : 0);
     const shooterDefenseAfterExposureForClarity = playerDefenseValue(p);
+    const exposureClarity = exposureClarityBeforeAfter(p, action, hits, shooterDefenseBeforeExposureForClarity, shooterDefenseAfterExposureForClarity);
     const clarityLines = shotClarityLines({
       action,
       attackMod: baseMod,
@@ -3952,8 +3965,8 @@ function doAction(action){
       damageRoll,
       shooter: p,
       shooterName: p.name,
-      shooterDefenseBeforeExposure: shooterDefenseBeforeExposureForClarity,
-      shooterDefenseAfterExposure: shooterDefenseAfterExposureForClarity,
+      shooterDefenseBeforeExposure: exposureClarity.before,
+      shooterDefenseAfterExposure: exposureClarity.after,
       targetCovered: targetCoveredForClarity,
       targetName: enemy.name,
       targetDefenseBase: targetDefenseBaseForClarity,
