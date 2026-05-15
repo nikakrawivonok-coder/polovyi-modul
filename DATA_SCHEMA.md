@@ -1,12 +1,12 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.18.5
+# DATA_SCHEMA.md — Польовий Модуль V19.18.6
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18.5"
-BUILD_NUMBER = "19637"
+BUILD_VERSION = "V19.18.6"
+BUILD_NUMBER = "19638"
 BUILD_NAME = "Journal Render Helper Cleanup"
 ```
 
@@ -398,3 +398,12 @@ Cleanup-only підхід після V19.18.3.
 - Майстер очищає `data.journal` для всієї кімнати.
 - Гравець не змінює shared Firebase-журнал: видимі записи приховуються локально через `localStorage` за ключем кімнати й player id.
 - `Сигнал модуля` не повертався.
+
+
+## V19.18.6 — Code Map + Combat Readability Pass
+
+- Додано `CODE MAP` на початку `app.js`.
+- Додано секційні заголовки для основних зон коду.
+- Активний бойовий шлях додатково підписаний коментарями:
+  `setCombatBrief(...)`, `addCombatBriefToJournal(...)`, `showCombatBriefToastForCurrentRole(...)`.
+- Бойова математика не змінювалась.

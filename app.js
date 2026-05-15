@@ -1,5 +1,14 @@
-// Польовий Модуль — V19.18.5 Journal Clear Button Fix
+// Польовий Модуль — V19.18.6 Code Map + Combat Readability Pass
 // Cleanup-only build. Combat math intentionally unchanged.
+
+// CODE MAP — active maintenance guide
+// 1) Boot / session / Firebase helpers
+// 2) Data defaults and enemy templates
+// 3) Rendering and role-aware UI
+// 4) Journal visibility and privacy
+// 5) Combat helpers: recoil, exposure, defense, summaries
+// 6) Event handlers
+// Rule: combat math must only change after explicit approval.
 
 (function(){
       var q = new URLSearchParams(location.search);
@@ -62,9 +71,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.5";
-const BUILD_NUMBER = "19637";
-const BUILD_NAME = "Journal Clear Button Fix";
+const BUILD_VERSION = "V19.18.6";
+const BUILD_NUMBER = "19638";
+const BUILD_NAME = "Code Map + Combat Readability Pass";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -101,6 +110,11 @@ let expandedStateEnemyDetails = {};
 let journalFilter = "all";
 let gmCombatBarMode = "actor";
 let expandedPlayerEditorSections = { profile:false, combat:false, weapon:false, stats:false, inventory:false };
+
+
+// =============================
+// DATA DEFAULTS / ROOM TEMPLATE
+// =============================
 
 const defaultRoomData = {
   schemaVersion: 5,
@@ -195,6 +209,11 @@ const sceneTemplates = {
     enemies: ["leader", "bandit", "shotgun", "auto"]
   }
 };
+
+
+// =============================
+// ENEMY TEMPLATES
+// =============================
 
 const enemyTemplates = {
   coward: { name: "Боягуз", weapon: "pm", state: "наляканий", color: "yellow", position: "тримається позаду", danger: "низька", action: "шукає шлях втечі", visible: true, defense: 12, gm: { hp: 8, hpMax: 8, ammo: 3, morale: "ламається" }, tags:["бандит","мораль"] },
@@ -2447,6 +2466,11 @@ function renderGmQuickPanel(){
   `;
 }
 
+
+// =============================
+// RENDER PIPELINE
+// =============================
+
 function render(){
   const focusState = captureFocusState();
   const p = currentPlayer();
@@ -2755,6 +2779,11 @@ function clearJournalForCurrentRole(){
   render();
   showToast("Журнал очищено на цьому пристрої.");
 }
+
+
+// =============================
+// JOURNAL: VISIBILITY / PRIVACY
+// =============================
 
 function isJournalEntryVisibleForCurrentRole(j){
   if(!j) return false;
@@ -3152,6 +3181,11 @@ function resetAllRecoilState(){
   });
 }
 
+
+// =============================
+// COMBAT: RECOIL / EXPOSURE HELPERS
+// =============================
+
 function burstRecoilInfoForShooter(shooter){
   // V19.17.5: послідовна віддача має працювати і в активному бою,
   // і в ручних GM/тестових пострілах з панелі “Остання дія”.
@@ -3328,6 +3362,11 @@ function clearCombatantTemporaryExposure(combatant){
     }
   }
 }
+
+
+// =============================
+// COMBAT: DEFENSE HELPERS
+// =============================
 
 function playerDefenseValue(player){
   const effects = Array.isArray(player.activeEffects) ? player.activeEffects : [];
@@ -4102,6 +4141,11 @@ function targetResultTextForBrief(targetType, targetName, targetHp, targetHpMax,
   return `${targetName}: HP ${targetHp}/${targetHpMax}.`;
 }
 
+
+// =============================
+// COMBAT: RESULT TEXT / ROLE-AWARE SUMMARY
+// =============================
+
 function setCombatBrief({
   shooterName="",
   actionTitle="",
@@ -4172,6 +4216,7 @@ function setCombatBrief({
   data.combat.lastBrief = data.combat.lastBriefPublic;
 }
 
+// Writes role-aware combat summary to journal while preserving enemy HP privacy.
 function addCombatBriefToJournal(){
   const combat = data.combat || {};
   const publicText = combat.lastBriefPublic || combat.lastBrief || "";
@@ -4180,6 +4225,7 @@ function addCombatBriefToJournal(){
   if(gmText && gmText !== publicText) addLog(`Деталі Майстра:\n${gmText}`, "gm");
 }
 
+// Shows the same safe summary path in toast form.
 function showCombatBriefToastForCurrentRole(){
   const text = combatBriefForCurrentRole(data.combat || {});
   if(text) showToast(`<div class="toast-roll">${formatBriefHtml(text)}</div>`, true, 8000);
@@ -4220,6 +4266,11 @@ function triggerFlicker(){
 }
 
 
+
+
+// =============================
+// EVENT HANDLERS
+// =============================
 
 document.addEventListener("click", e => {
 
