@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18";
-const BUILD_NUMBER = "19632";
-const BUILD_NAME = "First Architecture Cleanup";
+const BUILD_VERSION = "V19.18.1";
+const BUILD_NUMBER = "19633";
+const BUILD_NAME = "Dead RollResult Cleanup";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -1912,7 +1912,6 @@ function renderCombatSummary(){
     <div>${order.map(c => `<span class="combat-pill ${active && active.id === c.id ? "active" : ""}">${escapeHtml(c.name)}</span>`).join("") || '<span class="combat-pill">Немає учасників</span>'}</div>
     ${brief ? `<div class="state-last-action">${formatBriefHtml(brief)}</div>` : `<div class="copy-mini">Короткий підсумок останньої дії з’явиться тут. Повні деталі — у Журналі.</div>`}
   `;
-  clearStateRollResult();
 }
 
 function renderGmCombatPanel(){
@@ -2072,7 +2071,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19632`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19633`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2815,7 +2814,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.18</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.18.1</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2919,7 +2918,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19632`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19633`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -2983,8 +2982,6 @@ function switchScreen(target){
   });
 
   qsa(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.target === target));
-  const roll = qs("#rollResult");
-  if(roll) roll.hidden = true;
   window.scrollTo({top:0, behavior:"smooth"});
 }
 
@@ -3415,6 +3412,8 @@ function renderTargetSelector(){
     </button>`;
   }).join("");
 }
+// Utility-only toast for non-combat checks, e.g. jam clearing.
+// Combat attack toasts use showCombatBriefToastForCurrentRole().
 function showRollToast(title, dice, totals, attrName="", attrMod=0, extra=""){
   const cls = attrMod > 0 ? "mod-pos" : attrMod < 0 ? "mod-neg" : "mod-zero";
   const sign = attrMod > 0 ? "+" : "";
@@ -3976,8 +3975,7 @@ function doAction(action){
     showRollToast(title, r.dice, r.totals, attrName, attrMod, extra);
     data.combat = data.combat || {};
     data.combat.lastBrief = `${p.name}: ${title}\n🎲 ${r.dice.join(", ")} → ${r.totals.join(", ")}\n${extra}`;
-    clearStateRollResult();
-  }
+    }
 
   if(isAttack){
     addCombatBriefToJournal();
@@ -4182,15 +4180,7 @@ function formatBriefHtml(brief){
     .replace(/\n/g, "<br>");
 }
 
-function clearStateRollResult(){
-  const result = qs("#rollResult");
-  if(result){
-    result.hidden = true;
-    result.innerHTML = "";
-  }
-}
-
-// V19.18: legacy hidden rollResult writer removed. State tab reads data.combat.lastBrief*.
+// V19.18.1: hidden rollResult panel fully removed. State tab reads data.combat.lastBrief*.
 
 function addLog(text, visibility="public"){
   data.journal.push({id: makeId("log"), visibility, time: nowTime(), text});

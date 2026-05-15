@@ -1,4 +1,15 @@
-# Польовий Модуль — V19.18 First Architecture Cleanup
+# Польовий Модуль — V19.18.1 Dead RollResult Cleanup
+
+## V19.18.1 — Dead RollResult Cleanup
+
+Малий cleanup-підхід після V19.18. Бойова математика не змінювалась.
+
+- повністю прибрано прихований legacy-блок `#rollResult` з HTML;
+- прибрано `clearStateRollResult()` і залишкові виклики очищення старої панелі;
+- `showRollToast()` позначено як utility-only toast для неосновних перевірок, наприклад усунення клину;
+- бойові атаки й надалі використовують `setCombatBrief(...)`, `addCombatBriefToJournal(...)`, `showCombatBriefToastForCurrentRole(...)`;
+- оновлено cache-busting до `19633`.
+
 
 Малий архітектурний cleanup на базі стабільної гілки V19.17.13.1 / V19.17.12.
 
@@ -27,17 +38,17 @@
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19632">
-<script src="./app.js?v=19632"></script>
+<link rel="stylesheet" href="./styles.css?v=19633">
+<script src="./app.js?v=19633"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19632&gmKey=zona-master&v=19632`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19633&gmKey=zona-master&v=19633`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19632&player=fox&v=19632`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19633&player=fox&v=19633`
 
 ## Що перевірити
 

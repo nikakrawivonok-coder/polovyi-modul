@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.18
+# DATA_SCHEMA.md — Польовий Модуль V19.18.1
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18"
-BUILD_NUMBER = "19632"
-BUILD_NAME = "First Architecture Cleanup"
+BUILD_VERSION = "V19.18.1"
+BUILD_NUMBER = "19633"
+BUILD_NAME = "Dead RollResult Cleanup"
 ```
 
 ## appSession
@@ -357,3 +357,11 @@ Build/cache: `19622`.
 - Legacy `staticShotResultLines(...)`, `setStaticRollResult(...)`, `damageRollsTextForStatic(...)` прибрані.
 - `showRollToast(...)` поки лишається для небойових дій, наприклад усунення клину.
 - `addCombatBriefToJournal()` лишається точкою запису role-aware бойового результату в журнал.
+
+
+## V19.18.1 — Dead RollResult Cleanup
+
+- Hidden legacy `#rollResult` panel removed from HTML.
+- `clearStateRollResult()` removed.
+- Combat attack summaries remain centralized through `setCombatBrief(...)`, `addCombatBriefToJournal(...)`, and `showCombatBriefToastForCurrentRole(...)`.
+- `showRollToast(...)` remains only for utility/non-combat checks such as jam clearing.

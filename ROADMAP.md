@@ -1,3 +1,14 @@
+
+### V19.18.1 — Dead RollResult Cleanup
+
+Перший малий cleanup-підхід після V19.18. Без зміни бойової математики.
+
+- повністю прибрати прихований legacy-блок `#rollResult`;
+- прибрати `clearStateRollResult()` і залишкові виклики очищення старої панелі;
+- позначити `showRollToast()` як utility-only для неосновних перевірок;
+- залишити бойові атаки на єдиному шляху `setCombatBrief(...)` / `addCombatBriefToJournal(...)` / `showCombatBriefToastForCurrentRole(...)`;
+- наступний cleanup: групування combat helper-функцій і підготовка до `Combat Result Object`.
+
 # ROADMAP — Польовий Модуль
 
 
