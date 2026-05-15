@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.18.3 Unused Helper Cleanup
+// Польовий Модуль — V19.18.4 Remove Module Signal Button
 // Cleanup-only build. Combat math intentionally unchanged.
 
 (function(){
@@ -62,9 +62,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.3";
-const BUILD_NUMBER = "19635";
-const BUILD_NAME = "Unused Helper Cleanup";
+const BUILD_VERSION = "V19.18.4";
+const BUILD_NUMBER = "19636";
+const BUILD_NAME = "Remove Module Signal Button";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -1062,20 +1062,13 @@ function updateBuildDebug(){
   const visibleEnemies = (data.enemies || []).filter(e => e.visible !== false).length;
   const totalEnemies = (data.enemies || []).length;
   const totalPlayers = Object.keys(data.players || {}).length;
-  const cacheText = URL_CACHE_VERSION ? `v=${URL_CACHE_VERSION}` : "без v";
   const updated = new Date().toLocaleTimeString("uk-UA", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
 
-  safeSetText("#debugBuild", `${BUILD_VERSION} · ${BUILD_NUMBER}`);
-  safeSetText("#debugCache", cacheText);
-  safeSetText("#debugRoom", appSession.room);
-  safeSetText("#debugRole", appSession.role === "gm" ? "Майстер" : "Гравець");
-  safeSetText("#debugPlayer", appSession.role === "gm" ? currentPlayerId() : appSession.player);
   safeSetText("#debugScreen", activeScreenForDebug());
   safeSetText("#debugActor", combatActorLabelForDebug());
   safeSetText("#debugTarget", combatTargetLabelForDebug());
   safeSetText("#debugEnemies", `${visibleEnemies}/${totalEnemies} видимі`);
   safeSetText("#debugPlayers", String(totalPlayers));
-  safeSetText("#debugSync", syncAdapter.status || appSession.syncMode || "—");
   safeSetText("#debugUpdated", updated);
 }
 
@@ -2055,7 +2048,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19635`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19636`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2802,7 +2795,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.18.3</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.18.4</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2906,7 +2899,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19635`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19636`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;

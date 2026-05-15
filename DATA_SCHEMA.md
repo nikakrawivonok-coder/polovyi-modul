@@ -1,12 +1,12 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.18.3
+# DATA_SCHEMA.md — Польовий Модуль V19.18.4
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18.3"
-BUILD_NUMBER = "19635"
+BUILD_VERSION = "V19.18.4"
+BUILD_NUMBER = "19636"
 BUILD_NAME = "Journal Render Helper Cleanup"
 ```
 
@@ -380,3 +380,13 @@ Build/cache: `19622`.
 - Прибрані невикористані helper-функції: `safeCall`, `enemyRow`, `weaponConditionText`, `damageFormulaText`, `randomModuleWarning`.
 - Активний бойовий підсумок лишається через `setCombatBrief(...)`, `addCombatBriefToJournal(...)`, `showCombatBriefToastForCurrentRole(...)`.
 - Бойова математика і Firebase-схема не змінювались.
+
+
+## V19.18.4 — Remove Module Signal Button
+
+Cleanup-only підхід після V19.18.3.
+
+- Кнопку `Сигнал модуля` прибрано з вкладки `Журнал` як неочевидний legacy UI-елемент.
+- Кнопку очищення журналу перейменовано на `Очистити журнал`.
+- З `updateBuildDebug()` прибрано залишкові оновлення debug-полів, яких уже немає в HTML після compact GM diagnostics.
+- Бойова математика, privacy HP, журнал як система записів і Firebase-схема не змінювались.
