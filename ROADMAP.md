@@ -1,6 +1,6 @@
 ### V19.18.5 — Remove Module Signal Button
 
-## V19.18.7 — Section Alignment + Cache Link Standard
+## V19.18.8 — Section Alignment + Cache Link Standard
 
 Cleanup-only checkpoint after V19.18.6.
 
@@ -2216,3 +2216,10 @@ Cleanup-only крок для читабельності `app.js`.
 - Позначити основні секції `DATA / ENEMY TEMPLATES / RENDER / JOURNAL / COMBAT / EVENT HANDLERS`.
 - Позначити активний шлях бойового підсумку.
 - Не змінювати бойову математику.
+
+### V19.18.8 — Combat Result Object Preparation
+
+- Додано `prepareCombatBriefResult(input)` як перший легкий контракт для майбутнього `Combat Result Object`.
+- `setCombatBrief(...)` тепер спершу нормалізує вхідні дані через цей helper, а вже потім формує public/GM тексти.
+- Бойова математика, privacy HP, журнал і toast не змінені.
+- Наступний cleanup-крок може поступово переводити `player → enemy` та `enemy → player` атаки на структурований combat result без різкого рефакторингу.

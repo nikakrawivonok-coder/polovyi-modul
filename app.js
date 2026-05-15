@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.18.7 Section Alignment + Cache Link Standard
+// Польовий Модуль — V19.18.8 Combat Result Object Preparation
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -7,7 +7,8 @@
 // 3) Rendering and role-aware UI
 // 4) Journal: display, clear, visibility and privacy
 // 5) Combat helpers: recoil, exposure, defense, summaries
-// 6) Event handlers
+// 6) Combat result preparation contract
+// 7) Event handlers
 // Cache rule: test links must use both v=BUILD and hard=BUILD.
 // Rule: combat math must only change after explicit approval.
 
@@ -72,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.7";
-const BUILD_NUMBER = "19639";
-const BUILD_NAME = "Section Alignment + Cache Link Standard";
+const BUILD_VERSION = "V19.18.8";
+const BUILD_NUMBER = "19640";
+const BUILD_NAME = "Combat Result Object Preparation";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -90,6 +91,7 @@ Current confirmed rules as of V19.18:
 6) Burst against a covered target: additional -1 to shooter's accuracy.
 7) Player may see target Defense and Defense modifiers.
 8) Player must not see exact enemy HP; GM sees all.
+9) Combat summaries should be built from a normalized combat result draft before rendering role-specific text.
 */
 
 
@@ -4148,36 +4150,72 @@ function targetResultTextForBrief(targetType, targetName, targetHp, targetHpMax,
 
 
 // =============================
+// COMBAT: RESULT OBJECT PREPARATION
+// =============================
+
+function prepareCombatBriefResult(input = {}){
+  return {
+    shooterName:"",
+    actionTitle:"",
+    actionKey:"",
+    targetName:"",
+    targetType:"",
+    rolls:[],
+    totals:[],
+    hits:0,
+    damage:0,
+    damageRoll:null,
+    crits:0,
+    targetHp:0,
+    targetHpMax:0,
+    targetState:"",
+    shooterAmmo:null,
+    clarityLines:[],
+    targetDefense:null,
+    targetDefenseBase:null,
+    targetCovered:false,
+    attackMod:0,
+    attrMod:0,
+    coverPenalty:0,
+    recoilInfo:null,
+    shooterDefenseBeforeExposure:null,
+    shooterDefenseAfterExposure:null,
+    ...input
+  };
+}
+
+// =============================
 // COMBAT: RESULT TEXT / ROLE-AWARE SUMMARY
 // =============================
 
-function setCombatBrief({
-  shooterName="",
-  actionTitle="",
-  actionKey="",
-  targetName="",
-  targetType="",
-  rolls=[],
-  totals=[],
-  hits=0,
-  damage=0,
-  damageRoll=null,
-  crits=0,
-  targetHp=0,
-  targetHpMax=0,
-  targetState="",
-  shooterAmmo=null,
-  clarityLines=[],
-  targetDefense=null,
-  targetDefenseBase=null,
-  targetCovered=false,
-  attackMod=0,
-  attrMod=0,
-  coverPenalty=0,
-  recoilInfo=null,
-  shooterDefenseBeforeExposure=null,
-  shooterDefenseAfterExposure=null
-} = {}){
+function setCombatBrief(input = {}){
+  const {
+    shooterName,
+    actionTitle,
+    actionKey,
+    targetName,
+    targetType,
+    rolls,
+    totals,
+    hits,
+    damage,
+    damageRoll,
+    crits,
+    targetHp,
+    targetHpMax,
+    targetState,
+    shooterAmmo,
+    clarityLines,
+    targetDefense,
+    targetDefenseBase,
+    targetCovered,
+    attackMod,
+    attrMod,
+    coverPenalty,
+    recoilInfo,
+    shooterDefenseBeforeExposure,
+    shooterDefenseAfterExposure
+  } = prepareCombatBriefResult(input);
   data.combat = data.combat || {};
   const rollText = Array.isArray(rolls) && rolls.length ? rolls.join(", ") : "";
   const totalsText = Array.isArray(totals) && totals.length ? totals.join(", ") : "";

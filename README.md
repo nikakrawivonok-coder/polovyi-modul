@@ -1,4 +1,9 @@
-# Польовий Модуль — V19.18.7 Section Alignment + Cache Link Standard
+# Польовий Модуль — V19.18.8 Combat Result Object Preparation
+
+## V19.18.8 — Combat Result Object Preparation
+
+Cleanup-only build. Бойова математика не змінена. Додано легкий helper `prepareCombatBriefResult(input)`, який нормалізує дані бойового результату перед формуванням role-aware підсумку. Це підготовка до майбутнього повного `Combat Result Object`, без переписування стабільної атаки.
+
 
 Cleanup-only версія на базі V19.18.5.
 
@@ -26,17 +31,17 @@ resolve shot
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19639">
-<script src="./app.js?v=19639"></script>
+<link rel="stylesheet" href="./styles.css?v=19640">
+<script src="./app.js?v=19640"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19639&gmKey=zona-master&v=19639`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19640&gmKey=zona-master&v=19640`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19639&player=fox&v=19639`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19640&player=fox&v=19640`
 
 ## Перевірка
 
@@ -46,7 +51,7 @@ node --check app.js
 
 Синтаксичних помилок немає.
 
-## V19.18.7
+## V19.18.8
 
 Cleanup-only pass:
 - aligned journal helper section markers;

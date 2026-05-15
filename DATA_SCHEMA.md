@@ -1,12 +1,12 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.18.7
+# DATA_SCHEMA.md — Польовий Модуль V19.18.8
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18.7"
-BUILD_NUMBER = "19639"
+BUILD_VERSION = "V19.18.8"
+BUILD_NUMBER = "19640"
 BUILD_NAME = "Journal Render Helper Cleanup"
 ```
 
@@ -409,7 +409,7 @@ Cleanup-only підхід після V19.18.3.
 - Бойова математика не змінювалась.
 
 
-## V19.18.7 — Section Alignment + Cache Link Standard
+## V19.18.8 — Combat Result Object Preparation
 
 No schema change.
 
@@ -418,3 +418,10 @@ Maintenance notes:
 - Journal helper sections in `app.js` are separated into display/clear/privacy and visibility/privacy filters.
 - Combat summary contract is documented near `setCombatBrief(...)`.
 - Combat math and Firebase structure unchanged.
+
+
+## V19.18.8 — Combat Result Object Preparation
+
+- `prepareCombatBriefResult(input)` нормалізує вхідні поля бойового підсумку для `setCombatBrief(input)`.
+- Це не нова Firebase-схема і не зміна бойової математики.
+- Мета: підготувати поступовий перехід до структурованого `Combat Result Object`, з якого будуть будуватись `Остання дія`, toast, Journal, GM view і Player view.
