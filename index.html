@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#120d09" />
+  <title>Польовий Модуль — V19.19 Enemy Balance + Weapon Inventory Seed</title>
+  <link rel="stylesheet" href="./styles.css?v=19647">
+
+</head>
+<body>
+  
+  <div id="scanlines"></div>
+  <div id="noise"></div>
+
+  <main class="device" id="app">
+    <header class="phonebar">
+      <span class="mono">⌁ <span id="clock">14:37</span></span>
+      <span class="phone-icons">▂▃▅ ◰</span>
+    </header>
+
+    <section class="title-plate">
+      <span class="plate-mark">→</span>
+      <h1>ПОЛЬОВИЙ МОДУЛЬ</h1>
+      <span class="plate-mark">→</span>
+    </section>
+    <noscript><div class="runtime-error">JavaScript вимкнено. Кнопки й ролі не працюватимуть.</div></noscript>
+    <div class="runtime-error" id="runtimeError">Модуль підключається до Firebase… якщо повідомлення не зникне, перевір правила бази або інтернет.</div>
+
+    <section class="identity-panel">
+      <div class="portrait" aria-label="Портрет сталкера">
+        <div class="portrait-inner">
+          <div class="portrait-glow"></div>
+          <div class="stalker-figure">
+            <div class="hood"></div>
+            <div class="mask">
+              <span></span><span></span>
+            </div>
+            <div class="body-rig"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bio-card">
+        <div class="bio-bg"></div>
+        <div class="bio-top">
+          <div class="bio-title-block">
+            <h2 id="characterName">Лис</h2>
+            <div class="defense-strip"><span class="stat-icon shield">🛡</span><span class="defense-label">Захист:</span><strong class="defense-value"><span id="defenseNow">12</span></strong></div>
+          </div>
+          <div class="rad-symbol">☢</div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-line">
+            <div class="stat-head"><span class="stat-icon">♥</span><span class="stat-name">Здоров’я:</span><strong><span id="hpNow">8</span> / <span id="hpMax">12</span></strong></div>
+            <div class="dots" id="hpDots"></div>
+          </div>
+
+          <div class="stat-line">
+            <div class="stat-head"><span class="stat-icon">♟</span><span class="stat-name">Втома:</span><strong><span id="fatigueNow">2</span> / 5</strong></div>
+            <div class="dots" id="fatigueDots"></div>
+          </div>
+
+          <div class="stat-line">
+            <div class="stat-head"><span class="stat-icon rad">☢</span><span class="stat-name">Зараження:</span><strong id="radiationNow">1</strong></div>
+            <div class="dots" id="radDots"></div>
+          </div>
+
+          <div class="stat-line">
+            <div class="stat-head"><span class="stat-icon bullets">▮▮▮</span><span class="stat-name">Набої:</span><strong id="ammoNow">15</strong></div>
+            <div class="dots ammo-dots" id="ammoDots"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen active" data-screen="state">
+      <div class="section-title"><span>⚙</span><h3>ШВИДКІ ДІЇ</h3></div>
+      <div class="quick-actions">
+        <button class="action-tile" data-action="shoot_aimed">
+          <span class="tile-icon">◎</span>
+          <span>Точно</span>
+          <small>1d20 +2 · -1 набій</small>
+        </button>
+        <button class="action-tile" data-action="shoot_normal">
+          <span class="tile-icon">⊙</span>
+          <span>Нормально</span>
+          <small>2d20 · -2 набої</small>
+        </button>
+        <button class="action-tile" data-action="shoot_burst">
+          <span class="tile-icon bullets">▮▮▮</span>
+          <span>Черга</span>
+          <small>3d20 -2 · -3 набої</small>
+        </button>
+        <button class="action-tile" data-toggle-panel="actionsPanel">
+          <span class="tile-icon">◉</span>
+          <span>Дії</span>
+          <small>Огляд, болт, інтуїція</small>
+        </button>
+        <button class="action-tile" data-toggle-panel="inventoryPanel">
+          <span class="tile-icon">▣</span>
+          <span>Інвентар</span>
+          <small>Речі й спорядження</small>
+        </button>
+        <button class="action-tile" data-toggle-panel="characterPanel">
+          <span class="tile-icon">☷</span>
+          <span>Стан</span>
+          <small>Характеристики й ефекти</small>
+        </button>
+      </div>
+
+      <div class="quick-panel-stack" id="quickPanelStack">
+        <div class="player-panel quick-panel" id="actionsPanel" hidden>
+          <div class="section-title slim"><span>◉</span><h3>Дії персонажа</h3></div>
+          <div class="extra-action-grid">
+            <button class="metal-btn" data-action="look">Оглянути</button>
+            <button class="metal-btn" data-action="throw_bolt">Кинути болт</button>
+            <button class="metal-btn" data-action="intuition">Інтуїція</button>
+            <button class="metal-btn" data-action="check_friend">Оглянути товариша</button>
+            <button class="metal-btn" data-action="push">Поштовх</button>
+            <button class="metal-btn" data-action="listen">Прислухатись</button>
+            <button class="metal-btn" data-action="clear_jam">Усунути клин</button>
+          </div>
+        </div>
+
+        <div class="player-panel quick-panel" id="inventoryPanel" hidden>
+          <div class="section-title slim"><span>▣</span><h3>Інвентар</h3></div>
+          <div id="inventoryInlineList" class="inventory-list"></div>
+        </div>
+
+        <div class="player-panel quick-panel" id="characterPanel" hidden>
+          <div class="section-title slim"><span>☷</span><h3>Стан персонажа</h3></div>
+          <div id="characterDetails"></div>
+        </div>
+      </div>
+
+      <div class="player-panel target-panel" id="targetPanel">
+        <div class="section-title slim"><span>☠</span><h3>Видимі цілі</h3></div>
+        <div id="targetSelector" class="target-selector"></div><div class="visible-targets-hint">1-й тап — інформація, 2-й тап — обрати ціллю.</div>
+      </div>
+
+      <div class="section-title"><span>⚔</span><h3>Остання дія</h3></div>
+      <div class="combat-summary" id="combatSummary"></div>
+
+
+    <section class="session-strip bottom-meta" id="sessionStrip">
+      <div><span>Кімната</span><strong id="roomLabel">local</strong></div>
+      <div><span>Роль</span><strong id="roleLabel">Гравець</strong></div>
+      <div><span>Персонаж</span><strong id="playerLabel">fox</strong></div>
+      <div><span>Синхронізація</span><strong id="syncLabel">локально</strong></div>
+      <div><span>Доступ</span><strong id="accessLabel">звичайний</strong></div>
+      <div><span>Версія</span><strong id="buildLabel">v?</strong></div>
+    </section>
+    <section class="debug-panel gm-only" id="debugPanel">
+      <div class="debug-title">Діагностика Майстра</div>
+      <div class="debug-grid compact-gm-debug">
+        <div><span>Екран</span><strong id="debugScreen">—</strong></div>
+        <div><span>Хід</span><strong id="debugActor">—</strong></div>
+        <div><span>Ціль</span><strong id="debugTarget">—</strong></div>
+        <div><span>Вороги</span><strong id="debugEnemies">—</strong></div>
+        <div><span>Гравці</span><strong id="debugPlayers">—</strong></div>
+        <div><span>Оновлено</span><strong id="debugUpdated">—</strong></div>
+      </div>
+    </section>
+    </section>
+
+    <section class="screen" data-screen="environment">
+      <div class="section-title"><span>◉</span><h3>Оточення</h3></div>
+      <article class="scene-card large">
+        <div class="scene-image wide"><span>☣</span></div>
+        <h4 id="sceneName">Старий блокпост</h4>
+        <p id="sceneDescription"></p>
+      </article>
+      <div class="info-grid">
+        <div class="paper-panel"><h4>Звуки</h4><p id="sceneSounds"></p></div>
+        <div class="paper-panel"><h4>Запахи</h4><p id="sceneSmells"></p></div>
+        <div class="paper-panel full"><h4>Важливі об’єкти</h4><ul id="sceneObjects"></ul></div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="enemies">
+      <div class="section-title"><span>☠</span><h3>Вороги</h3></div>
+      <div id="enemyTemplateDock" class="enemy-template-dock gm-only"></div>
+      <div id="enemyCards" class="enemy-cards"></div>
+    </section>
+
+    <section class="screen" data-screen="inventory">
+      <div class="section-title"><span>▣</span><h3>Інвентар</h3></div>
+      <div id="inventoryList" class="inventory-list"></div>
+    </section>
+
+    <section class="screen" data-screen="journal">
+      <div class="section-title"><span>▤</span><h3>Журнал модуля</h3></div>
+      
+      <div class="journal-compose gm-only">
+        <label>Швидкий запис Майстра
+          <textarea id="journalQuickText" rows="3" placeholder="Напиши подію, підказку, шум, наслідок або приватну нотатку..."></textarea>
+        </label>
+        <div class="journal-compose-grid">
+          <button class="metal-btn" id="journalPostPublic">Написати всім</button>
+          <button class="metal-btn" id="journalPostGm">Тільки Майстру</button>
+        </div>
+        <div class="journal-compose-private">
+          <select id="journalPrivateTarget"></select>
+          <button class="metal-btn" id="journalPostPrivate">Приватно гравцю</button>
+        </div>
+      </div>
+
+      <div class="journal-controls player-only">
+        <button class="metal-btn" id="clearJournalPlayerLocal">Очистити у себе</button>
+      </div>
+      <div class="journal-clear-grid gm-only" aria-label="Очищення журналу Майстра">
+        <button class="metal-btn" id="clearJournalLocal" type="button">У себе</button>
+        <button class="metal-btn danger" id="clearJournalAll" type="button">Усім</button>
+        <button class="metal-btn" id="clearJournalPublic" type="button">Публічні</button>
+        <button class="metal-btn" id="clearJournalGm" type="button">Майстру</button>
+        <button class="metal-btn" id="clearJournalPrivate" type="button">Приватні</button>
+      </div>
+      <div class="journal-filter-row gm-only">
+        <button class="metal-btn active-filter" data-journal-filter="all">Усі записи</button>
+        <button class="metal-btn" data-journal-filter="public">Публічні</button>
+        <button class="metal-btn" data-journal-filter="gm">Тільки Майстру</button>
+      </div>
+      <div id="journalList" class="journal-list"></div>
+    </section>
+
+    <section class="screen gm-only" data-screen="master">
+      <div id="gmQuickPanel" class="gm-quick-panel"></div>
+      <div class="section-title"><span>⚙</span><h3>Майстер</h3></div>
+      
+
+      <details class="gm-panel" open>
+        <summary>Бойовий режим</summary>
+        <p class="room-model-note">Швидке ведення перестрілки: раунди, активний хід, шкода ворогам, укриття, стани й мораль.</p>
+        <div id="gmCombatPanel"></div>
+        <div class="button-row">
+          <button class="metal-btn" id="startCombat">Почати бій</button>
+          <button class="metal-btn" id="nextTurn">Наступний хід</button>
+          <button class="metal-btn" id="toggleStrictTurns">Строгі / вільні дії</button>
+          <button class="metal-btn danger" id="endCombat">Завершити бій</button>
+          <button class="metal-btn" id="moraleCheck">Перевірка моралі</button>
+        </div>
+      </details>
+
+      <details class="gm-panel">
+        <summary>Гравці</summary>
+        <p class="room-model-note">Тут Майстер керує всіма персонажами кімнати. Поточний гравець у URL бачить тільки свій лист.</p>
+        <div id="gmPlayers"></div>
+        <div class="button-row">
+          <button class="metal-btn" id="addPlayer">Додати гравця</button>
+        </div>
+      </details>
+
+      <details class="gm-panel">
+        <summary>Сцена</summary>
+        <label>Назва <input id="gmSceneName" /></label>
+        <label>Опис <textarea id="gmSceneDescription" rows="4"></textarea></label>
+        <label>Звуки <textarea id="gmSceneSounds" rows="2"></textarea></label>
+        <label>Запахи <textarea id="gmSceneSmells" rows="2"></textarea></label>
+        <label>Об’єкти через кому <textarea id="gmSceneObjects" rows="2"></textarea></label>
+        <button class="metal-btn" id="saveScene">Оновити сцену</button><div class="save-hint">Поля сцени зберігаються після натискання цієї кнопки, щоб не перемальовувати екран під час набору тексту.</div>
+      </details>
+      <details class="gm-panel"><summary>Вороги</summary>
+<div id="gmEnemies"></div><button class="metal-btn" id="addEnemy">Додати ворога</button></details>
+      <details class="gm-panel"><summary>Інвентар</summary><div id="gmInventory"></div><button class="metal-btn" id="addItem">Додати річ</button></details>
+      <details class="gm-panel">
+        <summary>Дані</summary>
+        <div class="button-row">
+          <button class="metal-btn" id="exportData">Експорт JSON</button>
+          <label class="metal-btn file-btn">Імпорт JSON<input id="importData" type="file" accept="application/json" /></label>
+          <button class="metal-btn danger" id="resetData">Скинути MVP</button>
+        </div>
+        <textarea id="exportBox" rows="6" placeholder="Тут з’явиться JSON для перенесення стану."></textarea>
+      </details>
+
+      <details class="gm-panel">
+        <summary>Шаблони сцен</summary>
+        <p class="room-model-note">Швидко завантажує локацію, опис, звуки, запахи, об’єкти й стартових ворогів. Поточні гравці не скидаються.</p>
+        <div class="button-row">
+          <button class="metal-btn" data-load-scene="blockpost">Старий блокпост</button>
+          <button class="metal-btn" data-load-scene="anomaly_field">Поле аномалій</button>
+          <button class="metal-btn" data-load-scene="abandoned_basement">Підвал під блокпостом</button>
+          <button class="metal-btn" data-load-scene="bandit_camp">Стоянка бандитів</button>
+        </div>
+      </details>
+
+      <details class="gm-panel">
+        <summary>Лут / знахідки</summary>
+        <p class="room-model-note">Генерує простий лут у журнал або додає предмет поточному гравцю. У наступних версіях лут можна буде роздавати конкретному персонажу.</p>
+        <label>Кому видати лут <select id="lootTargetPlayer"></select></label>
+        <div class="button-row">
+          <button class="metal-btn" data-loot="ammo">Знайти набої</button>
+          <button class="metal-btn" data-loot="meds">Медичне</button>
+          <button class="metal-btn" data-loot="junk">Хабар / мотлох</button>
+          <button class="metal-btn" data-loot="artifact_hint">Дивна знахідка</button>
+        </div>
+        <label>Додати предмет поточному гравцю <input id="customLootName" placeholder="Наприклад: Старий КПК"></label>
+        <div class="control-grid">
+          <label>Кількість <input id="customLootCount" type="number" min="1" value="1"></label>
+          <label>Примітка <input id="customLootNote" placeholder="Коротко, що це"></label>
+        </div>
+        <button class="metal-btn" id="addCustomLoot">Додати предмет</button>
+      </details>
+
+      <details class="gm-panel">
+        <summary>Кампанія / заготовки</summary>
+        <p class="room-model-note">
+          Пак пригоди завантажує атмосферу, сцену, ворогів і стартову зачіпку. Поточні гравці зберігаються.
+        </p>
+        <div class="button-row">
+          <button class="metal-btn" data-load-adventure="bandit_blockpost">Бандитський блокпост</button>
+          <button class="metal-btn" data-load-adventure="anomaly_route">Маршрут через аномалії</button>
+          <button class="metal-btn" data-load-adventure="lost_stalker">Зниклий сталкер</button>
+        </div>
+      </details>
+
+      <details class="gm-panel">
+        <summary>Тиха сцена після поразки</summary>
+        <p class="room-model-note">
+          Швидкі наслідки, коли персонажі програли бій, але не загинули. Модуль оновлює сцену, журнал і стан гравців.
+        </p>
+        <div class="button-row">
+          <button class="metal-btn danger" data-defeat="robbed">Пограбовані бандитами</button>
+          <button class="metal-btn danger" data-defeat="anomaly">Викинуті аномалією</button>
+          <button class="metal-btn danger" data-defeat="captured">Прокинулись у полоні</button>
+          <button class="metal-btn danger" data-defeat="saved">Їх витягнув незнайомець</button>
+        </div>
+      </details>
+
+      <details class="gm-panel">
+        <summary>Збереження кампанії</summary>
+        <p class="room-model-note">
+          Експорт кімнати створює повний JSON-знімок кампанії. Його можна зберегти окремо й потім імпортувати.
+        </p>
+        <div class="button-row">
+          <button class="metal-btn" id="downloadCampaign">Завантажити JSON кампанії</button>
+          <button class="metal-btn" id="copyCampaignJson">Скопіювати JSON</button>
+          <label class="metal-btn file-btn">Імпорт кампанії<input id="importCampaignFile" type="file" accept="application/json" /></label>
+        </div>
+      </details>
+
+      <details class="gm-panel">
+        <summary>Кімната / доступ</summary>
+        <p class="room-model-note">
+          Посилання Майстра має містити <strong>gmKey</strong>. Поточний ключ за замовчуванням: <strong>zona-master</strong>.
+          Для домашньої гри цього достатньо, але це не криптографічний захист.
+        </p>
+        <div class="button-row">
+          <button class="metal-btn" id="copyGmLink">Скопіювати посилання Майстра</button>
+          <button class="metal-btn" id="copyPlayerLink">Скопіювати посилання поточного Гравця</button>
+          <div class="player-links-panel">
+            <strong>Посилання на гравців</strong>
+            <div class="copy-mini">Нижче мають бути кнопки й URL для кожного персонажа кімнати.</div>
+            <div id="playerSpecificLinks" class="button-row player-link-buttons"></div>
+          </div>
+          <button class="metal-btn" id="restoreBaseScene">Відновити базову сцену</button>
+          <button class="metal-btn danger" id="resetFirebaseRoom">Очистити кімнату Firebase</button>
+        </div>
+      </details>
+    </section>
+
+        <div id="gmCombatStickyBar" class="gm-combat-sticky gm-only" hidden></div>
+
+    <nav class="bottom-nav" aria-label="Навігація">
+      <button class="nav-btn active" data-target="state"><span>♥</span><b>СТАН</b></button>
+      <button class="nav-btn" data-target="environment"><span>◉</span><b>ОТОЧЕННЯ</b></button>
+      <button class="nav-btn" data-target="enemies"><span>☠</span><b>ВОРОГИ</b></button>
+      <button class="nav-btn" data-target="journal"><span>▤</span><b>ЖУРНАЛ</b></button>
+      <button class="nav-btn gm-only" data-target="master"><span>⚙</span><b>МАЙСТЕР</b></button>
+    </nav>
+
+    <div class="toast" id="toast" hidden></div>
+  </main>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+  
+  <script src="./app.js?v=19647"></script>
+</body>
+</html>
