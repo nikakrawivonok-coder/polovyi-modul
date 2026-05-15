@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.18.4 Remove Module Signal Button
+// Польовий Модуль — V19.18.5 Journal Clear Button Fix
 // Cleanup-only build. Combat math intentionally unchanged.
 
 (function(){
@@ -62,9 +62,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.4";
-const BUILD_NUMBER = "19636";
-const BUILD_NAME = "Remove Module Signal Button";
+const BUILD_VERSION = "V19.18.5";
+const BUILD_NUMBER = "19637";
+const BUILD_NAME = "Journal Clear Button Fix";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2712,6 +2712,50 @@ function isLegacyCombatTechnicalLog(text){
   return hasOldCombatTerms && hasCombatAction;
 }
 
+function journalLocalClearKey(){
+  return `pm_journal_hidden_${appSession.room || "local"}_${appSession.player || "gm"}`;
+}
+
+function hiddenJournalIdsForCurrentPlayer(){
+  if(appSession.role === "gm") return new Set();
+  try{
+    const raw = localStorage.getItem(journalLocalClearKey());
+    const arr = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(arr) ? arr : []);
+  }catch(err){
+    return new Set();
+  }
+}
+
+function hideCurrentVisibleJournalForPlayer(){
+  if(appSession.role === "gm") return;
+  const currentHidden = hiddenJournalIdsForCurrentPlayer();
+  (data.journal || []).forEach(j => {
+    if(isJournalEntryVisibleForCurrentRole(j)) currentHidden.add(j.id);
+  });
+  try{
+    localStorage.setItem(journalLocalClearKey(), JSON.stringify([...currentHidden].slice(-300)));
+  }catch(err){
+    console.warn("journal local clear failed", err);
+  }
+}
+
+function clearJournalForCurrentRole(){
+  if(appSession.role === "gm"){
+    if(!confirm("Очистити журнал для всієї кімнати?")) return;
+    data.journal = [];
+    save();
+    render();
+    showToast("Журнал очищено для всієї кімнати.");
+    return;
+  }
+
+  if(!confirm("Очистити журнал тільки на цьому пристрої? Нові записи з’являтимуться далі.")) return;
+  hideCurrentVisibleJournalForPlayer();
+  render();
+  showToast("Журнал очищено на цьому пристрої.");
+}
+
 function isJournalEntryVisibleForCurrentRole(j){
   if(!j) return false;
   // V19.18.2: journal visibility is centralized here.
@@ -2719,6 +2763,7 @@ function isJournalEntryVisibleForCurrentRole(j){
   if(isLegacyCombatTechnicalLog(j.text)) return false;
 
   if(appSession.role !== "gm"){
+    if(hiddenJournalIdsForCurrentPlayer().has(j.id)) return false;
     if(j.visibility === "gm") return false;
     if(j.visibility === "private") return j.targetPlayerId === appSession.player;
     return true;
@@ -4219,6 +4264,13 @@ if(e.target.closest("#journalPostPublic")){
 
   if(e.target.closest("#journalPostPrivate")){
     submitJournalQuickNote("private");
+    return;
+  }
+
+
+
+  if(e.target.closest("#clearJournal")){
+    clearJournalForCurrentRole();
     return;
   }
 
