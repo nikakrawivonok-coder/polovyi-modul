@@ -1,4 +1,4 @@
-# Польовий Модуль — V19.18.6 Code Map + Combat Readability Pass
+# Польовий Модуль — V19.18.7 Section Alignment + Cache Link Standard
 
 Cleanup-only версія на базі V19.18.5.
 
@@ -26,17 +26,17 @@ resolve shot
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19638">
-<script src="./app.js?v=19638"></script>
+<link rel="stylesheet" href="./styles.css?v=19639">
+<script src="./app.js?v=19639"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19638&gmKey=zona-master&v=19638`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19639&gmKey=zona-master&v=19639`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19638&player=fox&v=19638`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19639&player=fox&v=19639`
 
 ## Перевірка
 
@@ -45,3 +45,11 @@ node --check app.js
 ```
 
 Синтаксичних помилок немає.
+
+## V19.18.7
+
+Cleanup-only pass:
+- aligned journal helper section markers;
+- documented the combat summary contract;
+- fixed the standard for test links: use `v=BUILD&hard=BUILD`;
+- combat math unchanged.

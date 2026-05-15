@@ -1,5 +1,16 @@
 ### V19.18.5 — Remove Module Signal Button
 
+## V19.18.7 — Section Alignment + Cache Link Standard
+
+Cleanup-only checkpoint after V19.18.6.
+
+- Combat math unchanged.
+- `app.js` section markers are clearer around Journal display/clear/privacy helpers.
+- Combat summary contract documented near `setCombatBrief(...)`.
+- Standard test links now must include both `v=BUILD` and `hard=BUILD` to reduce GitHub Pages / Telegram / Safari / Chrome cache issues.
+- Future versions should always provide Master/Player links in the format `v=<BUILD>&hard=<BUILD>`.
+
+
 Cleanup-only підхід після V19.18.3:
 
 - прибрати неочевидну кнопку `Сигнал модуля` з поточного UI журналу;

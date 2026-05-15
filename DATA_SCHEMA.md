@@ -1,12 +1,12 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.18.6
+# DATA_SCHEMA.md — Польовий Модуль V19.18.7
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18.6"
-BUILD_NUMBER = "19638"
+BUILD_VERSION = "V19.18.7"
+BUILD_NUMBER = "19639"
 BUILD_NAME = "Journal Render Helper Cleanup"
 ```
 
@@ -407,3 +407,14 @@ Cleanup-only підхід після V19.18.3.
 - Активний бойовий шлях додатково підписаний коментарями:
   `setCombatBrief(...)`, `addCombatBriefToJournal(...)`, `showCombatBriefToastForCurrentRole(...)`.
 - Бойова математика не змінювалась.
+
+
+## V19.18.7 — Section Alignment + Cache Link Standard
+
+No schema change.
+
+Maintenance notes:
+- Test links must use `v=BUILD&hard=BUILD`.
+- Journal helper sections in `app.js` are separated into display/clear/privacy and visibility/privacy filters.
+- Combat summary contract is documented near `setCombatBrief(...)`.
+- Combat math and Firebase structure unchanged.

@@ -1,13 +1,14 @@
-// Польовий Модуль — V19.18.6 Code Map + Combat Readability Pass
+// Польовий Модуль — V19.18.7 Section Alignment + Cache Link Standard
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
 // 1) Boot / session / Firebase helpers
 // 2) Data defaults and enemy templates
 // 3) Rendering and role-aware UI
-// 4) Journal visibility and privacy
+// 4) Journal: display, clear, visibility and privacy
 // 5) Combat helpers: recoil, exposure, defense, summaries
 // 6) Event handlers
+// Cache rule: test links must use both v=BUILD and hard=BUILD.
 // Rule: combat math must only change after explicit approval.
 
 (function(){
@@ -71,9 +72,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.6";
-const BUILD_NUMBER = "19638";
-const BUILD_NAME = "Code Map + Combat Readability Pass";
+const BUILD_VERSION = "V19.18.7";
+const BUILD_NUMBER = "19639";
+const BUILD_NAME = "Section Alignment + Cache Link Standard";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2707,6 +2708,10 @@ function invItem(i){
   return `<div class="inventory-item"><div><h4>${escapeHtml(i.item)}</h4><p>${escapeHtml(i.note || "")}</p></div><div class="inventory-count">${escapeHtml(String(i.count))}</div></div>`;
 }
 
+// =============================
+// JOURNAL: DISPLAY / CLEAR / PRIVACY HELPERS
+// =============================
+
 function quoteLogActors(text){
   let s = String(text || "");
 
@@ -2782,7 +2787,7 @@ function clearJournalForCurrentRole(){
 
 
 // =============================
-// JOURNAL: VISIBILITY / PRIVACY
+// JOURNAL: VISIBILITY / PRIVACY FILTERS
 // =============================
 
 function isJournalEntryVisibleForCurrentRole(j){
