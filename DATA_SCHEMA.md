@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.19"
-BUILD_NUMBER = "19647"
-BUILD_NAME = "Enemy Balance + Weapon Inventory Seed"
+BUILD_VERSION = "V19.20"
+BUILD_NUMBER = "19648"
+BUILD_NAME = "Active Weapon Damage"
 ```
 
 ## appSession
@@ -478,3 +478,16 @@ Enemy template additions:
 Current limitation:
 - бойова шкода поки не обчислюється з `inventory`;
 - `activeWeapon` поки seed/metadata для наступного кроку.
+
+
+## V19.20 — Active Weapon Damage
+
+Player/enemy weapon fields:
+- `weapon`: fallback weapon id;
+- `activeWeapon`: active weapon id;
+- `inventory[].type === "weapon"` marks weapon items;
+- `inventory[].damage` can override catalog damage, e.g. `d4+1`, `d6`;
+- `inventory[].equipped` marks active weapon item.
+
+Fallback:
+- if active inventory weapon is missing, old `weapon` field is used.

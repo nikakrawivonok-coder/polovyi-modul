@@ -1,3 +1,15 @@
+## V19.20 — Active Weapon Damage
+
+Об’єднаний крок:
+- активна зброя гравця;
+- шкода з активної зброї;
+- fallback на стару логіку для старих кімнат.
+
+Після перевірки наступний напрям:
+- стабілізація inventory/weapon schema;
+- додавання/редагування зброї в інвентарі;
+- потім — великий Combat Result Object cleanup.
+
 ## V19.19 — Enemy Balance + Weapon Inventory Seed
 
 Крок 1 із 3:

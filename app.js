@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.19 Enemy Balance + Weapon Inventory Seed
+// Польовий Модуль — V19.20 Active Weapon Damage
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.19";
-const BUILD_NUMBER = "19647";
-const BUILD_NAME = "Enemy Balance + Weapon Inventory Seed";
+const BUILD_VERSION = "V19.20";
+const BUILD_NUMBER = "19648";
+const BUILD_NAME = "Active Weapon Damage";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -164,7 +164,7 @@ const defaultRoomData = {
       hpMax: 12,
       fatigue: 2,
       infection: 1,
-      ammo: 15, weapon: "pm", range: "far", weaponCondition: "normal", weaponJammed: false,
+      ammo: 15, weapon: "aks74u", activeWeapon: "aks74u", range: "far", weaponCondition: "normal", weaponJammed: false,
       recoilLevel: 0, exposedUntilNextTurn: false,
       defense: 12,
       defenseMax: 12,
@@ -175,7 +175,7 @@ const defaultRoomData = {
         { item: "Аптечка", count: 2, note: "лікує поранення під час перепочинку" },
         { item: "Антирад", count: 1, note: "знижує зараження за рішенням майстра" },
         { item: "Болти", count: 6, note: "для перевірки аномалій" },
-        { item: "Автомат", count: 1, note: "дозволяє стріляти чергою" }
+        { id: "aks74u", type: "weapon", name: "АКС-74У", item: "АКС-74У", count: 1, damage: "d6", range: "far", ammoType: "ammo", equipped: true, note: "активна зброя; дозволяє стріляти чергою" }
       ]
     }
   },
@@ -187,8 +187,8 @@ const defaultRoomData = {
     objects: ["іржава вантажівка", "бетонні плити", "розбитий шлагбаум", "вхід у підвал", "кущі праворуч"]
   },
   enemies: [
-    { id: "enemy_auto_1", name: "Автоматник", weapon: "aks74u", state: "цілий", color: "green", position: "біля воріт", danger: "дуже висока", action: "готує чергу", visible: true, gm: { hp: 12, hpMax: 12, ammo: 15, morale: "тримається" } },
-    { id: "enemy_shotgun_1", name: "Бандит з обрізом", weapon: "obrez", state: "поранений", color: "orange", position: "за машиною", danger: "висока зблизька", action: "перезаряджається", visible: true, gm: { hp: 5, hpMax: 8, ammo: 2, morale: "нервує" } },
+    { id: "enemy_auto_1", name: "Автоматник", weapon: "aks74u", activeWeapon: "aks74u", inventory: [{ id: "aks74u", type: "weapon", name: "АКС-74У", damage: "d6", range: "far", ammoType: "ammo", equipped: true, note: "активна зброя" }], state: "цілий", color: "green", position: "біля воріт", danger: "дуже висока", action: "готує чергу", visible: true, defense: 9, defenseMax: 9, gm: { hp: 10, hpMax: 10, ammo: 15, morale: "тримається" } },
+    { id: "enemy_shotgun_1", name: "Бандит з обрізом", weapon: "obrez", activeWeapon: "obrez", inventory: [{ id: "obrez", type: "weapon", name: "Обріз", damage: "d4+1", range: "near", ammoType: "shells", equipped: true, note: "активна зброя" }], state: "поранений", color: "orange", position: "за машиною", danger: "висока зблизька", action: "перезаряджається", visible: true, defense: 10, defenseMax: 10, gm: { hp: 5, hpMax: 10, ammo: 2, morale: "нервує" } },
     { id: "enemy_coward_1", name: "Боягуз", weapon: "pm", state: "наляканий", color: "yellow", position: "біля паркану", danger: "низька", action: "відступає", visible: true, gm: { hp: 8, hpMax: 8, ammo: 3, morale: "ламається" } }
   ],
   combat: {
@@ -872,6 +872,11 @@ function ensureRoomData(roomData){
       fatigue: 0,
       infection: 0,
       ammo: 10,
+      weapon: "pm",
+      activeWeapon: "pm",
+      range: "far",
+      weaponCondition: "normal",
+      weaponJammed: false,
       defense: 12,
       defenseMax: 12,
       armor: 0,
@@ -1574,9 +1579,12 @@ function enemyWeaponKey(enemy){
 }
 
 function enemyWeaponPseudoPlayer(enemy){
+  normalizeCharacterWeapons(enemy);
   const key = enemyWeaponKey(enemy);
   return {
     weapon: key,
+    activeWeapon: enemy?.activeWeapon || key,
+    inventory: Array.isArray(enemy?.inventory) ? clone(enemy.inventory) : [],
     range: enemy?.range || enemy?.gm?.range || (key === "obrez" ? "near" : "far"),
     weaponCondition: enemy?.weaponCondition || enemy?.gm?.weaponCondition || "normal",
     weaponJammed: false
@@ -1586,11 +1594,10 @@ function enemyWeaponPseudoPlayer(enemy){
 function rollEnemyWeaponDamage(enemy, hits, crits=0){
   const pseudo = enemyWeaponPseudoPlayer(enemy);
   const dmg = rollWeaponDamage(pseudo, Math.max(1, Number(hits || 1)), Math.max(0, Number(crits || 0)));
-  const weapon = weaponInfo(pseudo);
   const rangeText = weaponRange(pseudo) === "near" ? "зблизька" : "здалека";
   const condition = weaponConditionInfo(pseudo);
   const diceText = dmg.rolls.join(", ");
-  return { ...dmg, weaponName: weapon.name, rangeText, conditionName: condition.name, diceText, crits: Math.max(0, Number(crits || 0)) };
+  return { ...dmg, weaponName: dmg.weaponName || activeWeaponLabel(pseudo), rangeText, conditionName: condition.name, diceText, crits: Math.max(0, Number(crits || 0)) };
 }
 
 function attackModeConfig(mode, enemy){
@@ -2535,7 +2542,7 @@ function renderGmQuickPanel(){
 
 function render(){
   const focusState = captureFocusState();
-  const p = currentPlayer();
+  const p = normalizeCharacterWeapons(currentPlayer());
   qs("#characterName").textContent = p.name;
   qs("#hpNow").textContent = p.hp;
   qs("#hpMax").textContent = p.hpMax;
@@ -2562,9 +2569,9 @@ function render(){
   const enemiesForEnemyTab = appSession.role === "gm" ? (data.enemies || []) : visible;
   renderEnemyTemplateDock();
   safeSetHTML("#enemyCards", enemiesForEnemyTab.map(enemyCard).join(""));
-  qs("#inventoryList").innerHTML = currentInventory().map(invItem).join("");
+  qs("#inventoryList").innerHTML = currentInventory().map((item, idx) => invItem(item, idx)).join("");
   const inlineInv = qs("#inventoryInlineList");
-  if(inlineInv) inlineInv.innerHTML = currentInventory().map(invItem).join("");
+  if(inlineInv) inlineInv.innerHTML = currentInventory().map((item, idx) => invItem(item, idx)).join("");
   renderTargetSelector();
   ensureJournalComposer();
   renderJournalPrivateTargets();
@@ -2765,8 +2772,14 @@ function enemyCardGm(e){
 function enemyCard(e){
   return appSession.role === "gm" ? enemyCardGm(e) : enemyCardPublic(e);
 }
-function invItem(i){
-  return `<div class="inventory-item"><div><h4>${escapeHtml(i.item)}</h4><p>${escapeHtml(i.note || "")}</p></div><div class="inventory-count">${escapeHtml(String(i.count))}</div></div>`;
+function invItem(i, idx){
+  const item = normalizeInventoryItem(i);
+  const isWeapon = item.type === "weapon";
+  const p = currentPlayer();
+  const active = isWeapon && item.id === p.activeWeapon;
+  const weaponLine = isWeapon ? `<p>${escapeHtml(item.damage || "")}${item.range ? ` · ${escapeHtml(item.range)}` : ""}${active ? " · активна" : ""}</p>` : "";
+  const action = isWeapon && !active ? `<button class="metal-btn mini" data-set-active-weapon="${escapeAttr(item.id)}">Зробити активною</button>` : "";
+  return `<div class="inventory-item ${active ? "active-weapon-item" : ""}"><div><h4>${escapeHtml(item.name || item.item)}</h4><p>${escapeHtml(item.note || "")}</p>${weaponLine}</div><div class="inventory-count">${escapeHtml(String(item.count ?? 1))}</div>${action}</div>`;
 }
 
 // =============================
@@ -3113,8 +3126,14 @@ function renderGmPlayers(){
         <label>Захист <input type="number" data-player="${escapeAttr(pid)}" data-field="defense" value="${escapeAttr(String(p.defense ?? 12))}"><span class="defense-note">Поріг d20.</span></label>
         <label>Макс. захист <input type="number" data-player="${escapeAttr(pid)}" data-field="defenseMax" value="${escapeAttr(String(p.defenseMax ?? p.defense ?? 12))}"><span class="defense-note">Для штрафів/бонусів.</span></label>
       </div>`;
+    normalizeCharacterWeapons(p);
+    const playerWeapons = weaponInventoryItems(p);
+    const weaponOptions = playerWeapons.length
+      ? playerWeapons.map(w => `<option value="${escapeAttr(w.id)}" ${p.activeWeapon === w.id ? "selected" : ""}>${escapeHtml(w.name || w.id)}${w.damage ? ` · ${escapeHtml(w.damage)}` : ""}</option>`).join("")
+      : Object.entries(WEAPON_CATALOG).map(([key,w]) => `<option value="${escapeAttr(key)}" ${p.activeWeapon === key ? "selected" : ""}>${escapeHtml(w.name)}</option>`).join("");
     const weaponBody = `<div class="compact-form-grid weapon-grid">
-        <label>Зброя<select data-player="${escapeAttr(pid)}" data-field="weapon">${Object.entries(WEAPON_CATALOG).map(([key,w]) => `<option value="${escapeAttr(key)}" ${p.weapon === key ? "selected" : ""}>${escapeHtml(w.name)}</option>`).join("")}</select></label>
+        <label>Активна зброя<select data-player="${escapeAttr(pid)}" data-field="activeWeapon">${weaponOptions}</select></label>
+        <label>Стара зброя/fallback<select data-player="${escapeAttr(pid)}" data-field="weapon">${Object.entries(WEAPON_CATALOG).map(([key,w]) => `<option value="${escapeAttr(key)}" ${p.weapon === key ? "selected" : ""}>${escapeHtml(w.name)}</option>`).join("")}</select></label>
         <label>Дистанція<select data-player="${escapeAttr(pid)}" data-field="range"><option value="near" ${p.range === "near" ? "selected" : ""}>близько</option><option value="mid" ${p.range === "mid" ? "selected" : ""}>середньо</option><option value="far" ${(!p.range || p.range === "far") ? "selected" : ""}>далеко</option></select></label>
         <label>Стан зброї<select data-player="${escapeAttr(pid)}" data-field="weaponCondition">${Object.entries(WEAPON_CONDITIONS).map(([key,c]) => `<option value="${escapeAttr(key)}" ${p.weaponCondition === key ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}</select></label>
         <label class="compact-checkbox"><input type="checkbox" data-player="${escapeAttr(pid)}" data-field="weaponJammed" ${p.weaponJammed ? "checked" : ""}> Клин</label>
@@ -3133,7 +3152,7 @@ function renderGmPlayers(){
       <h4>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
       ${section("profile", "Профіль", p.name || pid, profileBody)}
       ${section("combat", "Бойові налаштування", `HP ${p.hp ?? 0}/${p.hpMax ?? 10} · Втома ${p.fatigue ?? 0} · Набої ${p.ammo ?? 0}`, combatBody)}
-      ${section("weapon", "Зброя", `${WEAPON_CATALOG[p.weapon]?.name || p.weapon || "немає"} · ${p.weaponCondition ? (WEAPON_CONDITIONS[p.weaponCondition]?.name || p.weaponCondition) : "стан?"}`, weaponBody)}
+      ${section("weapon", "Зброя", `${activeWeaponLabel(p)} · ${p.weaponCondition ? (WEAPON_CONDITIONS[p.weaponCondition]?.name || p.weaponCondition) : "стан?"}`, weaponBody)}
       ${section("stats", "Характеристики", `Витр. ${p.stats?.endurance ?? 0} · Точн. ${p.stats?.accuracy ?? 0} · Спр. ${p.stats?.perception ?? 0}`, statsBody)}
       ${section("inventory", "Інвентар", `${invCount} позицій`, inventoryBody)}
       <div class="button-row compact-action-row"><button class="metal-btn" data-select-player="${escapeAttr(pid)}">Обрати активним</button><button class="metal-btn" data-copy-player-link="${escapeAttr(pid)}">Скопіювати посилання</button><button class="metal-btn" data-toggle-player-cover="${escapeAttr(pid)}">${p.cover ? "Без укриття" : "В укриття"}</button>${pid !== currentPlayerId() ? `<button class="metal-btn danger" data-remove-player="${escapeAttr(pid)}">Видалити</button>` : ""}</div>
@@ -3185,6 +3204,91 @@ const WEAPON_CATALOG = {
 };
 
 
+
+function weaponCatalogKeyFromName(name){
+  const value = String(name || "").toLowerCase();
+  if(value.includes("акс") || value.includes("аксу") || value.includes("автомат")) return "aks74u";
+  if(value.includes("обріз") || value.includes("обрез")) return "obrez";
+  if(value.includes("пм") || value.includes("пістолет") || value.includes("пистолет")) return "pm";
+  if(value.includes("двоствол")) return "doublebarrel";
+  if(value.includes("ак-74") || value.includes("ак74")) return "ak74";
+  return "";
+}
+
+function normalizeInventoryItem(item){
+  const rawName = item.name || item.item || item.id || "Предмет";
+  const guessedWeapon = item.type === "weapon" ? (item.id || weaponCatalogKeyFromName(rawName)) : weaponCatalogKeyFromName(rawName);
+  const isWeapon = item.type === "weapon" || !!guessedWeapon;
+  const id = String(item.id || (isWeapon ? guessedWeapon : rawName));
+  return {
+    ...item,
+    id,
+    type: isWeapon ? "weapon" : (item.type || "item"),
+    name: item.name || item.item || id,
+    item: item.item || item.name || id,
+    count: Number(item.count ?? 1),
+    damage: item.damage || (WEAPON_CATALOG[guessedWeapon]?.far?.dice ? `${WEAPON_CATALOG[guessedWeapon].far.dice}${WEAPON_CATALOG[guessedWeapon].far.bonus ? (WEAPON_CATALOG[guessedWeapon].far.bonus > 0 ? "+" : "") + WEAPON_CATALOG[guessedWeapon].far.bonus : ""}` : ""),
+    range: item.range || (guessedWeapon === "obrez" ? "near" : "far"),
+    ammoType: item.ammoType || (isWeapon ? "ammo" : ""),
+    equipped: !!item.equipped
+  };
+}
+
+function normalizeCharacterWeapons(character){
+  if(!character) return character;
+  character.inventory = Array.isArray(character.inventory) ? character.inventory.map(normalizeInventoryItem) : [];
+  const weapons = character.inventory.filter(i => i.type === "weapon");
+  const fallbackWeapon = character.weapon || character.activeWeapon || (weapons[0]?.id) || "pm";
+  character.activeWeapon = character.activeWeapon || fallbackWeapon;
+  if(!weapons.some(w => w.id === character.activeWeapon) && WEAPON_CATALOG[character.activeWeapon]){
+    character.inventory.push(normalizeInventoryItem({
+      id: character.activeWeapon,
+      type: "weapon",
+      name: WEAPON_CATALOG[character.activeWeapon].name,
+      count: 1,
+      range: character.range || "far",
+      equipped: true,
+      note: "додано автоматично як активну зброю"
+    }));
+  }
+  character.inventory.forEach(i => {
+    if(i.type === "weapon") i.equipped = i.id === character.activeWeapon;
+  });
+  character.weapon = character.activeWeapon || character.weapon || "pm";
+  const active = activeWeaponItem(character);
+  if(active?.range) character.range = active.range;
+  return character;
+}
+
+function weaponInventoryItems(character){
+  normalizeCharacterWeapons(character);
+  return (character.inventory || []).filter(i => i.type === "weapon");
+}
+
+function activeWeaponItem(character){
+  const items = Array.isArray(character?.inventory) ? character.inventory : [];
+  return items.find(i => i.type === "weapon" && (i.equipped || i.id === character.activeWeapon)) || items.find(i => i.type === "weapon") || null;
+}
+
+function activeWeaponKey(character){
+  const active = activeWeaponItem(character);
+  return active?.id || character?.activeWeapon || character?.weapon || "pm";
+}
+
+function parseDamageProfileFromText(text){
+  const m = String(text || "").trim().match(/^d(\d+)([+-]\d+)?$/i);
+  if(!m) return null;
+  return { dice: `d${Number(m[1])}`, bonus: Number(m[2] || 0) };
+}
+
+function activeWeaponLabel(character){
+  const active = activeWeaponItem(character);
+  if(active) return active.name || active.id;
+  const key = activeWeaponKey(character);
+  return WEAPON_CATALOG[key]?.name || key || "немає";
+}
+
+
 const WEAPON_CONDITIONS = {
   good: { name: "добра", jamOn: [], damageMod: 0 },
   normal: { name: "нормальна", jamOn: [], damageMod: 0 },
@@ -3209,15 +3313,21 @@ function criticalCount(dice){
 
 
 function weaponInfo(player){
-  const key = player.weapon || "pm";
+  const key = activeWeaponKey(player);
   return WEAPON_CATALOG[key] || WEAPON_CATALOG.pm;
 }
 
 function weaponRange(player){
+  const active = activeWeaponItem(player);
+  if(active?.range) return active.range === "near" ? "near" : "far";
   return player.range === "near" ? "near" : "far";
 }
 
 function weaponDamageProfile(player){
+  const active = activeWeaponItem(player);
+  const directProfile = parseDamageProfileFromText(active?.damage);
+  if(directProfile) return directProfile;
+
   const weapon = weaponInfo(player);
   const range = weaponRange(player);
   return weapon[range] || weapon.far || WEAPON_CATALOG.pm.far;
@@ -3254,6 +3364,7 @@ function rollWeaponDamage(player, hits, extraDice=0){
   const condPart = conditionMod ? ` (${conditionMod > 0 ? "+" : ""}${conditionMod} стан враховано один раз)` : "";
   return {
     rolls,
+    weaponName: activeWeaponLabel(player),
     bonus,
     conditionMod,
     extraDice: critDice,
@@ -3814,7 +3925,7 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
   const cfg = shotActionConfig(action);
   if(!cfg) return false;
 
-  const p = playerById(playerId);
+  const p = normalizeCharacterWeapons(playerById(playerId));
   const enemy = findEnemyById(enemyId);
 
   if(!p || !enemy){
@@ -4658,6 +4769,23 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   }
 
 
+  const activeWeaponBtn = e.target.closest("[data-set-active-weapon]");
+  if(activeWeaponBtn){
+    const p = normalizeCharacterWeapons(currentPlayer());
+    normalizeCharacterWeapons(p);
+    p.activeWeapon = activeWeaponBtn.dataset.setActiveWeapon;
+    p.weapon = p.activeWeapon;
+    p.inventory.forEach(item => {
+      if(item.type === "weapon") item.equipped = item.id === p.activeWeapon;
+    });
+    const active = activeWeaponItem(p);
+    if(active?.range) p.range = active.range;
+    save();
+    render();
+    showToast(`Активна зброя: ${activeWeaponLabel(p)}.`);
+    return;
+  }
+
   const nav = e.target.closest(".nav-btn");
   if(nav) switchScreen(nav.dataset.target);
 
@@ -5077,6 +5205,19 @@ document.addEventListener("input", e => {
       const numeric = ["hp","hpMax","fatigue","infection","ammo","defense","defenseMax","armor"].includes(field);
       if(numeric && playerInput.value === "") return;
       data.players[pid][field] = numeric ? Number(playerInput.value) : playerInput.value;
+      if(field === "activeWeapon"){
+        normalizeCharacterWeapons(data.players[pid]);
+        data.players[pid].activeWeapon = playerInput.value;
+        data.players[pid].weapon = playerInput.value;
+        data.players[pid].inventory.forEach(item => {
+          if(item.type === "weapon") item.equipped = item.id === playerInput.value;
+        });
+        const active = activeWeaponItem(data.players[pid]);
+        if(active?.range) data.players[pid].range = active.range;
+      }
+      if(field === "weapon" && !data.players[pid].activeWeapon){
+        data.players[pid].activeWeapon = playerInput.value;
+      }
       if(field === "hpMax") data.players[pid].hp = clamp(data.players[pid].hp, 0, data.players[pid].hpMax);
       if(field === "defenseMax") data.players[pid].defense = Math.min(Number(data.players[pid].defense ?? 12), Number(data.players[pid].defenseMax ?? 12));
       if(field === "defense") data.players[pid].defenseMax = Math.max(Number(data.players[pid].defenseMax ?? data.players[pid].defense ?? 12), Number(data.players[pid].defense ?? 12));
