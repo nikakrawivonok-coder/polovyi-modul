@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.18.12 Documentation Consistency Pass
+// Польовий Модуль — V19.18.13 Local Journal Clear Fix
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.12";
-const BUILD_NUMBER = "19644";
-const BUILD_NAME = "Documentation Consistency Pass";
+const BUILD_VERSION = "V19.18.13";
+const BUILD_NUMBER = "19645";
+const BUILD_NAME = "Local Journal Clear Fix";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2785,10 +2785,27 @@ function hiddenJournalIdsForCurrentRole(){
   }
 }
 
+
+function isJournalEntryVisibleBeforeLocalClear(j){
+  if(!j) return false;
+  if(isLegacyCombatTechnicalLog(j.text)) return false;
+
+  if(appSession.role !== "gm"){
+    if(j.visibility === "gm") return false;
+    if(j.visibility === "private") return j.targetPlayerId === appSession.player;
+    return true;
+  }
+
+  if(journalFilter === "public") return j.visibility !== "gm" && j.visibility !== "private";
+  if(journalFilter === "gm") return j.visibility === "gm";
+  if(journalFilter === "private") return j.visibility === "private";
+  return true;
+}
+
 function hideCurrentVisibleJournalForCurrentRole(){
   const currentHidden = hiddenJournalIdsForCurrentRole();
   (data.journal || []).forEach(j => {
-    if(isJournalEntryVisibleForCurrentRole(j)) currentHidden.add(j.id);
+    if(isJournalEntryVisibleBeforeLocalClear(j)) currentHidden.add(j.id);
   });
   try{
     localStorage.setItem(journalLocalClearKey(), JSON.stringify([...currentHidden].slice(-400)));
@@ -2838,12 +2855,15 @@ function clearJournalForCurrentRole(){
 
 function isJournalEntryVisibleForCurrentRole(j){
   if(!j) return false;
+  // V19.18.13: local clear applies to every role, including GM.
+  // It hides only entries stored in localStorage for this room/role/device.
+  if(hiddenJournalIdsForCurrentRole().has(j.id)) return false;
+
   // V19.18.2: journal visibility is centralized here.
   // Old technical combat logs are hidden for every role because the unified combat summary is now the source of truth.
   if(isLegacyCombatTechnicalLog(j.text)) return false;
 
   if(appSession.role !== "gm"){
-    if(hiddenJournalIdsForCurrentRole().has(j.id)) return false;
     if(j.visibility === "gm") return false;
     if(j.visibility === "private") return j.targetPlayerId === appSession.player;
     return true;
@@ -2851,6 +2871,7 @@ function isJournalEntryVisibleForCurrentRole(j){
 
   if(journalFilter === "public") return j.visibility !== "gm" && j.visibility !== "private";
   if(journalFilter === "gm") return j.visibility === "gm";
+  if(journalFilter === "private") return j.visibility === "private";
   return true;
 }
 

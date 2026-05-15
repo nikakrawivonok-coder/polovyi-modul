@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18.12"
-BUILD_NUMBER = "19644"
-BUILD_NAME = "Documentation Consistency Pass"
+BUILD_VERSION = "V19.18.13"
+BUILD_NUMBER = "19645"
+BUILD_NAME = "Local Journal Clear Fix"
 ```
 
 ## appSession
@@ -454,3 +454,9 @@ Maintenance notes:
 - Runtime-логіку не змінювати.
 - Оновлено документацію, locked combat rules і checklist.
 - Перед подальшою розробкою користувач має перевірити V19.18.12.
+
+
+## V19.18.13 — Local Journal Clear Fix
+
+- Виправлено локальне приховування журналу для ролі Майстра.
+- Runtime-схема Firebase не змінена.
