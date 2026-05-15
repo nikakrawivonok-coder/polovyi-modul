@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.21.1 GM Inventory Authority Fix
+// Польовий Модуль — V19.21.2 Inventory Label + Damage Log Formula Fix
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.21.1";
-const BUILD_NUMBER = "19650";
-const BUILD_NAME = "GM Inventory Authority Fix";
+const BUILD_VERSION = "V19.21.2";
+const BUILD_NUMBER = "19651";
+const BUILD_NAME = "Inventory Label + Damage Log Formula Fix";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2819,7 +2819,7 @@ function logBadgeForDisplay(j){
 function isLegacyCombatTechnicalLog(text){
   const s = String(text || "");
   if(!s) return false;
-  const hasOldCombatTerms = /\b(Кубики|Підсумок|Захист цілі|Влучань|Формула|3d20|2d20|1d20)\b/u.test(s);
+  const hasOldCombatTerms = /\b(Кубики|Підсумок|Захист цілі|Влучань|3d20|2d20|1d20)\b/u.test(s);
   const hasCombatAction = /(Точний постріл|Бойовий постріл|Черга|стріляє|атакує)/u.test(s);
   return hasOldCombatTerms && hasCombatAction;
 }
@@ -3064,6 +3064,7 @@ function gmPlayerInventoryEditor(pid, p){
   }).join("") : `<div class="copy-mini">Інвентар порожній.</div>`;
 
   return `<div class="gm-inventory-editor">
+    <div class="copy-mini"><b>Інвентар гравця:</b> ${escapeHtml(p.name || pid)}</div>
     <div class="weapon-add-row gm-weapon-add-row">
       <button class="metal-btn mini" data-gm-add-player-weapon="${escapeAttr(pid)}" data-weapon-key="pm">+ ПМ</button>
       <button class="metal-btn mini" data-gm-add-player-weapon="${escapeAttr(pid)}" data-weapon-key="obrez">+ Обріз</button>
@@ -3201,7 +3202,7 @@ function renderGmPlayers(){
       ${section("combat", "Бойові налаштування", `HP ${p.hp ?? 0}/${p.hpMax ?? 10} · Втома ${p.fatigue ?? 0} · Набої ${p.ammo ?? 0}`, combatBody)}
       ${section("weapon", "Зброя", `${activeWeaponLabel(p)} · ${p.weaponCondition ? (WEAPON_CONDITIONS[p.weaponCondition]?.name || p.weaponCondition) : "стан?"}`, weaponBody)}
       ${section("stats", "Характеристики", `Витр. ${p.stats?.endurance ?? 0} · Точн. ${p.stats?.accuracy ?? 0} · Спр. ${p.stats?.perception ?? 0}`, statsBody)}
-      ${section("inventory", "Інвентар", `${invCount} позицій`, inventoryBody)}
+      ${section("inventory", "Інвентар гравця", `${p.name || pid} · ${invCount} позицій`, inventoryBody)}
       <div class="button-row compact-action-row"><button class="metal-btn" data-select-player="${escapeAttr(pid)}">Обрати активним</button><button class="metal-btn" data-copy-player-link="${escapeAttr(pid)}">Скопіювати посилання</button><button class="metal-btn" data-toggle-player-cover="${escapeAttr(pid)}">${p.cover ? "Без укриття" : "В укриття"}</button>${pid !== currentPlayerId() ? `<button class="metal-btn danger" data-remove-player="${escapeAttr(pid)}">Видалити</button>` : ""}</div>
       <div class="copy-mini">${escapeHtml(playerUrl)}</div>
     </div>`;
@@ -4462,16 +4463,16 @@ function damageRollsTextForBrief(damageResult, crits=0){
   const critRolls = critDice ? rolls.slice(Math.max(0, rolls.length - critDice)) : [];
   const normalDiceCount = normalRolls.length || Math.max(1, Number(damageResult?.hitDice || 1));
   const dieText = sides ? `${normalDiceCount}d${sides}` : "кубику шкоди";
+  const formulaText = damageResult?.formula ? ` · Формула: ${damageResult.formula}` : "";
   const normalText = `Випало: ${normalRolls.join(", ") || rolls.join(", ")} на ${dieText}`;
 
   if(critRolls.length){
     const critDieText = sides ? `${critRolls.length}d${sides}` : "крит. кубику";
-    return `${normalText} + ${critRolls.join(", ")} на крит. ${critDieText} (кубики шкоди)`;
+    return `${normalText} + ${critRolls.join(", ")} на крит. ${critDieText} (кубики шкоди${formulaText})`;
   }
 
-  return `${normalText} (кубики шкоди)`;
+  return `${normalText} (кубики шкоди${formulaText})`;
 }
-
 
 // V19.18: legacy static shot-result formatter removed. Unified combat summaries now use setCombatBrief().
 

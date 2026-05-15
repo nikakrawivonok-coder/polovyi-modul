@@ -2226,3 +2226,7 @@ body.role-gm .compact-gm-debug strong{
 .gm-weapon-add-row{
   margin-top:0;
 }
+
+.gm-inventory-editor .copy-mini b{
+  color: var(--text);
+}

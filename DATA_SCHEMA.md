@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.21.1"
-BUILD_NUMBER = "19650"
-BUILD_NAME = "GM Inventory Authority Fix"
+BUILD_VERSION = "V19.21.2"
+BUILD_NUMBER = "19651"
+BUILD_NAME = "Inventory Label + Damage Log Formula Fix"
 ```
 
 ## appSession
@@ -518,3 +518,10 @@ Authority model:
 - Player can view inventory and select active owned weapon.
 - GM controls adding and editing weapon parameters.
 - Weapon damage remains sourced from `activeWeapon` / `inventory.damage`.
+
+
+## V19.21.2 — Inventory Label + Damage Log Formula Fix
+
+- Schema не змінена.
+- `inventory.damage` як і раніше може містити кастомну формулу типу `d20`.
+- UI/Journal тепер явно показує формулу у combat summary.
