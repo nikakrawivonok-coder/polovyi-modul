@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18.13"
-BUILD_NUMBER = "19645"
-BUILD_NAME = "Local Journal Clear Fix"
+BUILD_VERSION = "V19.18.14"
+BUILD_NUMBER = "19646"
+BUILD_NAME = "Moderate Cleanup Journal Helpers"
 ```
 
 ## appSession
@@ -460,3 +460,10 @@ Maintenance notes:
 
 - Виправлено локальне приховування журналу для ролі Майстра.
 - Runtime-схема Firebase не змінена.
+
+
+## V19.18.14 — Moderate Cleanup Journal Helpers
+
+- Firebase-схема не змінена.
+- Локальне очищення журналу працює через localStorage id-list.
+- Shared clear для Майстра й надалі змінює `data.journal`.

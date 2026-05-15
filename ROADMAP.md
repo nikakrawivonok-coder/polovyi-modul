@@ -1,3 +1,10 @@
+## V19.18.14 — Moderate Cleanup Journal Helpers
+
+Контрольований cleanup journal-секції:
+- не змінює бойову математику;
+- краще документує різницю між локальним приховуванням і Firebase-очищенням;
+- готує journal helpers до майбутньої role-aware visibility system.
+
 ## V19.18.13 — Local Journal Clear Fix
 
 Hotfix:

@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.18.13 Local Journal Clear Fix
+// Польовий Модуль — V19.18.14 Moderate Cleanup Journal Helpers
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.13";
-const BUILD_NUMBER = "19645";
-const BUILD_NAME = "Local Journal Clear Fix";
+const BUILD_VERSION = "V19.18.14";
+const BUILD_NUMBER = "19646";
+const BUILD_NAME = "Moderate Cleanup Journal Helpers";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2770,6 +2770,13 @@ function isLegacyCombatTechnicalLog(text){
   return hasOldCombatTerms && hasCombatAction;
 }
 
+// CONTRACT: Journal clear / visibility
+// - "У себе" is local-only and must never delete Firebase journal entries.
+// - "Усім" is GM-only and clears shared data.journal.
+// - Type-specific GM clear buttons remove only matching visibility entries.
+// - New entries after a local clear must appear again.
+// - Player journal text must never expose exact enemy HP.
+
 function journalLocalClearKey(){
   const roleKey = appSession.role === "gm" ? "gm" : (appSession.player || "player");
   return `pm_journal_hidden_${appSession.room || "local"}_${roleKey}`;
@@ -2785,6 +2792,16 @@ function hiddenJournalIdsForCurrentRole(){
   }
 }
 
+
+
+function storeHiddenJournalIdsForCurrentRole(ids){
+  const list = [...(ids || [])].filter(Boolean).slice(-400);
+  try{
+    localStorage.setItem(journalLocalClearKey(), JSON.stringify(list));
+  }catch(err){
+    console.warn("journal local clear failed", err);
+  }
+}
 
 function isJournalEntryVisibleBeforeLocalClear(j){
   if(!j) return false;
@@ -2804,21 +2821,26 @@ function isJournalEntryVisibleBeforeLocalClear(j){
 
 function hideCurrentVisibleJournalForCurrentRole(){
   const currentHidden = hiddenJournalIdsForCurrentRole();
+  let added = 0;
   (data.journal || []).forEach(j => {
-    if(isJournalEntryVisibleBeforeLocalClear(j)) currentHidden.add(j.id);
+    if(isJournalEntryVisibleBeforeLocalClear(j) && !currentHidden.has(j.id)){
+      currentHidden.add(j.id);
+      added++;
+    }
   });
-  try{
-    localStorage.setItem(journalLocalClearKey(), JSON.stringify([...currentHidden].slice(-400)));
-  }catch(err){
-    console.warn("journal local clear failed", err);
-  }
+  storeHiddenJournalIdsForCurrentRole(currentHidden);
+  return added;
 }
 
 function clearJournalLocalForCurrentRole(){
   const who = appSession.role === "gm" ? "тільки для Майстра на цьому пристрої" : "тільки на цьому пристрої";
   if(!confirm(`Очистити журнал ${who}? Нові записи з’являтимуться далі.`)) return;
-  hideCurrentVisibleJournalForCurrentRole();
+  const hiddenCount = hideCurrentVisibleJournalForCurrentRole();
   render();
+  if(hiddenCount <= 0){
+    showToast("Немає видимих записів для локального приховування.");
+    return;
+  }
   showToast(appSession.role === "gm" ? "Журнал приховано тільки для Майстра." : "Журнал очищено на цьому пристрої.");
 }
 
