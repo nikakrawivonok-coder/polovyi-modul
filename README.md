@@ -1,6 +1,6 @@
-# Польовий Модуль — V19.18.8 Combat Result Object Preparation
+# Польовий Модуль — V19.18.9 Journal Clear Options + Compact GM Buttons
 
-## V19.18.8 — Combat Result Object Preparation
+## V19.18.9 — Journal Clear Options + Compact GM Buttons
 
 Cleanup-only build. Бойова математика не змінена. Додано легкий helper `prepareCombatBriefResult(input)`, який нормалізує дані бойового результату перед формуванням role-aware підсумку. Це підготовка до майбутнього повного `Combat Result Object`, без переписування стабільної атаки.
 
@@ -31,17 +31,17 @@ resolve shot
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19640">
-<script src="./app.js?v=19640"></script>
+<link rel="stylesheet" href="./styles.css?v=19641">
+<script src="./app.js?v=19641"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19640&gmKey=zona-master&v=19640`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19641&gmKey=zona-master&v=19641`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19640&player=fox&v=19640`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19641&player=fox&v=19641`
 
 ## Перевірка
 
@@ -51,7 +51,7 @@ node --check app.js
 
 Синтаксичних помилок немає.
 
-## V19.18.8
+## V19.18.9
 
 Cleanup-only pass:
 - aligned journal helper section markers;

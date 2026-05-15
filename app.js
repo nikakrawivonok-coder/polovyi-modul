@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.18.8 Combat Result Object Preparation
+// Польовий Модуль — V19.18.9 Journal Clear Options + Compact GM Buttons
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.8";
-const BUILD_NUMBER = "19640";
-const BUILD_NAME = "Combat Result Object Preparation";
+const BUILD_VERSION = "V19.18.9";
+const BUILD_NUMBER = "19641";
+const BUILD_NAME = "Journal Clear Options + Compact GM Buttons";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2744,11 +2744,11 @@ function isLegacyCombatTechnicalLog(text){
 }
 
 function journalLocalClearKey(){
-  return `pm_journal_hidden_${appSession.room || "local"}_${appSession.player || "gm"}`;
+  const roleKey = appSession.role === "gm" ? "gm" : (appSession.player || "player");
+  return `pm_journal_hidden_${appSession.room || "local"}_${roleKey}`;
 }
 
-function hiddenJournalIdsForCurrentPlayer(){
-  if(appSession.role === "gm") return new Set();
+function hiddenJournalIdsForCurrentRole(){
   try{
     const raw = localStorage.getItem(journalLocalClearKey());
     const arr = raw ? JSON.parse(raw) : [];
@@ -2758,33 +2758,50 @@ function hiddenJournalIdsForCurrentPlayer(){
   }
 }
 
-function hideCurrentVisibleJournalForPlayer(){
-  if(appSession.role === "gm") return;
-  const currentHidden = hiddenJournalIdsForCurrentPlayer();
+function hideCurrentVisibleJournalForCurrentRole(){
+  const currentHidden = hiddenJournalIdsForCurrentRole();
   (data.journal || []).forEach(j => {
     if(isJournalEntryVisibleForCurrentRole(j)) currentHidden.add(j.id);
   });
   try{
-    localStorage.setItem(journalLocalClearKey(), JSON.stringify([...currentHidden].slice(-300)));
+    localStorage.setItem(journalLocalClearKey(), JSON.stringify([...currentHidden].slice(-400)));
   }catch(err){
     console.warn("journal local clear failed", err);
   }
 }
 
-function clearJournalForCurrentRole(){
-  if(appSession.role === "gm"){
-    if(!confirm("Очистити журнал для всієї кімнати?")) return;
-    data.journal = [];
-    save();
-    render();
-    showToast("Журнал очищено для всієї кімнати.");
-    return;
-  }
-
-  if(!confirm("Очистити журнал тільки на цьому пристрої? Нові записи з’являтимуться далі.")) return;
-  hideCurrentVisibleJournalForPlayer();
+function clearJournalLocalForCurrentRole(){
+  const who = appSession.role === "gm" ? "тільки для Майстра на цьому пристрої" : "тільки на цьому пристрої";
+  if(!confirm(`Очистити журнал ${who}? Нові записи з’являтимуться далі.`)) return;
+  hideCurrentVisibleJournalForCurrentRole();
   render();
-  showToast("Журнал очищено на цьому пристрої.");
+  showToast(appSession.role === "gm" ? "Журнал приховано тільки для Майстра." : "Журнал очищено на цьому пристрої.");
+}
+
+function clearJournalForEveryone(){
+  if(appSession.role !== "gm") return;
+  if(!confirm("Очистити журнал для всієї кімнати? Це прибере записи у всіх.")) return;
+  data.journal = [];
+  try{ localStorage.removeItem(journalLocalClearKey()); }catch(err){}
+  save();
+  render();
+  showToast("Журнал очищено для всієї кімнати.");
+}
+
+function clearJournalByVisibility(visibility){
+  if(appSession.role !== "gm") return;
+  const labels = {public:"публічні записи", gm:"службові записи Майстра", private:"приватні записи"};
+  const label = labels[visibility] || "вибрані записи";
+  if(!confirm(`Очистити ${label}?`)) return;
+  data.journal = (data.journal || []).filter(j => j.visibility !== visibility);
+  save();
+  render();
+  showToast(`Очищено: ${label}.`);
+}
+
+function clearJournalForCurrentRole(){
+  if(appSession.role === "gm") return clearJournalForEveryone();
+  return clearJournalLocalForCurrentRole();
 }
 
 
@@ -4363,8 +4380,28 @@ if(e.target.closest("#journalPostPublic")){
 
 
 
-  if(e.target.closest("#clearJournal")){
-    clearJournalForCurrentRole();
+  if(e.target.closest("#clearJournal") || e.target.closest("#clearJournalLocal") || e.target.closest("#clearJournalPlayerLocal")){
+    clearJournalLocalForCurrentRole();
+    return;
+  }
+
+  if(e.target.closest("#clearJournalAll")){
+    clearJournalForEveryone();
+    return;
+  }
+
+  if(e.target.closest("#clearJournalPublic")){
+    clearJournalByVisibility("public");
+    return;
+  }
+
+  if(e.target.closest("#clearJournalGm")){
+    clearJournalByVisibility("gm");
+    return;
+  }
+
+  if(e.target.closest("#clearJournalPrivate")){
+    clearJournalByVisibility("private");
     return;
   }
 
