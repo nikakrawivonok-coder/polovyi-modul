@@ -1,6 +1,6 @@
-# Польовий Модуль — V19.18.1 Dead RollResult Cleanup
+# Польовий Модуль — V19.18.2 Journal Render Helper Cleanup
 
-## V19.18.1 — Dead RollResult Cleanup
+## V19.18.2 — Dead RollResult Cleanup
 
 Малий cleanup-підхід після V19.18. Бойова математика не змінювалась.
 
@@ -8,7 +8,7 @@
 - прибрано `clearStateRollResult()` і залишкові виклики очищення старої панелі;
 - `showRollToast()` позначено як utility-only toast для неосновних перевірок, наприклад усунення клину;
 - бойові атаки й надалі використовують `setCombatBrief(...)`, `addCombatBriefToJournal(...)`, `showCombatBriefToastForCurrentRole(...)`;
-- оновлено cache-busting до `19633`.
+- оновлено cache-busting до `19634`.
 
 
 Малий архітектурний cleanup на базі стабільної гілки V19.17.13.1 / V19.17.12.
@@ -38,17 +38,17 @@
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19633">
-<script src="./app.js?v=19633"></script>
+<link rel="stylesheet" href="./styles.css?v=19634">
+<script src="./app.js?v=19634"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19633&gmKey=zona-master&v=19633`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19634&gmKey=zona-master&v=19634`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19633&player=fox&v=19633`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19634&player=fox&v=19634`
 
 ## Що перевірити
 
@@ -58,3 +58,10 @@
 4. 3 патрони — розкриття `-2`, віддача прогресує.
 5. Гравець бачить Захист цілі, але не бачить HP ворога.
 6. Журнал не показує старий технічний бойовий запис.
+
+## V19.18.2 — Journal Render Helper Cleanup
+
+- Логіку видимості журналу винесено в `isJournalEntryVisibleForCurrentRole()` та `visibleJournalEntriesForCurrentRole()`.
+- Inline-фільтр журналу в `render()` замінено на один контрольований виклик.
+- Старі технічні бойові записи й далі приховуються централізовано.
+- Бойова математика не змінювалась.

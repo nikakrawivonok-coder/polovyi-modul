@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.1";
-const BUILD_NUMBER = "19633";
-const BUILD_NAME = "Dead RollResult Cleanup";
+const BUILD_VERSION = "V19.18.2";
+const BUILD_NUMBER = "19634";
+const BUILD_NAME = "Journal Render Helper Cleanup";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2071,7 +2071,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19633`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19634`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2505,17 +2505,7 @@ function render(){
   renderTargetSelector();
   ensureJournalComposer();
   renderJournalPrivateTargets();
-  qs("#journalList").innerHTML = (data.journal || []).filter(j => {
-    if(isLegacyCombatTechnicalLog(j?.text)) return false;
-    if(appSession.role !== "gm"){
-      if(j.visibility === "gm") return false;
-      if(j.visibility === "private") return j.targetPlayerId === appSession.player;
-      return true;
-    }
-    if(journalFilter === "public") return j.visibility !== "gm" && j.visibility !== "private";
-    if(journalFilter === "gm") return j.visibility === "gm";
-    return true;
-  }).slice().reverse().map(logItem).join("");
+  qs("#journalList").innerHTML = visibleJournalEntriesForCurrentRole().slice().reverse().map(logItem).join("");
 
   qsa("[data-journal-filter]").forEach(btn => btn.classList.toggle("active-filter", btn.dataset.journalFilter === journalFilter));
 
@@ -2752,6 +2742,27 @@ function isLegacyCombatTechnicalLog(text){
   return hasOldCombatTerms && hasCombatAction;
 }
 
+function isJournalEntryVisibleForCurrentRole(j){
+  if(!j) return false;
+  // V19.18.2: journal visibility is centralized here.
+  // Old technical combat logs are hidden for every role because the unified combat summary is now the source of truth.
+  if(isLegacyCombatTechnicalLog(j.text)) return false;
+
+  if(appSession.role !== "gm"){
+    if(j.visibility === "gm") return false;
+    if(j.visibility === "private") return j.targetPlayerId === appSession.player;
+    return true;
+  }
+
+  if(journalFilter === "public") return j.visibility !== "gm" && j.visibility !== "private";
+  if(journalFilter === "gm") return j.visibility === "gm";
+  return true;
+}
+
+function visibleJournalEntriesForCurrentRole(){
+  return (data.journal || []).filter(isJournalEntryVisibleForCurrentRole);
+}
+
 function journalTextForCurrentRole(j){
   let text = String(j?.text || "");
   if(appSession.role !== "gm" && j?.visibility !== "gm"){
@@ -2814,7 +2825,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.18.1</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.18.2</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2918,7 +2929,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19633`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19634`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;

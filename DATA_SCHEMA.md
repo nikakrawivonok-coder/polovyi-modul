@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.18.1
+# DATA_SCHEMA.md — Польовий Модуль V19.18.2
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18.1"
-BUILD_NUMBER = "19633"
-BUILD_NAME = "Dead RollResult Cleanup"
+BUILD_VERSION = "V19.18.2"
+BUILD_NUMBER = "19634"
+BUILD_NAME = "Journal Render Helper Cleanup"
 ```
 
 ## appSession
@@ -365,3 +365,11 @@ Build/cache: `19622`.
 - `clearStateRollResult()` removed.
 - Combat attack summaries remain centralized through `setCombatBrief(...)`, `addCombatBriefToJournal(...)`, and `showCombatBriefToastForCurrentRole(...)`.
 - `showRollToast(...)` remains only for utility/non-combat checks such as jam clearing.
+
+
+## V19.18.2 — Journal render helper cleanup
+
+- `isJournalEntryVisibleForCurrentRole(j)` — централізована перевірка видимості запису журналу для поточної ролі.
+- `visibleJournalEntriesForCurrentRole()` — єдине джерело списку записів, які можна рендерити в журналі.
+- `isLegacyCombatTechnicalLog(text)` лишається захисним фільтром проти старих технічних бойових записів.
+- Бойова математика не змінювалась.
