@@ -1,3 +1,10 @@
+## V19.22.2 — Enemy Editor No-Jump Fix
+
+Hotfix:
+- прибрати закриття редактора ворога при редагуванні параметрів;
+- придушити локальний Firebase render-echo під час введення;
+- зберігати відкритий стан enemy editor details.
+
 ## V19.22.1 — Enemy Editor Journal + Scroll Stability Fix
 
 Hotfix:

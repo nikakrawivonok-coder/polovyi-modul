@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.22.1"
-BUILD_NUMBER = "19655"
-BUILD_NAME = "Enemy Editor Journal + Scroll Stability Fix"
+BUILD_VERSION = "V19.22.2"
+BUILD_NUMBER = "19656"
+BUILD_NAME = "Enemy Editor No-Jump Fix"
 ```
 
 ## appSession
@@ -563,3 +563,12 @@ Schema не змінена.
 Зміни тільки в UI/log behavior:
 - shorter add-enemy GM log;
 - scroll-preserving render path for enemy editor.
+
+
+## V19.22.2 — Enemy Editor No-Jump Fix
+
+Schema не змінена.
+UI/runtime only:
+- `suppressRemoteRenderUntil`;
+- `suppressRemoteRenderBriefly()`;
+- enemy editor details open-state tracking.
