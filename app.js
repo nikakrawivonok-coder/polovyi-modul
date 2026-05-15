@@ -78,11 +78,25 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.17.12";
-const BUILD_NUMBER = "19629";
-const BUILD_NAME = "Combat Text Cleanup + Journal Privacy Audit";
+const BUILD_VERSION = "V19.17.13";
+const BUILD_NUMBER = "19630";
+const BUILD_NAME = "ROADMAP Reorder + Combat Architecture Plan";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
+
+/*
+COMBAT RULES LOCKED — do not change without explicit user approval.
+
+Current confirmed rules as of V19.17.13:
+1) 1 ammo / precise shot: 1d20 +2; no exposure.
+2) 2 ammo / combat shot: 2d20 -1; exposure -1 only if 0 hits.
+3) 3 ammo / burst: 3d20 with recoil progression -2 / -4 / -6 / -8...; exposure -2 after every burst.
+4) A 1-ammo or 2-ammo shot resets burst recoil.
+5) Cover: +2 to target effective Defense.
+6) Burst against a covered target: additional -1 to shooter's accuracy.
+7) Player may see target Defense and Defense modifiers.
+8) Player must not see exact enemy HP; GM sees all.
+*/
 
 
 const firebaseConfig = {
@@ -2092,7 +2106,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19629`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19630`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2835,7 +2849,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.12</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.13</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2939,7 +2953,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19629`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19630`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;

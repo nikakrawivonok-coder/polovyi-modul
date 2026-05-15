@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.17.12
+# DATA_SCHEMA.md — Польовий Модуль V19.17.13
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.17.12"
-BUILD_NUMBER = "19629"
-BUILD_NAME = "Combat Text Cleanup + Journal Privacy Audit"
+BUILD_VERSION = "V19.17.13"
+BUILD_NUMBER = "19630"
+BUILD_NAME = "ROADMAP Reorder + Combat Architecture Plan"
 ```
 
 ## appSession
@@ -324,3 +324,17 @@ Build/cache: `19622`.
 - `isLegacyCombatTechnicalLog(text)` приховує старі технічні бойові записи журналу, створені попередніми форматами.
 - `journalTextForCurrentRole(j)` додатково очищує текст журналу для гравця через `sanitizePlayerCombatBrief`.
 - Бойова математика не змінювалась.
+
+
+## V19.17.13 — ROADMAP Reorder + Combat Architecture Plan
+
+Документаційно-архітектурний checkpoint. Схема даних і бойова математика не змінювались.
+
+Зафіксовано майбутній напрям:
+
+- `combatResult` як єдиний об’єкт результату атаки;
+- role-aware view filters для Майстра/гравця;
+- гравець може бачити Захист цілі та пояснення модифікаторів;
+- гравець не бачить точні HP ворога;
+- Майстер бачить усе;
+- майбутні режими: чесний тест, атмосферна гра, кастомна видимість Майстра.
