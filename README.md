@@ -1,4 +1,4 @@
-# Польовий Модуль — V19.24.1 Expanded Test Harness
+# Польовий Модуль — V19.24.2 Test Harness Runtime Fix
 
 Це документаційний checkpoint після V19.18.11.
 
@@ -425,3 +425,20 @@ Hotfix:
 - відсутність старого gmInventory;
 - наявність render/Firebase helpers;
 - locked combat rules.
+
+
+## V19.24.2 — Test Harness Runtime Fix
+
+Hotfix після V19.24.1:
+- виправлено падіння test.html / Self-check через відсутній helper `prepareCombatBriefText`;
+- journal/privacy тест тепер не залежить від цієї функції;
+- якщо деякі допоміжні helper-и недоступні, тест показує ⚠️, а не падає;
+- ігрова логіка не змінювалась.
+
+Не змінювалось:
+- бойова математика;
+- activeWeapon / inventory.damage;
+- інвентарі;
+- редактор ворогів;
+- Firebase;
+- privacy HP у самій грі.

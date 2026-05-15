@@ -1,3 +1,10 @@
+## V19.24.2 — Test Harness Runtime Fix
+
+Hotfix:
+- не дозволяти тестовій системі падати через відсутні helper-функції;
+- journal/privacy tests мають бути defensive;
+- test.html має показувати звіт або ⚠️, а не runtime error.
+
 ## V19.24.1 — Expanded Test Harness
 
 Ціль:

@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.24.1"
-BUILD_NUMBER = "19659"
-BUILD_NAME = "Expanded Test Harness"
+BUILD_VERSION = "V19.24.2"
+BUILD_NUMBER = "19660"
+BUILD_NAME = "Test Harness Runtime Fix"
 ```
 
 ## appSession
@@ -607,3 +607,10 @@ Expanded test API additions:
 - `runRoleAuthorityTests()`
 - `runJournalPrivacyTests()`
 - `runUiRegressionTests()`
+
+
+## V19.24.2 — Test Harness Runtime Fix
+
+Schema не змінена.
+Test harness runtime-only hotfix:
+- removed dependency on `prepareCombatBriefText` from `runJournalPrivacyTests`.

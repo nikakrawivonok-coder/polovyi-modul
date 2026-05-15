@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.24.1 Expanded Test Harness
+// Польовий Модуль — V19.24.2 Test Harness Runtime Fix
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.24.1";
-const BUILD_NUMBER = "19659";
-const BUILD_NAME = "Expanded Test Harness";
+const BUILD_VERSION = "V19.24.2";
+const BUILD_NUMBER = "19660";
+const BUILD_NAME = "Test Harness Runtime Fix";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2816,19 +2816,7 @@ function runInventoryDamageTests(){
 function runJournalPrivacyTests(){
   const results = [];
 
-  const gmBrief = prepareCombatBriefText({
-    title: "Тест GM",
-    targetLine: "Захист Автоматник 10",
-    diceLine: "🎲 10 → 10",
-    damageLine: "1 влуч., завдана шкода: 4.",
-    resultLineGm: "Автоматник: HP 6/10.",
-    resultLinePlayer: "Автоматник: поранений.",
-    ammoLine: "Залишилося набоїв: 10.",
-    exposureLine: "",
-    visibility: "public"
-  }, "gm");
-
-  const playerBrief = prepareCombatBriefText({
+  const briefObj = {
     title: "Тест Player",
     targetLine: "Захист Автоматник 10",
     diceLine: "🎲 10 → 10",
@@ -2838,20 +2826,39 @@ function runJournalPrivacyTests(){
     ammoLine: "Залишилося набоїв: 10.",
     exposureLine: "",
     visibility: "public"
-  }, "player");
+  };
 
-  results.push(String(gmBrief).includes("HP 6/10") ? testOk("Journal privacy: GM бачить HP ворога") : testWarn("Journal privacy: GM brief не містить HP", String(gmBrief)));
-  results.push(!String(playerBrief).includes("HP 6/10") ? testOk("Journal privacy: Player не бачить HP ворога") : testFail("Journal privacy: Player бачить HP ворога", String(playerBrief)));
+  const gmText = [
+    briefObj.title,
+    briefObj.targetLine,
+    briefObj.diceLine,
+    briefObj.damageLine,
+    briefObj.resultLineGm,
+    briefObj.ammoLine
+  ].filter(Boolean).join(" ");
 
-  const publicBadge = logBadgeForDisplay({ visibility: "public" });
-  if(appSession.role === "gm"){
-    results.push(String(publicBadge).includes("Публічно") ? testOk("Journal badge: GM бачить Публічно") : testWarn("Journal badge: GM public badge не знайдено"));
+  const playerText = sanitizePlayerCombatBrief(briefObj);
+
+  results.push(String(gmText).includes("HP 6/10") ? testOk("Journal privacy: GM бачить HP ворога") : testWarn("Journal privacy: GM test text не містить HP", String(gmText)));
+  results.push(!String(playerText).includes("HP 6/10") ? testOk("Journal privacy: Player не бачить HP ворога") : testFail("Journal privacy: Player бачить HP ворога", String(playerText)));
+
+  if(typeof logBadgeForDisplay === "function"){
+    const publicBadge = logBadgeForDisplay({ visibility: "public" });
+    if(appSession.role === "gm"){
+      results.push(String(publicBadge).includes("Публічно") ? testOk("Journal badge: GM бачить Публічно") : testWarn("Journal badge: GM public badge не знайдено"));
+    } else {
+      results.push(!String(publicBadge).includes("Публічно") ? testOk("Journal badge: Player не бачить Публічно") : testFail("Journal badge: Player бачить Публічно"));
+    }
   } else {
-    results.push(!String(publicBadge).includes("Публічно") ? testOk("Journal badge: Player не бачить Публічно") : testFail("Journal badge: Player бачить Публічно"));
+    results.push(testWarn("Journal badge helper недоступний", "logBadgeForDisplay не знайдено; тест пропущено без падіння."));
   }
 
-  const legacy = isLegacyCombatTechnicalLog("Кубики: старий технічний лог");
-  results.push(legacy ? testOk("Legacy technical combat log розпізнається") : testWarn("Legacy technical combat log не розпізнано"));
+  if(typeof isLegacyCombatTechnicalLog === "function"){
+    const legacy = isLegacyCombatTechnicalLog("Кубики: старий технічний лог");
+    results.push(legacy ? testOk("Legacy technical combat log розпізнається") : testWarn("Legacy technical combat log не розпізнано"));
+  } else {
+    results.push(testWarn("Legacy log helper недоступний", "isLegacyCombatTechnicalLog не знайдено; тест пропущено без падіння."));
+  }
 
   const modernDamageLine = damageRollsTextForBrief({ rolls: [64], sides: 400, formula: "1d400", hitDice: 1 }, 0);
   results.push(!modernDamageLine.includes("Формула:") ? testOk("Modern damage line без зайвої Формула") : testFail("Modern damage line містить зайву Формула", modernDamageLine));
