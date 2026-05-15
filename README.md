@@ -1,4 +1,4 @@
-# Польовий Модуль — V19.26 GM Comfort Dashboard
+# Польовий Модуль — V19.26.1 Dev Toolkit Preflight Snapshot Fix
 
 Це документаційний checkpoint після V19.18.11.
 
@@ -501,3 +501,13 @@ Debug snapshot:
 - редактор ворогів;
 - privacy HP;
 - Firebase-схема.
+
+
+## V19.26.1 — Dev Toolkit Preflight Snapshot Fix
+
+Hotfix після V19.26:
+- Preflight більше не має hardcoded V19.25 / 19662;
+- BUILD_VERSION і BUILD_NUMBER перевіряються універсально;
+- cache-busting app.js/styles.css перевіряється відносно поточного BUILD_NUMBER;
+- Debug snapshot тепер явно показує textarea, прокручує до неї і додає preview у Dev Toolkit report;
+- гра, бій, журнал, інвентарі й Firebase-схема не змінювались.

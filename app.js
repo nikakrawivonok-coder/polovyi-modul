@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.26 GM Comfort Dashboard
+// Польовий Модуль — V19.26.1 Dev Toolkit Preflight Snapshot Fix
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.26";
-const BUILD_NUMBER = "19663";
-const BUILD_NAME = "GM Comfort Dashboard";
+const BUILD_VERSION = "V19.26.1";
+const BUILD_NUMBER = "19664";
+const BUILD_NAME = "Dev Toolkit Preflight Snapshot Fix";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -3025,14 +3025,21 @@ function currentRiskLabel(){
 
 function runReleasePreflight(){
   const results = [];
-  const expectedBuild = BUILD_NUMBER;
+  const expectedBuild = String(BUILD_NUMBER || "");
   const scripts = [...document.querySelectorAll("script[src]")].map(s => s.getAttribute("src") || "");
   const styles = [...document.querySelectorAll("link[href]")].map(l => l.getAttribute("href") || "");
 
-  results.push(BUILD_VERSION === "V19.25" ? testOk("Preflight: BUILD_VERSION правильний", BUILD_VERSION) : testFail("Preflight: BUILD_VERSION неочікуваний", BUILD_VERSION));
-  results.push(BUILD_NUMBER === "19662" ? testOk("Preflight: BUILD_NUMBER правильний", BUILD_NUMBER) : testFail("Preflight: BUILD_NUMBER неочікуваний", BUILD_NUMBER));
-  results.push(scripts.some(src => src.includes(`app.js?v=${expectedBuild}`)) ? testOk("Preflight: app.js cache-busting правильний") : testWarn("Preflight: app.js cache-busting не підтверджено", scripts.join(", ")));
-  results.push(styles.some(src => src.includes(`styles.css?v=${expectedBuild}`)) ? testOk("Preflight: styles.css cache-busting правильний") : testWarn("Preflight: styles.css cache-busting не підтверджено", styles.join(", ")));
+  results.push(/^V\d+\.\d+/.test(String(BUILD_VERSION || "")) ? testOk("Preflight: BUILD_VERSION коректний", BUILD_VERSION) : testFail("Preflight: BUILD_VERSION некоректний", String(BUILD_VERSION)));
+  results.push(/^\d+$/.test(expectedBuild) ? testOk("Preflight: BUILD_NUMBER коректний", BUILD_NUMBER) : testFail("Preflight: BUILD_NUMBER некоректний", String(BUILD_NUMBER)));
+
+  const appScript = scripts.find(src => src.includes("app.js"));
+  const styleLink = styles.find(src => src.includes("styles.css"));
+  results.push(appScript?.includes(`v=${expectedBuild}`) ? testOk("Preflight: app.js cache-busting правильний", appScript) : testWarn("Preflight: app.js підключений без актуального v=", appScript || scripts.join(", ")));
+  results.push(styleLink?.includes(`v=${expectedBuild}`) ? testOk("Preflight: styles.css cache-busting правильний", styleLink) : testWarn("Preflight: styles.css підключений без актуального v=", styleLink || styles.join(", ")));
+
+  const pageHasHardParam = String(location.href || "").includes(`hard=${expectedBuild}`);
+  results.push(pageHasHardParam ? testOk("Preflight: URL hard=BUILD правильний", `hard=${expectedBuild}`) : testWarn("Preflight: URL без актуального hard=BUILD", location.href));
+
   results.push(!document.querySelector("#gmInventory") ? testOk("Preflight: старий #gmInventory відсутній") : testFail("Preflight: старий #gmInventory повернувся"));
   results.push(!document.querySelector("[data-add-player-weapon]") ? testOk("Preflight: player-side add weapon відсутній") : testFail("Preflight: player-side add weapon повернувся"));
   results.push(typeof window.POLOVYI_MODUL_TESTS === "object" ? testOk("Preflight: test API доступний") : testFail("Preflight: test API недоступний"));
@@ -3101,13 +3108,30 @@ function showDebugSnapshot(){
   if(box){
     box.hidden = false;
     box.value = text;
-    box.focus();
-    box.select();
+    box.classList.add("debug-snapshot-box-visible");
+    requestAnimationFrame(() => {
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+      box.focus();
+      box.select();
+    });
   }
+
+  const report = qs("#devToolkitReport");
+  if(report && !report.hidden){
+    const safeText = escapeHtml(text);
+    report.insertAdjacentHTML("afterbegin", `<div class="debug-snapshot-preview">
+      <h4>Debug snapshot готовий</h4>
+      <p>Поле з JSON відкрито вище. Можеш скопіювати його і надіслати мені замість серії скріншотів.</p>
+      <pre>${safeText.slice(0, 1200)}${safeText.length > 1200 ? "\\n..." : ""}</pre>
+    </div>`);
+  }
+
   if(navigator.clipboard?.writeText){
-    navigator.clipboard.writeText(text).then(() => showToast("Debug snapshot скопійовано.")).catch(() => showToast("Debug snapshot готовий для копіювання."));
+    navigator.clipboard.writeText(text)
+      .then(() => showToast("Debug snapshot показано і скопійовано."))
+      .catch(() => showToast("Debug snapshot показано. Скопіюй текст із поля."));
   } else {
-    showToast("Debug snapshot готовий для копіювання.");
+    showToast("Debug snapshot показано. Скопіюй текст із поля.");
   }
 }
 

@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.26"
-BUILD_NUMBER = "19663"
-BUILD_NAME = "GM Comfort Dashboard"
+BUILD_VERSION = "V19.26.1"
+BUILD_NUMBER = "19664"
+BUILD_NAME = "Dev Toolkit Preflight Snapshot Fix"
 ```
 
 ## appSession
@@ -644,3 +644,11 @@ UI additions:
 - `gmComfortDashboardHtml()`
 - `applyGmComfortAction()`
 - quick GM journal notes/actions.
+
+
+## V19.26.1 — Dev Toolkit Preflight Snapshot Fix
+
+Schema не змінена.
+Dev Toolkit hotfix:
+- generalized Preflight checks;
+- improved Debug snapshot visibility.

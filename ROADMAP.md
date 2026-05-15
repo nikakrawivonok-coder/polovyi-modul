@@ -1,3 +1,10 @@
+## V19.26.1 — Dev Toolkit Preflight Snapshot Fix
+
+Hotfix:
+- прибрати hardcoded build checks із Preflight;
+- покращити видимість Debug snapshot;
+- snapshot має бути легко скопіювати і надіслати асистенту.
+
 ## V19.26 — GM Comfort Dashboard
 
 Новий фокус:
