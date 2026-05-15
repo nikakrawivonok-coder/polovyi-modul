@@ -78,16 +78,16 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.17.13";
-const BUILD_NUMBER = "19630";
-const BUILD_NAME = "ROADMAP Reorder + Combat Architecture Plan";
+const BUILD_VERSION = "V19.18";
+const BUILD_NUMBER = "19632";
+const BUILD_NAME = "First Architecture Cleanup";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
 /*
 COMBAT RULES LOCKED — do not change without explicit user approval.
 
-Current confirmed rules as of V19.17.13:
+Current confirmed rules as of V19.18:
 1) 1 ammo / precise shot: 1d20 +2; no exposure.
 2) 2 ammo / combat shot: 2d20 -1; exposure -1 only if 0 hits.
 3) 3 ammo / burst: 3d20 with recoil progression -2 / -4 / -6 / -8...; exposure -2 after every burst.
@@ -1669,41 +1669,7 @@ function enemyAttack(enemyId, mode){
     addLog(`${targetName} вибув зі сцени. Майстер вирішує наслідок: поранення, полон, втрата спорядження або тиха сцена.`, "public");
   }
 
-  const damageLine = hits
-    ? `Шкода: ${totalDamage}${damageFormula ? ` (${damageFormula})` : ""}${armor ? `, броня ${armor}` : ""}.`
-    : "Промах.";
-  const damageDiceLine = damageDetails
-    ? `🎲 Шкода зброї: ${damageDetails.diceText}${damageDetails.bonus ? ` +${damageDetails.bonus}` : ""}${damageDetails.conditionMod ? ` ${damageDetails.conditionMod > 0 ? "+" : ""}${damageDetails.conditionMod} стан` : ""}${crits ? ` · крит +${crits} кубик` : ""}.`
-    : "";
-
-  const mainDie = rolls.length === 1 ? String(rolls[0]) : rolls.join(" · ");
-  const enemyAmmoPopup = !mutant && appSession.role === "gm" ? " · Набої: " + enemy.gm.ammo : "";
-  const popupExtra = hits
-    ? `Влучань: ${hits}, шкода: ${totalDamage}${damageFormula ? " · " + damageFormula : ""}${crits ? " · КРИТ" : ""} · ${targetName} HP ${target.hp}/${target.hpMax}${enemyAmmoPopup}`
-    : `Промах${enemyAmmoPopup}`;
-
-  const enemyDamageDice = damageDetails?.formula?.match(/d\d+/)?.[0] || "";
-  setStaticRollResult(`${enemy.name}: ${cfg.label} → ${targetName}`, staticShotResultLines({
-    actorName: enemy.name,
-    actionTitle: cfg.label,
-    targetName,
-    attackDie: rolls.join(" · "),
-    attackBonus: cfg.mod,
-    targetDefense: targetNumber,
-    isHit: hits > 0,
-    damage: totalDamage,
-    weaponName: damageDetails?.weaponName || "атака",
-    rangeText: damageDetails?.rangeText || "",
-    damageFormula: enemyDamageDice,
-    targetHp: target.hp,
-    targetHpMax: target.hpMax,
-    shooterName: enemy.name,
-    shooterAmmo: mutant ? "не витрачаються" : enemy.gm.ammo,
-    rolledText: damageRollsTextForStatic(damageDetails, crits),
-    clarityLines,
-    hideShooterAmmo: !mutant && appSession.role !== "gm",
-    stateText: shotStateNotes.join(" ")
-  }));
+  // V19.18 cleanup: legacy static roll panel removed; unified combat summary is the single source.
 
   setCombatBrief({
     shooterName: enemy.name,
@@ -2106,7 +2072,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19630`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19632`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2849,7 +2815,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.13</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.18</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2953,7 +2919,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19630`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19632`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3286,6 +3252,11 @@ function markShooterExposed(shooter, reason="розкрився", severity=1){
     shooter.exposurePenalty = level;
   }
 }
+
+
+// =============================
+// COMBAT: recoil / exposure helpers
+// =============================
 
 function updateShooterAfterShot(shooter, action, hits){
   const notes = [];
@@ -3746,41 +3717,8 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
     recoilInfo: burstRecoilInfo
   });
 
-  let targetText = ` Ціль: ${enemy.name}. Захист цілі: ${threshold}.`;
-  let hitText = hits ? ` Влучань: ${hits}. Шкода: ${damage}. Формула: ${damageRoll.formula}. Кубики шкоди: ${damageRoll.rolls.join(", ")}${damageRoll.bonus ? " +" + damageRoll.bonus : ""}${damageRoll.conditionMod ? " " + damageRoll.conditionMod : ""}.` : " Промах.";
-  if(crits) hitText += ` Крит: +${crits} кубик шкоди.`;
-  if(enemy.lastReactions?.length) hitText += ` Реакція ворога: ${enemy.lastReactions.join(", ")}.`;
-  if(enemyEffects(enemy).length) hitText += ` Ефекти ворога: ${enemyEffectsText(enemy)}.`;
-  if(critMiss) hitText += " Критичний промах: Майстер може ускладнити ситуацію.";
-  if(jammedNow) hitText += " Зброю заклинило.";
-  if(enemy.state === "вибув") hitText += " Ціль вибула.";
-  if(shotStateNotes?.length) hitText += ` ${shotStateNotes.join(" ")}`;
 
-  const weapon = weaponInfo(p);
-  const rangeText = weaponRange(p) === "near" ? "зблизька" : "здалека";
-  const damageDice = damageRoll?.formula?.match(/d\d+/)?.[0] || weapon.damage || "";
-  setStaticRollResult(`${p.name || playerId}: ${cfg.title} → ${enemy.name}`, staticShotResultLines({
-    actorName: p.name || playerId,
-    actionTitle: cfg.title,
-    targetName: enemy.name,
-    attackDie: r.dice.join(" · "),
-    attackBonus: cfg.baseMod,
-    targetDefense: threshold,
-    isHit: hits > 0,
-    damage,
-    weaponName: weapon.name,
-    rangeText,
-    damageFormula: damageDice,
-    targetHp: enemy.gm.hp,
-    targetHpMax: enemy.gm.hpMax,
-    shooterName: p.name || playerId,
-    shooterAmmo: p.ammo,
-    reactionText: enemy.lastReactions?.join(", ") || "",
-    effectText: enemyEffects(enemy).length ? enemyEffectsText(enemy) : "",
-    rolledText: damageRollsTextForStatic(damageRoll, crits),
-    clarityLines,
-    stateText: shotStateNotes.join(" ")
-  }));
+  // V19.18 cleanup: legacy static roll panel removed; unified combat summary is the single source.
 
   setCombatBrief({
     shooterName: p.name || playerId,
@@ -3957,8 +3895,6 @@ function doAction(action){
   const rollText = totalMod ? `${count}d20 ${totalMod>0?"+":""}${totalMod}` : `${count}d20`;
   const attrName = attrKey ? attrLabel(attrKey) : "";
 
-  let targetText = "";
-  let hitText = "";
   if(isAttack){
     const targetCombatant = currentCombatTargetForAction();
     const enemy = targetCombatant?.type === "enemy" ? findEnemyById(targetCombatant.ref) : selectedTargetEnemy();
@@ -4005,40 +3941,7 @@ function doAction(action){
       recoilInfo: burstRecoilInfo
     });
 
-    targetText = ` Ціль: ${enemy.name}. Захист цілі: ${threshold}.`;
-    hitText = hits ? ` Влучань: ${hits}. Шкода: ${damage}. Формула: ${damageRoll.formula}. Кубики шкоди: ${damageRoll.rolls.join(", ")}${damageRoll.bonus ? " +" + damageRoll.bonus : ""}${damageRoll.conditionMod ? " " + damageRoll.conditionMod : ""}.` : " Промах.";
-    if(crits) hitText += ` Крит: +${crits} кубик шкоди.`;
-    if(enemy.lastReactions?.length) hitText += ` Реакція ворога: ${enemy.lastReactions.join(", ")}.`;
-    if(enemyEffects(enemy).length) hitText += ` Ефекти ворога: ${enemyEffectsText(enemy)}.`;
-    if(critMiss) hitText += " Критичний промах: Майстер може ускладнити ситуацію.";
-    if(jammedNow) hitText += " Зброю заклинило.";
-    if(enemy.state === "вибув") hitText += " Ціль вибула.";
-    if(shotStateNotes?.length) hitText += ` ${shotStateNotes.join(" ")}`;
-    const weapon = weaponInfo(p);
-    const rangeText = weaponRange(p) === "near" ? "зблизька" : "здалека";
-    const damageDice = damageRoll?.formula?.match(/d\d+/)?.[0] || weapon.damage || "";
-    setStaticRollResult(`${p.name}: ${title} → ${enemy.name}`, staticShotResultLines({
-      actorName: p.name,
-      actionTitle: title,
-      targetName: enemy.name,
-      attackDie: r.dice.join(" · "),
-      attackBonus: baseMod,
-      targetDefense: threshold,
-      isHit: hits > 0,
-      damage,
-      weaponName: weapon.name,
-      rangeText,
-      damageFormula: damageDice,
-      targetHp: enemy.gm.hp,
-      targetHpMax: enemy.gm.hpMax,
-      shooterName: p.name,
-      shooterAmmo: p.ammo,
-      reactionText: enemy.lastReactions?.join(", ") || "",
-      effectText: enemyEffects(enemy).length ? enemyEffectsText(enemy) : "",
-      rolledText: damageRollsTextForStatic(damageRoll, crits),
-      clarityLines,
-      stateText: shotStateNotes.join(" ")
-    }));
+  // V19.18 cleanup: legacy static roll panel removed; unified combat summary is the single source.
 
     setCombatBrief({
       shooterName: p.name,
@@ -4079,7 +3982,7 @@ function doAction(action){
   if(isAttack){
     addCombatBriefToJournal();
   } else {
-    addLog(`${p.name}: ${title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}${attrKey ? `. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}` : ""}${targetText}${hitText}${cost ? `. Набої: ${p.ammo}` : ""}.`, "public");
+    addLog(`${p.name}: ${title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}${attrKey ? `. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}` : ""}${cost ? `. Набої: ${p.ammo}` : ""}.`, "public");
   }
   render();
   triggerFlicker();
@@ -4088,18 +3991,7 @@ function doAction(action){
 
 
 
-function damageRollsTextForStatic(damageResult, crits=0){
-  const rolls = Array.isArray(damageResult?.rolls) ? damageResult.rolls : [];
-  if(!rolls.length) return "";
-  const critCount = Math.max(0, Number(crits || 0));
-  if(!critCount) return `Випало: ${rolls.join(", ")}`;
-  const splitAt = Math.max(0, rolls.length - critCount);
-  const normal = rolls.slice(0, splitAt);
-  const critical = rolls.slice(splitAt);
-  if(!critical.length) return `Випало: ${rolls.join(", ")}`;
-  return `Випало: ${normal.join(", ")} +${critical.join(", ")} за крит. шкоду`;
-}
-
+// V19.18: legacy static damage-roll formatter removed.
 
 function uaQueueOrdinal(step){
   const n = Number(step || 1);
@@ -4178,50 +4070,14 @@ function damageRollsTextForBrief(damageResult, crits=0){
   return `${normalText} (кубики шкоди)`;
 }
 
-function staticShotResultLines({
-  actorName,
-  actionTitle,
-  targetName,
-  attackDie,
-  attackBonus,
-  targetDefense,
-  isHit,
-  damage,
-  weaponName,
-  rangeText,
-  damageFormula,
-  targetHp,
-  targetHpMax,
-  shooterName,
-  shooterAmmo,
-  reactionText="",
-  effectText="",
-  rolledText="",
-  stateText="",
-  clarityLines=[],
-  hideShooterAmmo=false
-}){
-  const quotedTarget = `“${targetName}”`;
-  const quotedShooter = `“${shooterName || actorName}”`;
-  const accuracyPart = attackBonus ? ` (${attackBonus > 0 ? "+" : ""}${attackBonus} від точності пострілу)` : "";
-  const diceText = damageFormula ? (String(damageFormula).startsWith("1") ? String(damageFormula) : `1${damageFormula}`) : "";
-  const formulaDisplay = diceText ? `${weaponName} · ${rangeText} · ${diceText}` : `${weaponName} · ${rangeText}`;
-  const lines = [
-    `🎲 ${attackDie}${accuracyPart}`,
-    `Захист: ${quotedTarget} ${targetDefense} ${isHit ? "пробитий" : "не пробитий"}.`,
-    isHit ? `Шкода: ${damage} (${formulaDisplay}).` : `Шкода: 0 (${formulaDisplay}).`,
-    isHit && rolledText ? rolledText : "",
-    `${quotedTarget}: HP ${targetHp}/${targetHpMax}.`,
-    hideShooterAmmo ? "" : `Набої ${quotedShooter}: ${shooterAmmo}.`,
-    ...(Array.isArray(clarityLines) ? clarityLines : []),
-    stateText || ""
-  ];
-  if(reactionText) lines.push(`Реакція: ${reactionText}.`);
-  if(effectText) lines.push(`Ефекти: ${effectText}.`);
-  return lines;
-}
+
+// V19.18: legacy static shot-result formatter removed. Unified combat summaries now use setCombatBrief().
 
 
+// =============================
+// COMBAT: result text / role-aware summary
+// Single source for State, Toast and Journal combat output.
+// =============================
 
 function publicEnemyStateText(enemy){
   if(!enemy) return "стан невідомий";
@@ -4334,11 +4190,7 @@ function clearStateRollResult(){
   }
 }
 
-function setStaticRollResult(title, lines){
-  // V19.15.4: State is not a second journal. Full combat text lives in Journal.
-  // This block is intentionally hidden; short status goes through data.combat.lastBrief.
-  clearStateRollResult();
-}
+// V19.18: legacy hidden rollResult writer removed. State tab reads data.combat.lastBrief*.
 
 function addLog(text, visibility="public"){
   data.journal.push({id: makeId("log"), visibility, time: nowTime(), text});

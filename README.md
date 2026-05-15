@@ -1,46 +1,49 @@
-# Польовий Модуль — V19.17.13 ROADMAP Reorder + Combat Architecture Plan
+# Польовий Модуль — V19.18 First Architecture Cleanup
 
-Документаційно-архітектурний checkpoint на базі стабільної V19.17.12. Бойова математика не змінювалась.
+Малий архітектурний cleanup на базі стабільної гілки V19.17.13.1 / V19.17.12.
 
 ## Що зроблено
 
-- ROADMAP переупорядковано за пріоритетами: стабільна база, locked combat rules, найближчі технічні задачі, найближчі ігрові задачі, середній і великий горизонт.
-- Додано архітектурний план бою: `Combat Result Object`, role-aware visibility/privacy filters, combat helper секції, тестовий режим бою.
-- Зафіксовано принцип майбутніх режимів видимості: більше функціональності і можливість усього.
-- Додано locked-коментар із поточними бойовими правилами в `app.js`.
-- Додано технічну оцінку розміру/комфорту роботи з кодом.
+- Бойова математика не змінювалася.
+- Прибрано legacy-шлях `staticShotResultLines(...)`, який формував старий прихований бойовий текст для `rollResult`.
+- Прибрано legacy-виклики `setStaticRollResult(...)`; короткий бойовий підсумок тепер іде через `setCombatBrief(...)`.
+- Прибрано старий невикористаний formatter `damageRollsTextForStatic(...)`.
+- У `app.js` додано логічні секції:
+  - `COMBAT: recoil / exposure helpers`;
+  - `COMBAT: result text / role-aware summary`.
+- Поточне джерело короткого бойового тексту: `setCombatBrief(...)` + `addCombatBriefToJournal(...)` + `showCombatBriefToastForCurrentRole(...)`.
 
-## Що не змінювалось
+## Що не змінювалося
 
-- бойова математика;
-- шкода;
-- крити;
-- укриття;
-- віддача черги;
-- розкриття;
-- journal privacy;
-- Firebase-схема;
-- шаблони ворогів.
+- правила 1 / 2 / 3 патрони;
+- віддача `-2 / -4 / -6`;
+- розкриття після пострілів;
+- укриття `+2` до Захисту цілі;
+- `-1` до точності при черзі по цілі в укритті;
+- privacy HP ворогів;
+- шаблони ворогів;
+- Firebase-схема.
 
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19630">
-<script src="./app.js?v=19630"></script>
+<link rel="stylesheet" href="./styles.css?v=19632">
+<script src="./app.js?v=19632"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19630&gmKey=zona-master&v=19630`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19632&gmKey=zona-master&v=19632`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19630&player=fox&v=19630`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19632&player=fox&v=19632`
 
-## Очікувана перевірка
+## Що перевірити
 
-Оскільки зміни переважно документаційні, достатньо перевірити:
-
-1. що додаток відкривається;
-2. що в метаданих видно `V19.17.13 · 19630`;
-3. що попередня стабільна бойова логіка V19.17.12 не зламалась на швидкому тесті 1/2/3 патрони.
+1. Додаток відкривається і показує `V19.18 · 19632`.
+2. 1 патрон — без розкриття.
+3. 2 патрони + 0 влучань — розкриття `-1`.
+4. 3 патрони — розкриття `-2`, віддача прогресує.
+5. Гравець бачить Захист цілі, але не бачить HP ворога.
+6. Журнал не показує старий технічний бойовий запис.

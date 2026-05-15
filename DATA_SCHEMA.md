@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.17.13
+# DATA_SCHEMA.md — Польовий Модуль V19.18
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.17.13"
-BUILD_NUMBER = "19630"
-BUILD_NAME = "ROADMAP Reorder + Combat Architecture Plan"
+BUILD_VERSION = "V19.18"
+BUILD_NUMBER = "19632"
+BUILD_NAME = "First Architecture Cleanup"
 ```
 
 ## appSession
@@ -326,7 +326,7 @@ Build/cache: `19622`.
 - Бойова математика не змінювалась.
 
 
-## V19.17.13 — ROADMAP Reorder + Combat Architecture Plan
+## V19.17.13.1 — ROADMAP Reorder + Combat Architecture Plan
 
 Документаційно-архітектурний checkpoint. Схема даних і бойова математика не змінювались.
 
@@ -338,3 +338,22 @@ Build/cache: `19622`.
 - гравець не бачить точні HP ворога;
 - Майстер бачить усе;
 - майбутні режими: чесний тест, атмосферна гра, кастомна видимість Майстра.
+
+
+## V19.17.13.1 — ROADMAP Preserve Fix
+
+- Бойова математика не змінювалась.
+- Код бою не переписувався.
+- Повний `ROADMAP.md` із V19.17.12 збережено внизу нового ROADMAP як `Detailed Backlog / Archive`.
+- Зверху ROADMAP залишено короткий упорядкований план із locked combat rules, technical debt і architecture plan.
+
+
+## V19.18 — First Architecture Cleanup
+
+Архітектурний cleanup без зміни бойової математики.
+
+Важливо:
+- `setCombatBrief(...)` є головним джерелом короткого бойового підсумку для State/Toast/Journal.
+- Legacy `staticShotResultLines(...)`, `setStaticRollResult(...)`, `damageRollsTextForStatic(...)` прибрані.
+- `showRollToast(...)` поки лишається для небойових дій, наприклад усунення клину.
+- `addCombatBriefToJournal()` лишається точкою запису role-aware бойового результату в журнал.
