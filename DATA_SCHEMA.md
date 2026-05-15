@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18.14"
-BUILD_NUMBER = "19646"
-BUILD_NAME = "Moderate Cleanup Journal Helpers"
+BUILD_VERSION = "V19.19"
+BUILD_NUMBER = "19647"
+BUILD_NAME = "Enemy Balance + Weapon Inventory Seed"
 ```
 
 ## appSession
@@ -467,3 +467,14 @@ Maintenance notes:
 - Firebase-схема не змінена.
 - Локальне очищення журналу працює через localStorage id-list.
 - Shared clear для Майстра й надалі змінює `data.journal`.
+
+
+## V19.19 — Enemy Balance + Weapon Inventory Seed
+
+Enemy template additions:
+- `activeWeapon: string`
+- `inventory: Array<{id,type,name,damage,range,ammoType,equipped,note}>`
+
+Current limitation:
+- бойова шкода поки не обчислюється з `inventory`;
+- `activeWeapon` поки seed/metadata для наступного кроку.

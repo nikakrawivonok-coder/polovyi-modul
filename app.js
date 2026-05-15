@@ -255,6 +255,10 @@ const enemyTemplates = {
     faction: "бандити",
     role: "засідка, ближній тиск, небезпека у проходах",
     weapon: "obrez",
+    activeWeapon: "obrez",
+    inventory: [
+      { id: "obrez", type: "weapon", name: "Обріз", damage: "d4+1", range: "near", ammoType: "shells", equipped: true, note: "активна зброя шаблону; майбутній перехід на шкоду з інвентарю" }
+    ],
     range: "near",
     weaponCondition: "normal",
     weaponJammed: false,
@@ -264,8 +268,8 @@ const enemyTemplates = {
     danger: "дуже висока зблизька, нижча на дистанції",
     action: "чекає зближення і тримає короткий сектор",
     visible: true,
-    defense: 12,
-    defenseMax: 12,
+    defense: 10,
+    defenseMax: 10,
     fatigue: 0,
     infection: 0,
     armor: 0,
@@ -278,8 +282,8 @@ const enemyTemplates = {
       charisma: 2
     },
     gm: {
-      hp: 8,
-      hpMax: 8,
+      hp: 10,
+      hpMax: 10,
       ammo: 3,
       morale: "агресивний, але нервує після промаху",
       behavior: "підпускає ближче, погрожує, різко вискакує з укриття; неефективний на дальній дистанції",
@@ -306,6 +310,10 @@ const enemyTemplates = {
     faction: "бандити",
     role: "тиск вогнем, контроль простору",
     weapon: "aks74u",
+    activeWeapon: "aks74u",
+    inventory: [
+      { id: "aks74u", type: "weapon", name: "АКС-74У", damage: "d6", range: "far", ammoType: "ammo", equipped: true, note: "активна зброя шаблону; майбутній перехід на шкоду з інвентарю" }
+    ],
     range: "far",
     weaponCondition: "normal",
     weaponJammed: false,
@@ -315,8 +323,8 @@ const enemyTemplates = {
     danger: "висока",
     action: "тримає сектор і готує вогонь",
     visible: true,
-    defense: 11,
-    defenseMax: 11,
+    defense: 9,
+    defenseMax: 9,
     fatigue: 0,
     infection: 0,
     armor: 0,
@@ -536,6 +544,18 @@ function makeEnemyFromTemplate(templateId){
     enemy.stats[k] = Number(enemy.stats[k] ?? 0);
   });
   if(typeof enemy.weaponJammed !== "boolean") enemy.weaponJammed = false;
+  enemy.activeWeapon = enemy.activeWeapon || enemy.weapon || "";
+  enemy.inventory = Array.isArray(enemy.inventory) ? enemy.inventory : [];
+  enemy.inventory = enemy.inventory.map(item => ({
+    id: String(item.id || item.name || makeId("item")),
+    type: item.type || "item",
+    name: item.name || item.id || "Предмет",
+    damage: item.damage || "",
+    range: item.range || "",
+    ammoType: item.ammoType || "",
+    equipped: !!item.equipped || item.id === enemy.activeWeapon,
+    note: item.note || ""
+  }));
   enemy.gm = enemy.gm || {};
   enemy.gm.hp = Number(enemy.gm.hp ?? enemy.gm.hpMax ?? 8);
   enemy.gm.hpMax = Number(enemy.gm.hpMax ?? enemy.gm.hp ?? 8);
@@ -3555,6 +3575,8 @@ function renderTargetSelector(){
         ${hpText}
         ${ammoText}
         ${moraleText}
+        ${isGm && enemyInventoryLine(e) ? `<span><b>Інвентар:</b> ${escapeHtml(enemyInventoryLine(e))}</span>` : ""}
+        ${isGm && e.activeWeapon ? `<span><b>Активна зброя:</b> ${escapeHtml(e.activeWeapon)}</span>` : ""}
         <span><b>Ефекти:</b> ${escapeHtml(enemyEffectsText(e))}</span>
       </span>
     </button>`;

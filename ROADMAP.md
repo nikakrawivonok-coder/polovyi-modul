@@ -1,3 +1,14 @@
+## V19.19 — Enemy Balance + Weapon Inventory Seed
+
+Крок 1 із 3:
+- баланс стартових шаблонних ворогів;
+- weapon inventory seed для Автоматника і Бандита з обрізом;
+- без переходу бойової шкоди на inventory.activeWeapon.
+
+Наступні погоджені кроки:
+- V19.20 — Player Active Weapon Selection;
+- V19.21 — Weapon Damage From Active Weapon.
+
 ## V19.18.14 — Moderate Cleanup Journal Helpers
 
 Контрольований cleanup journal-секції:
