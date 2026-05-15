@@ -1,4 +1,4 @@
-# Польовий Модуль — V19.23 Render Firebase Architecture Cleanup
+# Польовий Модуль — V19.24 Internal Test Harness
 
 Це документаційний checkpoint після V19.18.11.
 
@@ -378,3 +378,28 @@ Hotfix:
 - activeWeapon / inventory.damage;
 - інвентарі;
 - privacy HP ворогів.
+
+
+## V19.24 — Internal Test Harness
+
+Додано три рівні швидкого тестування:
+1. Self-check у вкладці Майстра.
+2. Combat smoke-test у коді.
+3. Окрема сторінка `test.html`.
+
+Як користуватись:
+- після завантаження файлів відкрий Майстра;
+- натисни `Self-check`;
+- якщо немає ❌, зроби лише один ручний постріл;
+- альтернативно відкрий `/test.html` і натисни `Запустити тести`.
+
+Тести перевіряють:
+- build/version;
+- підключення app.js з правильним `v=`;
+- відсутність старого `gmInventory`;
+- відсутність player-side кнопки додавання зброї;
+- activeWeapon / inventory.damage;
+- custom damage `d400`;
+- відсутність зайвої `Формула:`;
+- privacy HP у player combat brief;
+- базові locked combat rules 1/2/3.

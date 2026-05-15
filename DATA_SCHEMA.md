@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.23"
-BUILD_NUMBER = "19657"
-BUILD_NAME = "Render Firebase Architecture Cleanup"
+BUILD_VERSION = "V19.24"
+BUILD_NUMBER = "19658"
+BUILD_NAME = "Internal Test Harness"
 ```
 
 ## appSession
@@ -584,3 +584,14 @@ Runtime helper additions:
 
 Purpose:
 - reduce render/Firebase echo bugs during local editing.
+
+
+## V19.24 — Internal Test Harness
+
+Schema не змінена.
+
+New public test API:
+- `window.POLOVYI_MODUL_TESTS.runInternalSelfCheck()`
+- `window.POLOVYI_MODUL_TESTS.runCombatSmokeTest()`
+- `window.POLOVYI_MODUL_TESTS.runFullInternalTests()`
+- `window.POLOVYI_MODUL_TESTS.renderTestReport(title, results)`

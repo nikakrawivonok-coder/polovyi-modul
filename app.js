@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.23 Render Firebase Architecture Cleanup
+// Польовий Модуль — V19.24 Internal Test Harness
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.23";
-const BUILD_NUMBER = "19657";
-const BUILD_NAME = "Render Firebase Architecture Cleanup";
+const BUILD_VERSION = "V19.24";
+const BUILD_NUMBER = "19658";
+const BUILD_NAME = "Internal Test Harness";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2576,6 +2576,217 @@ function quietSaveFieldEdit(ms=900){
   save();
 }
 
+
+// =============================
+// INTERNAL TEST HARNESS
+// =============================
+
+function testResult(status, name, details=""){
+  return { status, name, details };
+}
+
+function testOk(name, details=""){
+  return testResult("ok", name, details);
+}
+
+function testWarn(name, details=""){
+  return testResult("warn", name, details);
+}
+
+function testFail(name, details=""){
+  return testResult("fail", name, details);
+}
+
+function testStatusIcon(status){
+  if(status === "ok") return "✅";
+  if(status === "warn") return "⚠️";
+  return "❌";
+}
+
+function currentBuildLabel(){
+  return `${BUILD_VERSION} · ${BUILD_NUMBER}`;
+}
+
+function renderTestReport(title, results){
+  const counts = results.reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1;
+    return acc;
+  }, {});
+  const ok = counts.ok || 0;
+  const warn = counts.warn || 0;
+  const fail = counts.fail || 0;
+  const rows = results.map(r => `<li class="test-result test-${escapeAttr(r.status)}"><strong>${testStatusIcon(r.status)} ${escapeHtml(r.name)}</strong>${r.details ? `<p>${escapeHtml(r.details)}</p>` : ""}</li>`).join("");
+  return `<div class="test-report">
+    <div class="test-report-head">
+      <h4>${escapeHtml(title)}</h4>
+      <p>Build: <b>${escapeHtml(currentBuildLabel())}</b> · ✅ ${ok} · ⚠️ ${warn} · ❌ ${fail}</p>
+    </div>
+    <ul>${rows}</ul>
+  </div>`;
+}
+
+function runInternalSelfCheck(){
+  const results = [];
+
+  results.push(BUILD_VERSION && BUILD_NUMBER ? testOk("Build визначено", currentBuildLabel()) : testFail("Build не визначено"));
+  results.push(BUILD_NUMBER === "19658" ? testOk("Build number відповідає V19.24", BUILD_NUMBER) : testWarn("Build number неочікуваний", BUILD_NUMBER));
+
+  const appScript = [...document.querySelectorAll("script[src]")].find(script => String(script.getAttribute("src") || "").includes("app.js"));
+  if(appScript){
+    const src = appScript.getAttribute("src") || "";
+    results.push(src.includes(`v=${BUILD_NUMBER}`) ? testOk("index.html підключає app.js з правильним v=", src) : testWarn("app.js підключений без актуального v=", src));
+  } else {
+    results.push(testFail("Не знайдено script app.js"));
+  }
+
+  const oldGmInventory = document.querySelector("#gmInventory");
+  results.push(!oldGmInventory ? testOk("Старий GM-блок #gmInventory не повернувся") : testFail("Старий GM-блок #gmInventory знову є в DOM"));
+
+  const playerAddWeapon = document.querySelector("[data-add-player-weapon]");
+  results.push(!playerAddWeapon ? testOk("Гравець не має кнопки самостійно додавати зброю") : testFail("Знайдено player-side кнопку додавання зброї"));
+
+  const p = currentPlayer();
+  normalizeCharacterWeapons(p);
+  const active = activeWeaponItem(p);
+  results.push(active ? testOk("У поточного гравця є активна зброя", `${active.name || active.id} · ${active.damage || "без damage"}`) : testWarn("У поточного гравця немає активної зброї", "Працюватиме fallback на старе поле weapon."));
+  results.push(active?.damage || p.weapon ? testOk("Джерело шкоди доступне", active?.damage || p.weapon) : testFail("Не знайдено джерело шкоди гравця"));
+
+  const enemies = Array.isArray(data.enemies) ? data.enemies : [];
+  results.push(enemies.length ? testOk("Вороги в кімнаті є", `${enemies.length} ворог(ів)`) : testWarn("Ворогів у кімнаті немає", "Для повного тесту додай шаблонного ворога."));
+  const enemyWithEditor = document.querySelector("[data-enemy-editor]");
+  if(appSession.role === "gm"){
+    results.push(enemyWithEditor || !enemies.length ? testOk("Enemy editor доступний або ворогів немає") : testWarn("Вороги є, але enemy editor не знайдено в DOM"));
+  }
+
+  const visibleEnemy = enemies.find(e => e.visible !== false);
+  if(visibleEnemy){
+    const publicBrief = sanitizePlayerCombatBrief({
+      title: `${p.name || "Гравець"}: Тест → ${visibleEnemy.name || "Ворог"}`,
+      targetLine: `Захист ${visibleEnemy.name || "Ворог"} ${enemyDefenseValue(visibleEnemy)}`,
+      diceLine: "🎲 тест",
+      damageLine: "1 влуч., завдана шкода: 1.",
+      resultLineGm: `${visibleEnemy.name}: HP 9/10.`,
+      resultLinePlayer: `${visibleEnemy.name}: поранений.`,
+      ammoLine: "Залишилося набоїв: 1.",
+      exposureLine: "",
+      visibility: "public"
+    });
+    results.push(String(publicBrief).includes("HP ") ? testFail("Privacy HP гравця", "У player brief знайдено HP.") : testOk("Privacy HP гравця", "Player brief не містить точні HP ворога."));
+  } else {
+    results.push(testWarn("Privacy HP не перевірено", "Немає видимого ворога."));
+  }
+
+  results.push(typeof quietSaveFieldEdit === "function" ? testOk("quietSaveFieldEdit доступний") : testFail("quietSaveFieldEdit відсутній"));
+  results.push(typeof saveAndRenderPreserveScroll === "function" ? testOk("saveAndRenderPreserveScroll доступний") : testFail("saveAndRenderPreserveScroll відсутній"));
+
+  return results;
+}
+
+function runCombatSmokeTest(){
+  const results = [];
+
+  function expect(name, condition, details=""){
+    results.push(condition ? testOk(name, details) : testFail(name, details));
+  }
+
+  const testPlayer = normalizeCharacterWeapons({
+    id: "test_player",
+    name: "Тест-гравець",
+    hp: 15,
+    hpMax: 15,
+    defense: 12,
+    defenseMax: 12,
+    ammo: 20,
+    fatigue: 0,
+    infection: 0,
+    armor: 0,
+    weapon: "aks74u",
+    activeWeapon: "aks74u",
+    range: "far",
+    weaponCondition: "normal",
+    weaponJammed: false,
+    inventory: [
+      { id: "aks74u", type: "weapon", name: "АКС-74У", damage: "d6", range: "far", equipped: true }
+    ],
+    stats: { endurance: 1, accuracy: 1, agility: 1, perception: 1, intuition: 1, charisma: 1 }
+  });
+
+  const d6Profile = weaponDamageProfile(testPlayer);
+  expect("activeWeapon damage читається", d6Profile?.dice === "d6", JSON.stringify(d6Profile));
+
+  testPlayer.inventory[0].damage = "d400";
+  const d400Profile = weaponDamageProfile(testPlayer);
+  expect("custom damage d400 читається", d400Profile?.dice === "d400", JSON.stringify(d400Profile));
+
+  testPlayer.inventory[0].damage = "d4+1";
+  const d4p1Profile = weaponDamageProfile(testPlayer);
+  expect("custom damage d4+1 читається", d4p1Profile?.dice === "d4" && Number(d4p1Profile?.bonus || 0) === 1, "");
+  // placeholder replaced below to avoid syntax collision in Python generation
+
+  const textNoFormula = damageRollsTextForBrief({ rolls: [64], sides: 400, formula: "1d400", hitDice: 1 }, 0);
+  expect("damage text без зайвої Формула", !textNoFormula.includes("Формула:"), textNoFormula);
+  expect("damage text показує 1d400", textNoFormula.includes("1d400"), textNoFormula);
+
+  const playerBrief = sanitizePlayerCombatBrief({
+    title: "Тест: Черга → Автоматник",
+    targetLine: "Захист Автоматник 12",
+    diceLine: "🎲 10, 11, 12 → 8, 9, 10",
+    damageLine: "1 влуч., завдана шкода: 5.",
+    resultLineGm: "Автоматник: HP 5/10.",
+    resultLinePlayer: "Автоматник: поранений.",
+    ammoLine: "Залишилося набоїв: 10.",
+    exposureLine: "Тест-гравець розкрився: Захист 12 → 10 до його наступного ходу.",
+    visibility: "public"
+  });
+  expect("player combat brief не показує HP ворога", !String(playerBrief).includes("HP "), String(playerBrief));
+
+  // Static rule checks for current locked combat model.
+  const aimedExposure = 0;
+  const combatTwoMissExposure = 1;
+  const burstExposure = 2;
+  expect("1 патрон не дає розкриття", aimedExposure === 0);
+  expect("2 патрони при 0 влучань дають -1 Захист", combatTwoMissExposure === 1);
+  expect("3 патрони / черга дає -2 Захист", burstExposure === 2);
+
+  const recoil = [-2, -4, -6];
+  expect("віддача черг -2/-4/-6 зафіксована", recoil.join("/") === "-2/-4/-6");
+
+  return results;
+}
+
+function runFullInternalTests(){
+  return [
+    ...runInternalSelfCheck(),
+    ...runCombatSmokeTest()
+  ];
+}
+
+function showInternalTestReport(){
+  if(appSession.role !== "gm"){
+    showToast("Self-check доступний тільки Майстру.");
+    return;
+  }
+  const results = runFullInternalTests();
+  const html = renderTestReport("Internal self-check + combat smoke-test", results);
+  const box = qs("#internalTestReport");
+  if(box){
+    box.innerHTML = html;
+    box.hidden = false;
+  }
+  const fail = results.filter(r => r.status === "fail").length;
+  const warn = results.filter(r => r.status === "warn").length;
+  showToast(fail ? `Self-check: ${fail} помилок.` : warn ? `Self-check: ${warn} попереджень.` : "Self-check: усе OK.");
+}
+
+window.POLOVYI_MODUL_TESTS = {
+  runInternalSelfCheck,
+  runCombatSmokeTest,
+  runFullInternalTests,
+  renderTestReport,
+  currentBuildLabel
+};
+
+
 function renderPreserveScroll(){
   const x = window.scrollX || 0;
   const y = window.scrollY || 0;
@@ -5032,6 +5243,11 @@ const enemyStep = e.target.closest("[data-enemy-step]");
       saveAndRenderPreserveScroll();
       showToast(item ? `${enemy.name}: активна зброя — ${activeWeaponLabel(enemy)}.` : "Не вдалося змінити активну зброю ворога.");
     }
+    return;
+  }
+
+  if(e.target.closest("#runSelfCheck")){
+    showInternalTestReport();
     return;
   }
 

@@ -2261,3 +2261,55 @@ body.role-gm .compact-gm-debug strong{
   -webkit-overflow-scrolling:touch;
   padding-right:0.15rem;
 }
+
+
+.internal-test-panel{
+  margin-bottom:0.85rem;
+  border:1px solid var(--line);
+  border-radius:1rem;
+  padding:0.75rem;
+  background:rgba(0,0,0,0.22);
+}
+.compact-title{
+  margin-bottom:0.35rem;
+}
+.test-report{
+  margin-top:0.7rem;
+  border:1px solid var(--line);
+  border-radius:0.8rem;
+  padding:0.65rem;
+  background:rgba(0,0,0,0.22);
+}
+.test-report h4{
+  margin:0 0 0.25rem;
+}
+.test-report-head p{
+  margin:0 0 0.5rem;
+  opacity:0.85;
+}
+.test-report ul{
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:grid;
+  gap:0.35rem;
+}
+.test-result{
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:0.6rem;
+  padding:0.45rem;
+}
+.test-result p{
+  margin:0.25rem 0 0;
+  opacity:0.78;
+  font-size:0.9em;
+}
+.test-ok{
+  background:rgba(71, 170, 92, 0.08);
+}
+.test-warn{
+  background:rgba(214, 170, 70, 0.1);
+}
+.test-fail{
+  background:rgba(210, 70, 70, 0.1);
+}
