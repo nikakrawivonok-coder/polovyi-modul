@@ -1,3 +1,15 @@
+## V19.24.1 — Expanded Test Harness
+
+Ціль:
+- ще більше скоротити ручне тестування;
+- розширити Self-check до authority / inventory / journal / UI / combat rule checks;
+- не змінювати реальну ігрову логіку.
+
+Після цього стандарт перевірки:
+- test.html або Self-check без ❌;
+- один ручний тест нової функції;
+- один ручний постріл тільки для версій, що чіпають бій.
+
 ## V19.24 — Internal Test Harness
 
 Ціль:

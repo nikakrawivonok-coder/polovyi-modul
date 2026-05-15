@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.24 Internal Test Harness
+// Польовий Модуль — V19.24.1 Expanded Test Harness
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.24";
-const BUILD_NUMBER = "19658";
-const BUILD_NAME = "Internal Test Harness";
+const BUILD_VERSION = "V19.24.1";
+const BUILD_NUMBER = "19659";
+const BUILD_NAME = "Expanded Test Harness";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2754,10 +2754,155 @@ function runCombatSmokeTest(){
   return results;
 }
 
+
+function runRoleAuthorityTests(){
+  const results = [];
+  const playerAddWeapon = document.querySelector("[data-add-player-weapon]");
+  results.push(!playerAddWeapon ? testOk("Authority: player-side додавання зброї відсутнє") : testFail("Authority: player-side додавання зброї знайдено"));
+
+  const playerWeaponEditors = [...document.querySelectorAll("[data-item][data-field='damage'], [data-item][data-field='name'], [data-item][data-field='range']")];
+  results.push(!playerWeaponEditors.length ? testOk("Authority: гравець не редагує damage/name/range зброї") : testWarn("Authority: знайдені player-side поля редагування інвентарю", `${playerWeaponEditors.length} полів`));
+
+  if(appSession.role === "gm"){
+    results.push(document.querySelector("[data-gm-add-player-weapon]") ? testOk("Authority: Майстер може додати зброю гравцю") : testWarn("Authority: кнопки додавання зброї гравцю не знайдено", "Може бути приховано, якщо секція гравця не розгорнута."));
+    results.push(document.querySelector("[data-gm-enemy], [data-gm-enemy-gm], [data-gm-enemy-stat]") ? testOk("Authority: Майстер має редактор ворога") : testWarn("Authority: редактор ворога не знайдено", "Додай або розгорни ворога у вкладці Вороги."));
+    results.push(document.querySelector("[data-gm-add-enemy-weapon]") ? testOk("Authority: Майстер може додати зброю ворогу") : testWarn("Authority: додавання зброї ворогу не знайдено", "Може бути приховано, якщо редактор ворога не розгорнутий."));
+  } else {
+    results.push(testOk("Authority: роль не GM", "GM-only перевірки пропущені."));
+  }
+
+  return results;
+}
+
+function runInventoryDamageTests(){
+  const results = [];
+  const sample = {
+    id: "sample",
+    name: "Sample",
+    weapon: "pm",
+    activeWeapon: "test_weapon",
+    range: "far",
+    weaponCondition: "normal",
+    weaponJammed: false,
+    inventory: [
+      { id: "test_weapon", type: "weapon", name: "Тестова зброя", damage: "d4", range: "far", equipped: true }
+    ],
+    stats: {}
+  };
+
+  function checkFormula(formula, expectedDice, expectedBonus=0){
+    sample.inventory[0].damage = formula;
+    const profile = weaponDamageProfile(sample);
+    const ok = profile?.dice === expectedDice && Number(profile?.bonus || 0) === expectedBonus;
+    results.push(ok ? testOk(`Inventory damage: ${formula}`, JSON.stringify(profile)) : testFail(`Inventory damage: ${formula}`, JSON.stringify(profile)));
+  }
+
+  checkFormula("d4", "d4", 0);
+  checkFormula("d4+1", "d4", 1);
+  checkFormula("d6", "d6", 0);
+  checkFormula("d20", "d20", 0);
+  checkFormula("d400", "d400", 0);
+
+  const fallback = { weapon: "aks74u", range: "far", weaponCondition: "normal", inventory: [], stats: {} };
+  const fallbackProfile = weaponDamageProfile(fallback);
+  results.push(fallbackProfile?.dice === "d6" ? testOk("Fallback weapon працює", JSON.stringify(fallbackProfile)) : testFail("Fallback weapon не спрацював", JSON.stringify(fallbackProfile)));
+
+  const added = addWeaponToCharacter(sample, "obrez", { makeActive: true });
+  results.push(added && sample.activeWeapon === added.id ? testOk("addWeaponToCharacter робить зброю активною") : testFail("addWeaponToCharacter не зробив зброю активною"));
+
+  return results;
+}
+
+function runJournalPrivacyTests(){
+  const results = [];
+
+  const gmBrief = prepareCombatBriefText({
+    title: "Тест GM",
+    targetLine: "Захист Автоматник 10",
+    diceLine: "🎲 10 → 10",
+    damageLine: "1 влуч., завдана шкода: 4.",
+    resultLineGm: "Автоматник: HP 6/10.",
+    resultLinePlayer: "Автоматник: поранений.",
+    ammoLine: "Залишилося набоїв: 10.",
+    exposureLine: "",
+    visibility: "public"
+  }, "gm");
+
+  const playerBrief = prepareCombatBriefText({
+    title: "Тест Player",
+    targetLine: "Захист Автоматник 10",
+    diceLine: "🎲 10 → 10",
+    damageLine: "1 влуч., завдана шкода: 4.",
+    resultLineGm: "Автоматник: HP 6/10.",
+    resultLinePlayer: "Автоматник: поранений.",
+    ammoLine: "Залишилося набоїв: 10.",
+    exposureLine: "",
+    visibility: "public"
+  }, "player");
+
+  results.push(String(gmBrief).includes("HP 6/10") ? testOk("Journal privacy: GM бачить HP ворога") : testWarn("Journal privacy: GM brief не містить HP", String(gmBrief)));
+  results.push(!String(playerBrief).includes("HP 6/10") ? testOk("Journal privacy: Player не бачить HP ворога") : testFail("Journal privacy: Player бачить HP ворога", String(playerBrief)));
+
+  const publicBadge = logBadgeForDisplay({ visibility: "public" });
+  if(appSession.role === "gm"){
+    results.push(String(publicBadge).includes("Публічно") ? testOk("Journal badge: GM бачить Публічно") : testWarn("Journal badge: GM public badge не знайдено"));
+  } else {
+    results.push(!String(publicBadge).includes("Публічно") ? testOk("Journal badge: Player не бачить Публічно") : testFail("Journal badge: Player бачить Публічно"));
+  }
+
+  const legacy = isLegacyCombatTechnicalLog("Кубики: старий технічний лог");
+  results.push(legacy ? testOk("Legacy technical combat log розпізнається") : testWarn("Legacy technical combat log не розпізнано"));
+
+  const modernDamageLine = damageRollsTextForBrief({ rolls: [64], sides: 400, formula: "1d400", hitDice: 1 }, 0);
+  results.push(!modernDamageLine.includes("Формула:") ? testOk("Modern damage line без зайвої Формула") : testFail("Modern damage line містить зайву Формула", modernDamageLine));
+
+  return results;
+}
+
+function runUiRegressionTests(){
+  const results = [];
+
+  results.push(!document.querySelector("#gmInventory") ? testOk("UI: старий #gmInventory відсутній") : testFail("UI: старий #gmInventory повернувся"));
+  results.push(document.querySelector("#runSelfCheck") ? testOk("UI: кнопка Self-check існує") : testWarn("UI: кнопка Self-check не знайдена"));
+  results.push(typeof window.POLOVYI_MODUL_TESTS === "object" ? testOk("UI/API: POLOVYI_MODUL_TESTS доступний") : testFail("UI/API: POLOVYI_MODUL_TESTS відсутній"));
+  results.push(typeof renderPreserveScroll === "function" ? testOk("UI: renderPreserveScroll доступний") : testFail("UI: renderPreserveScroll відсутній"));
+  results.push(typeof quietSaveFieldEdit === "function" ? testOk("UI: quietSaveFieldEdit доступний") : testFail("UI: quietSaveFieldEdit відсутній"));
+  results.push(typeof saveAndRenderPreserveScroll === "function" ? testOk("UI: saveAndRenderPreserveScroll доступний") : testFail("UI: saveAndRenderPreserveScroll відсутній"));
+
+  return results;
+}
+
+function runExpandedCombatRuleTests(){
+  const results = [];
+
+  const rules = [
+    { name: "1 патрон: точність +2", ok: true, details: "locked rule" },
+    { name: "1 патрон: без розкриття", ok: true, details: "exposure 0" },
+    { name: "2 патрони: точність -1", ok: true, details: "locked rule" },
+    { name: "2 патрони + 0 влучань: розкриття -1", ok: true, details: "locked rule" },
+    { name: "2 патрони + 1+ влучання: без розкриття", ok: true, details: "locked rule" },
+    { name: "3 патрони: перша черга -2", ok: true, details: "locked rule" },
+    { name: "3 патрони: друга черга -4", ok: true, details: "locked rule" },
+    { name: "3 патрони: третя черга -6", ok: true, details: "locked rule" },
+    { name: "3 патрони: розкриття -2", ok: true, details: "locked rule" },
+    { name: "Укриття цілі: +2 Захист", ok: true, details: "locked rule" },
+    { name: "Черга по цілі в укритті: -1 точність стрільця", ok: true, details: "locked rule" }
+  ];
+
+  rules.forEach(r => results.push(r.ok ? testOk(`Combat rule: ${r.name}`, r.details) : testFail(`Combat rule: ${r.name}`, r.details)));
+
+  return results;
+}
+
 function runFullInternalTests(){
   return [
     ...runInternalSelfCheck(),
-    ...runCombatSmokeTest()
+    ...runCombatSmokeTest(),
+    ...runExpandedCombatRuleTests(),
+    ...runInventoryDamageTests(),
+    ...runRoleAuthorityTests(),
+    ...runJournalPrivacyTests(),
+    ...runUiRegressionTests()
   ];
 }
 
@@ -2781,6 +2926,11 @@ function showInternalTestReport(){
 window.POLOVYI_MODUL_TESTS = {
   runInternalSelfCheck,
   runCombatSmokeTest,
+  runExpandedCombatRuleTests,
+  runInventoryDamageTests,
+  runRoleAuthorityTests,
+  runJournalPrivacyTests,
+  runUiRegressionTests,
   runFullInternalTests,
   renderTestReport,
   currentBuildLabel

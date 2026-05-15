@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.24"
-BUILD_NUMBER = "19658"
-BUILD_NAME = "Internal Test Harness"
+BUILD_VERSION = "V19.24.1"
+BUILD_NUMBER = "19659"
+BUILD_NAME = "Expanded Test Harness"
 ```
 
 ## appSession
@@ -595,3 +595,15 @@ New public test API:
 - `window.POLOVYI_MODUL_TESTS.runCombatSmokeTest()`
 - `window.POLOVYI_MODUL_TESTS.runFullInternalTests()`
 - `window.POLOVYI_MODUL_TESTS.renderTestReport(title, results)`
+
+
+## V19.24.1 — Expanded Test Harness
+
+Schema не змінена.
+
+Expanded test API additions:
+- `runExpandedCombatRuleTests()`
+- `runInventoryDamageTests()`
+- `runRoleAuthorityTests()`
+- `runJournalPrivacyTests()`
+- `runUiRegressionTests()`

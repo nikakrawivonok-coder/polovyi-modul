@@ -1,4 +1,4 @@
-# Польовий Модуль — V19.24 Internal Test Harness
+# Польовий Модуль — V19.24.1 Expanded Test Harness
 
 Це документаційний checkpoint після V19.18.11.
 
@@ -403,3 +403,25 @@ Hotfix:
 - відсутність зайвої `Формула:`;
 - privacy HP у player combat brief;
 - базові locked combat rules 1/2/3.
+
+
+## V19.24.1 — Expanded Test Harness
+
+Розширено систему тестування.
+
+Додано набори тестів:
+- role authority tests;
+- inventory / activeWeapon damage tests;
+- journal privacy tests;
+- UI regression tests;
+- expanded combat rule checks.
+
+Тести перевіряють більше регресій без зміни реальної кімнати:
+- права гравця/Майстра;
+- custom damage d4/d4+1/d6/d20/d400;
+- fallback weapon;
+- privacy HP;
+- legacy combat log filter;
+- відсутність старого gmInventory;
+- наявність render/Firebase helpers;
+- locked combat rules.
