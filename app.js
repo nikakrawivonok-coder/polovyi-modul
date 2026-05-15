@@ -78,9 +78,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.17.10";
-const BUILD_NUMBER = "19627";
-const BUILD_NAME = "Exposure Trigger Fix";
+const BUILD_VERSION = "V19.17.12";
+const BUILD_NUMBER = "19629";
+const BUILD_NAME = "Combat Text Cleanup + Journal Privacy Audit";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -1649,7 +1649,6 @@ function enemyAttack(enemyId, mode){
 
   data.combat = data.combat || {};
   data.combat.lastEvent = result;
-  addLog(result, "public");
   if(!mutant) addLog(`${enemy.name}: після атаки лишилось набоїв: ${enemy.gm.ammo}.`, "gm");
 
   if(target.hp <= 0){
@@ -1721,6 +1720,7 @@ function enemyAttack(enemyId, mode){
   });
 
   showCombatBriefToastForCurrentRole();
+  addCombatBriefToJournal();
 
   render();
 }
@@ -2092,7 +2092,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19627`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19629`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2527,6 +2527,7 @@ function render(){
   ensureJournalComposer();
   renderJournalPrivateTargets();
   qs("#journalList").innerHTML = (data.journal || []).filter(j => {
+    if(isLegacyCombatTechnicalLog(j?.text)) return false;
     if(appSession.role !== "gm"){
       if(j.visibility === "gm") return false;
       if(j.visibility === "private") return j.targetPlayerId === appSession.player;
@@ -2764,9 +2765,25 @@ function logBadgeForDisplay(j){
   return "";
 }
 
+function isLegacyCombatTechnicalLog(text){
+  const s = String(text || "");
+  if(!s) return false;
+  const hasOldCombatTerms = /\b(Кубики|Підсумок|Захист цілі|Влучань|Формула|3d20|2d20|1d20)\b/u.test(s);
+  const hasCombatAction = /(Точний постріл|Бойовий постріл|Черга|стріляє|атакує)/u.test(s);
+  return hasOldCombatTerms && hasCombatAction;
+}
+
+function journalTextForCurrentRole(j){
+  let text = String(j?.text || "");
+  if(appSession.role !== "gm" && j?.visibility !== "gm"){
+    text = sanitizePlayerCombatBrief(text);
+  }
+  return quoteLogActors(text);
+}
+
 function logItem(j){
   const badge = logBadgeForDisplay(j);
-  const text = quoteLogActors(j.text);
+  const text = journalTextForCurrentRole(j);
   return `<div class="journal-entry"><time>${escapeHtml(j.time)}</time>${badge}<span class="journal-text">${escapeHtml(text)}</span></div>`;
 }
 
@@ -2818,7 +2835,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.10</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.17.12</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2922,7 +2939,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19627`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19629`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3780,8 +3797,8 @@ function applyPlayerShotToEnemyFromPanel(playerId, enemyId, action){
   });
 
   showCombatBriefToastForCurrentRole();
+  addCombatBriefToJournal();
 
-  addLog(`${p.name || playerId}: ${cfg.title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}.${targetText}${hitText}. Набої: ${p.ammo}.`, "public");
   render();
   triggerFlicker();
   return true;
@@ -4045,7 +4062,11 @@ function doAction(action){
     clearStateRollResult();
   }
 
-  addLog(`${p.name}: ${title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}${attrKey ? `. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}` : ""}${targetText}${hitText}${cost ? `. Набої: ${p.ammo}` : ""}.`, "public");
+  if(isAttack){
+    addCombatBriefToJournal();
+  } else {
+    addLog(`${p.name}: ${title}. ${rollText}. Кубики: ${r.dice.join(", ")}. Підсумок: ${r.totals.join(", ")}${attrKey ? `. ${attrName}: ${attrMod > 0 ? "+" : ""}${attrMod}` : ""}${targetText}${hitText}${cost ? `. Набої: ${p.ammo}` : ""}.`, "public");
+  }
   render();
   triggerFlicker();
 }
@@ -4268,6 +4289,14 @@ function setCombatBrief({
   data.combat.lastBriefPublic = publicLines.join("\n");
   data.combat.lastBriefGm = gmLines.join("\n");
   data.combat.lastBrief = data.combat.lastBriefPublic;
+}
+
+function addCombatBriefToJournal(){
+  const combat = data.combat || {};
+  const publicText = combat.lastBriefPublic || combat.lastBrief || "";
+  const gmText = combat.lastBriefGm || "";
+  if(publicText) addLog(publicText, "public");
+  if(gmText && gmText !== publicText) addLog(`Деталі Майстра:\n${gmText}`, "gm");
 }
 
 function showCombatBriefToastForCurrentRole(){

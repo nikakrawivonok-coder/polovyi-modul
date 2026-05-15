@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.17.10
+# DATA_SCHEMA.md — Польовий Модуль V19.17.12
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.17.10"
-BUILD_NUMBER = "19627"
-BUILD_NAME = "Exposure Trigger Fix"
+BUILD_VERSION = "V19.17.12"
+BUILD_NUMBER = "19629"
+BUILD_NAME = "Combat Text Cleanup + Journal Privacy Audit"
 ```
 
 ## appSession
@@ -309,3 +309,18 @@ Build/cache: `19622`.
 - 1 патрон / `shoot_aimed`: не створює розкриття.
 - 2 патрони / `shoot_normal`: створює розкриття -1 тільки при 0 влучань.
 - 3 патрони / `shoot_burst`: створює розкриття -2 після кожної черги.
+
+
+## V19.17.11 — Combat Text Cleanup / Journal Privacy Audit
+
+- `setCombatBrief(...)` лишається основним джерелом короткого бойового підсумку.
+- `lastBriefPublic` — безпечний текст для гравців: показує Захист цілі та модифікатори, але не точні HP ворогів.
+- `lastBriefGm` — повний текст для Майстра, включно з HP ворогів.
+- `addCombatBriefToJournal()` переносить ці role-aware версії в журнал: public + окремі GM-деталі.
+
+
+## V19.17.12 — Journal legacy cleanup
+
+- `isLegacyCombatTechnicalLog(text)` приховує старі технічні бойові записи журналу, створені попередніми форматами.
+- `journalTextForCurrentRole(j)` додатково очищує текст журналу для гравця через `sanitizePlayerCombatBrief`.
+- Бойова математика не змінювалась.
