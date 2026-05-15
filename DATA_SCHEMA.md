@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.26.1"
-BUILD_NUMBER = "19664"
-BUILD_NAME = "Dev Toolkit Preflight Snapshot Fix"
+BUILD_VERSION = "V19.26.2"
+BUILD_NUMBER = "19665"
+BUILD_NAME = "Debug Snapshot Display Fix"
 ```
 
 ## appSession
@@ -652,3 +652,11 @@ Schema не змінена.
 Dev Toolkit hotfix:
 - generalized Preflight checks;
 - improved Debug snapshot visibility.
+
+
+## V19.26.2 — Debug Snapshot Display Fix
+
+Schema не змінена.
+Dev Toolkit UI-only hotfix:
+- `#debugSnapshotPanel`
+- robust `showDebugSnapshot()`

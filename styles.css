@@ -2425,3 +2425,24 @@ body.role-gm .compact-gm-debug strong{
   border-radius:0.6rem;
   padding:0.5rem;
 }
+
+
+.debug-snapshot-panel{
+  margin-top:0.7rem;
+  border:1px solid var(--line);
+  border-radius:0.85rem;
+  padding:0.65rem;
+  background:rgba(0,0,0,0.28);
+}
+.debug-snapshot-panel h4{
+  margin:0 0 0.35rem;
+}
+.debug-snapshot-panel p{
+  margin:0 0 0.5rem;
+  opacity:0.86;
+}
+.debug-snapshot-panel .debug-snapshot-box{
+  display:block;
+  width:100%;
+  min-height:14rem;
+}

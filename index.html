@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#120d09" />
-  <title>Польовий Модуль — V19.26.1 Dev Toolkit Preflight Snapshot Fix</title>
-  <link rel="stylesheet" href="./styles.css?v=19664">
+  <title>Польовий Модуль — V19.26.2 Debug Snapshot Display Fix</title>
+  <link rel="stylesheet" href="./styles.css?v=19665">
 
 </head>
 <body>
@@ -246,7 +246,11 @@
           <button class="metal-btn" id="copyDebugSnapshot">Debug snapshot</button>
           <button class="metal-btn danger" id="resetSafeTestRoom">Reset test-room</button>
         </div>
-        <textarea id="debugSnapshotBox" class="debug-snapshot-box" hidden readonly></textarea>
+        <div id="debugSnapshotPanel" class="debug-snapshot-panel" style="display:none;">
+          <h4>Debug snapshot</h4>
+          <p>Скопіюй цей JSON і надішли мені, якщо треба швидко зрозуміти стан кімнати.</p>
+          <textarea id="debugSnapshotBox" class="debug-snapshot-box" readonly></textarea>
+        </div>
         <div id="devToolkitReport" hidden></div>
       </div>
 
@@ -394,6 +398,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   
-  <script src="./app.js?v=19664"></script>
+  <script src="./app.js?v=19665"></script>
 </body>
 </html>

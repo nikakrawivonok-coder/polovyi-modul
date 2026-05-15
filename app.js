@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.26.1 Dev Toolkit Preflight Snapshot Fix
+// Польовий Модуль — V19.26.2 Debug Snapshot Display Fix
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.26.1";
-const BUILD_NUMBER = "19664";
-const BUILD_NAME = "Dev Toolkit Preflight Snapshot Fix";
+const BUILD_VERSION = "V19.26.2";
+const BUILD_NUMBER = "19665";
+const BUILD_NAME = "Debug Snapshot Display Fix";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -3103,35 +3103,54 @@ function showDebugSnapshot(){
     showToast("Debug snapshot доступний тільки Майстру.");
     return;
   }
+
   const text = JSON.stringify(buildDebugSnapshot(), null, 2);
+  const panel = qs("#debugSnapshotPanel");
   const box = qs("#debugSnapshotBox");
+
+  if(panel){
+    panel.style.display = "block";
+    panel.hidden = false;
+    panel.classList.add("debug-snapshot-box-visible");
+  }
+
   if(box){
     box.hidden = false;
     box.value = text;
+    box.removeAttribute("hidden");
+    box.style.display = "block";
     box.classList.add("debug-snapshot-box-visible");
-    requestAnimationFrame(() => {
-      box.scrollIntoView({ behavior: "smooth", block: "center" });
-      box.focus();
-      box.select();
-    });
   }
 
   const report = qs("#devToolkitReport");
-  if(report && !report.hidden){
+  if(report){
+    report.hidden = false;
     const safeText = escapeHtml(text);
-    report.insertAdjacentHTML("afterbegin", `<div class="debug-snapshot-preview">
+    report.innerHTML = `<div class="debug-snapshot-preview">
       <h4>Debug snapshot готовий</h4>
-      <p>Поле з JSON відкрито вище. Можеш скопіювати його і надіслати мені замість серії скріншотів.</p>
-      <pre>${safeText.slice(0, 1200)}${safeText.length > 1200 ? "\\n..." : ""}</pre>
-    </div>`);
+      <p>JSON показано у полі вище. Його можна скопіювати й надіслати мені.</p>
+      <pre>${safeText.slice(0, 1600)}${safeText.length > 1600 ? "\\n..." : ""}</pre>
+    </div>` + (report.innerHTML || "");
   }
+
+  requestAnimationFrame(() => {
+    const target = panel || box || report;
+    if(target?.scrollIntoView) target.scrollIntoView({ behavior: "smooth", block: "center" });
+    if(box){
+      try{
+        box.focus();
+        box.select();
+        box.setSelectionRange(0, box.value.length);
+      }catch(err){}
+    }
+  });
 
   if(navigator.clipboard?.writeText){
     navigator.clipboard.writeText(text)
       .then(() => showToast("Debug snapshot показано і скопійовано."))
-      .catch(() => showToast("Debug snapshot показано. Скопіюй текст із поля."));
+      .catch(() => showToast("Debug snapshot показано. Скопіюй JSON вручну."));
   } else {
-    showToast("Debug snapshot показано. Скопіюй текст із поля.");
+    showToast("Debug snapshot показано. Скопіюй JSON вручну.");
   }
 }
 
@@ -5549,6 +5568,15 @@ document.addEventListener("toggle", e => {
   const editor = e.target.closest?.("[data-enemy-editor]");
   if(editor){
     expandedStateEnemyDetails[editor.dataset.enemyEditor] = editor.open;
+  }
+}, true);
+
+
+
+document.addEventListener("click", e => {
+  if(e.target && e.target.id === "copyDebugSnapshot"){
+    e.preventDefault();
+    showDebugSnapshot();
   }
 }, true);
 

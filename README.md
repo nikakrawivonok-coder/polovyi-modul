@@ -1,4 +1,4 @@
-# Польовий Модуль — V19.26.1 Dev Toolkit Preflight Snapshot Fix
+# Польовий Модуль — V19.26.2 Debug Snapshot Display Fix
 
 Це документаційний checkpoint після V19.18.11.
 
@@ -511,3 +511,13 @@ Hotfix після V19.26:
 - cache-busting app.js/styles.css перевіряється відносно поточного BUILD_NUMBER;
 - Debug snapshot тепер явно показує textarea, прокручує до неї і додає preview у Dev Toolkit report;
 - гра, бій, журнал, інвентарі й Firebase-схема не змінювались.
+
+
+## V19.26.2 — Debug Snapshot Display Fix
+
+Hotfix:
+- Debug snapshot тепер виводиться в окремий видимий блок `#debugSnapshotPanel`;
+- textarea більше не залежить від `hidden`;
+- додано preview у `devToolkitReport`;
+- додано fallback click-handler для кнопки `Debug snapshot`;
+- гра, бій, Firebase, інвентарі, журнал і Пульт Майстра не змінювались.

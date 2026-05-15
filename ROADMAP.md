@@ -1,3 +1,10 @@
+## V19.26.2 — Debug Snapshot Display Fix
+
+Hotfix:
+- зробити Debug snapshot явно видимим;
+- прибрати залежність від hidden textarea;
+- додати fallback click handler.
+
 ## V19.26.1 — Dev Toolkit Preflight Snapshot Fix
 
 Hotfix:
