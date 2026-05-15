@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.21.2 Inventory Label + Damage Log Formula Fix
+// Польовий Модуль — V19.21.3 Remove Old GM Inventory Panel + Damage Text Polish
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.21.2";
-const BUILD_NUMBER = "19651";
-const BUILD_NAME = "Inventory Label + Damage Log Formula Fix";
+const BUILD_VERSION = "V19.21.3";
+const BUILD_NUMBER = "19652";
+const BUILD_NAME = "Remove Old GM Inventory Panel + Damage Text Polish";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -3124,14 +3124,8 @@ function fillMaster(){
     enemyTarget.innerHTML = ids.map(pid => `<option value="${escapeAttr(pid)}" ${pid === current ? "selected" : ""}>${escapeHtml(data.players[pid]?.name || pid)} (${escapeHtml(pid)})</option>`).join("");
   }
 
-  qs("#gmInventory").innerHTML = currentInventory().map((it, idx) => `
-    <div class="gm-row">
-      <label>Річ <input data-item="${idx}" data-field="item" value="${escapeAttr(it.item)}"></label>
-      <label>Кількість <input type="number" data-item="${idx}" data-field="count" value="${escapeAttr(String(it.count))}"></label>
-      <label>Примітка <input data-item="${idx}" data-field="note" value="${escapeAttr(it.note || "")}"></label>
-      <button class="metal-btn danger" data-remove-item="${idx}">Прибрати</button>
-    </div>
-  `).join("");
+  // V19.21.3: old standalone GM inventory panel removed.
+  // Player inventory is managed in Master → Players → Inventory of selected player.
 }
 
 
@@ -4463,15 +4457,14 @@ function damageRollsTextForBrief(damageResult, crits=0){
   const critRolls = critDice ? rolls.slice(Math.max(0, rolls.length - critDice)) : [];
   const normalDiceCount = normalRolls.length || Math.max(1, Number(damageResult?.hitDice || 1));
   const dieText = sides ? `${normalDiceCount}d${sides}` : "кубику шкоди";
-  const formulaText = damageResult?.formula ? ` · Формула: ${damageResult.formula}` : "";
   const normalText = `Випало: ${normalRolls.join(", ") || rolls.join(", ")} на ${dieText}`;
 
   if(critRolls.length){
     const critDieText = sides ? `${critRolls.length}d${sides}` : "крит. кубику";
-    return `${normalText} + ${critRolls.join(", ")} на крит. ${critDieText} (кубики шкоди${formulaText})`;
+    return `${normalText} + ${critRolls.join(", ")} на крит. ${critDieText} (кубики шкоди)`;
   }
 
-  return `${normalText} (кубики шкоди${formulaText})`;
+  return `${normalText} (кубики шкоди)`;
 }
 
 // V19.18: legacy static shot-result formatter removed. Unified combat summaries now use setCombatBrief().

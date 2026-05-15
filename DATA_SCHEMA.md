@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.21.2"
-BUILD_NUMBER = "19651"
-BUILD_NAME = "Inventory Label + Damage Log Formula Fix"
+BUILD_VERSION = "V19.21.3"
+BUILD_NUMBER = "19652"
+BUILD_NAME = "Remove Old GM Inventory Panel + Damage Text Polish"
 ```
 
 ## appSession
@@ -525,3 +525,10 @@ Authority model:
 - Schema не змінена.
 - `inventory.damage` як і раніше може містити кастомну формулу типу `d20`.
 - UI/Journal тепер явно показує формулу у combat summary.
+
+
+## V19.21.3 — Remove Old GM Inventory Panel + Damage Text Polish
+
+- Schema не змінена.
+- Видалено лише старий дублюючий GM UI-блок інвентарю.
+- `inventory.damage` продовжує підтримувати кастомні формули типу `d400`.

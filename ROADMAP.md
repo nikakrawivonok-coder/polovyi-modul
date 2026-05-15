@@ -1,3 +1,11 @@
+## V19.21.3 — Remove Old GM Inventory Panel + Damage Text Polish
+
+Hotfix:
+- видалити стару окрему GM-панель `Інвентар`;
+- залишити керування інвентарем гравця в `Майстер → Гравці → Інвентар гравця`;
+- залишити керування інвентарем ворога в деталях ворога;
+- прибрати зайве дублювання формули шкоди з combat summary.
+
 ## V19.21.2 — Inventory Label + Damage Log Formula Fix
 
 Hotfix:
