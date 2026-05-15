@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.18.10 Player Journal Visibility Fix
+// Польовий Модуль — V19.18.12 Documentation Consistency Pass
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,11 +73,38 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.10";
-const BUILD_NUMBER = "19642";
-const BUILD_NAME = "Player Journal Visibility Fix";
+const BUILD_VERSION = "V19.18.12";
+const BUILD_NUMBER = "19644";
+const BUILD_NAME = "Documentation Consistency Pass";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
+
+/*
+  V19.18.12 DOCUMENTATION CONSISTENCY PASS
+
+  No runtime logic changes are intended in this version.
+  Only build identifiers and project documentation were updated.
+  Use this version as a review checkpoint before further cleanup/gameplay changes.
+*/
+
+/*
+  CODE READABILITY BASELINE — V19.18.11
+  Base: stable V19.18.10. Discarded branch: duplicate Test Links Panel.
+
+  Rules:
+  - Do not change combat math without explicit approval.
+  - Player may see target Defense and modifiers, but not exact enemy HP.
+  - GM may see full combat details.
+  - Chat test links should use v=BUILD&hard=BUILD; do not duplicate link UI.
+
+  Sections:
+  1) Session / build / sync setup
+  2) Default room data and enemy templates
+  3) Rendering and role-aware UI
+  4) Journal visibility, privacy, and clear helpers
+  5) Combat helpers: recoil, exposure, defense, summaries
+  6) Event handlers
+*/
 
 /*
 COMBAT RULES LOCKED — do not change without explicit user approval.
@@ -3326,6 +3353,8 @@ function markShooterExposed(shooter, reason="розкрився", severity=1){
 // COMBAT: recoil / exposure helpers
 // =============================
 
+// CONTRACT: updateShooterAfterShot
+// Locked exposure rules: 1 ammo = none; 2 ammo = -1 only on 0 hits; burst = -2 after every burst.
 function updateShooterAfterShot(shooter, action, hits){
   const notes = [];
   if(!shooter) return notes;
@@ -4205,6 +4234,9 @@ function prepareCombatBriefResult(input = {}){
 // COMBAT: RESULT TEXT / ROLE-AWARE SUMMARY
 // =============================
 
+// CONTRACT: setCombatBrief
+// Must produce player-safe public text and GM text from the same combat event.
+// Public text may show target Defense/modifiers, but must not show exact enemy HP.
 function setCombatBrief(input = {}){
   const {
     shooterName,

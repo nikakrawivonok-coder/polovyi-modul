@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18.10"
-BUILD_NUMBER = "19642"
-BUILD_NAME = "Journal Render Helper Cleanup"
+BUILD_VERSION = "V19.18.12"
+BUILD_NUMBER = "19644"
+BUILD_NAME = "Documentation Consistency Pass"
 ```
 
 ## appSession
@@ -439,3 +439,18 @@ Maintenance notes:
 - Схема Firebase не змінювалась.
 - Локальний journal clear і надалі використовує ключ `pm_journal_hidden_<room>_<role/player>`.
 - Виправлено лише клієнтський фільтр видимості: `hiddenJournalIdsForCurrentRole()` є актуальним helper для GM і player.
+
+
+## V19.18.11 — Code Readability Baseline
+
+- База: стабільна `V19.18.10`.
+- Відкинута гілка з дубльованими тестовими посиланнями не використовується.
+- Додано code map / section markers / contract comments.
+- Логіка бою, privacy HP, журнал і Firebase-схема не змінювались.
+
+
+## V19.18.12 — Documentation Consistency Pass
+
+- Runtime-логіку не змінювати.
+- Оновлено документацію, locked combat rules і checklist.
+- Перед подальшою розробкою користувач має перевірити V19.18.12.
