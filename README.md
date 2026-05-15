@@ -1,6 +1,15 @@
-# Польовий Модуль — V19.18.2 Journal Render Helper Cleanup
+# Польовий Модуль — V19.18.3 Unused Helper Cleanup
 
-## V19.18.2 — Dead RollResult Cleanup
+Cleanup-only версія на базі V19.18.2. Бойова математика не змінювалась.
+
+## Що зроблено у V19.18.3
+
+- прибрано невикористані helper-функції, які більше не викликались у коді: `safeCall`, `enemyRow`, `weaponConditionText`, `damageFormulaText`, `randomModuleWarning`;
+- оновлено застарілий верхній коментар `app.js`, щоб він відповідав актуальній гілці V19.18;
+- збережено єдиний активний шлях бойового підсумку: `setCombatBrief(...)`, `addCombatBriefToJournal(...)`, `showCombatBriefToastForCurrentRole(...)`.
+
+
+## V19.18.3 — Dead RollResult Cleanup
 
 Малий cleanup-підхід після V19.18. Бойова математика не змінювалась.
 
@@ -8,7 +17,7 @@
 - прибрано `clearStateRollResult()` і залишкові виклики очищення старої панелі;
 - `showRollToast()` позначено як utility-only toast для неосновних перевірок, наприклад усунення клину;
 - бойові атаки й надалі використовують `setCombatBrief(...)`, `addCombatBriefToJournal(...)`, `showCombatBriefToastForCurrentRole(...)`;
-- оновлено cache-busting до `19634`.
+- оновлено cache-busting до `19635`.
 
 
 Малий архітектурний cleanup на базі стабільної гілки V19.17.13.1 / V19.17.12.
@@ -38,17 +47,17 @@
 ## Cache busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19634">
-<script src="./app.js?v=19634"></script>
+<link rel="stylesheet" href="./styles.css?v=19635">
+<script src="./app.js?v=19635"></script>
 ```
 
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19634&gmKey=zona-master&v=19634`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19635&gmKey=zona-master&v=19635`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19634&player=fox&v=19634`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19635&player=fox&v=19635`
 
 ## Що перевірити
 
@@ -59,7 +68,7 @@
 5. Гравець бачить Захист цілі, але не бачить HP ворога.
 6. Журнал не показує старий технічний бойовий запис.
 
-## V19.18.2 — Journal Render Helper Cleanup
+## V19.18.3 — Journal Render Helper Cleanup
 
 - Логіку видимості журналу винесено в `isJournalEntryVisibleForCurrentRole()` та `visibleJournalEntriesForCurrentRole()`.
 - Inline-фільтр журналу в `render()` замінено на один контрольований виклик.

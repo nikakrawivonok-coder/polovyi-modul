@@ -1,6 +1,5 @@
-// Польовий Модуль — V19.12.1 Damage Dice Transparency Patch
-// Extracted from Stable V18.12.1. Functional behavior should match V18.12.1.
-// No gameplay logic intentionally changed in this version.
+// Польовий Модуль — V19.18.3 Unused Helper Cleanup
+// Cleanup-only build. Combat math intentionally unchanged.
 
 (function(){
       var q = new URLSearchParams(location.search);
@@ -20,22 +19,7 @@ function safeSetHTML(selector, value){
   return el;
 }
 
-function safeCall(name, fn){
-  try{
-    return fn();
-  }catch(err){
-    console.error(`[${name}] failed`, err);
-    try{
-      const t = qs("#toast");
-      if(t){
-        t.textContent = `Помилка інтерфейсу: ${name}`;
-        t.hidden = false;
-        clearTimeout(showToast._timer);
-        showToast._timer = setTimeout(() => t.hidden = true, 5000);
-      }
-    }catch(_){}
-  }
-}
+
 
 
 window.POLOVYI_MODUL_JS_LOADED = true;
@@ -78,9 +62,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.2";
-const BUILD_NUMBER = "19634";
-const BUILD_NAME = "Journal Render Helper Cleanup";
+const BUILD_VERSION = "V19.18.3";
+const BUILD_NUMBER = "19635";
+const BUILD_NAME = "Unused Helper Cleanup";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2071,7 +2055,7 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19634`;
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19635`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2598,14 +2582,7 @@ function enemyStatusIcon(e){
   return e.color === "green" ? "⌁" : e.color === "orange" ? "✚" : e.color === "yellow" ? ")))" : "!";
 }
 
-function enemyRow(e){
-  const icon = enemyStatusIcon(e);
-  return `<div class="enemy-row">
-    <div class="enemy-thumb"></div>
-    <div><h4>${escapeHtml(e.name)}</h4><p class="${enemyColorClass(e.color)}">${escapeHtml(e.state)}</p></div>
-    <div class="enemy-icon ${enemyColorClass(e.color)}">${icon}</div><div class="chev">›</div>
-  </div>`;
-}
+
 
 function enemyCardPublic(e){
   const icon = enemyStatusIcon(e);
@@ -2825,7 +2802,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.18.2</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.18.3</div>
         <h4>Шаблони ворогів</h4>
         <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
       </div>
@@ -2929,7 +2906,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19634`;
+    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19635`;
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -3026,10 +3003,7 @@ function weaponConditionInfo(player){
   return WEAPON_CONDITIONS[player.weaponCondition || "normal"] || WEAPON_CONDITIONS.normal;
 }
 
-function weaponConditionText(player){
-  const c = weaponConditionInfo(player);
-  return `${c.name}${player.weaponJammed ? " · КЛИН" : ""}`;
-}
+
 
 function shouldWeaponJam(player, dice){
   const c = weaponConditionInfo(player);
@@ -3056,17 +3030,7 @@ function weaponDamageProfile(player){
   return weapon[range] || weapon.far || WEAPON_CATALOG.pm.far;
 }
 
-function damageFormulaText(player, hits=1){
-  const weapon = weaponInfo(player);
-  const range = weaponRange(player);
-  const profile = weaponDamageProfile(player);
-  const die = profile.dice || "d4";
-  const sides = Number(String(die).replace("d","")) || 4;
-  const bonus = Number(profile.bonus || 0);
-  const dicePart = hits > 1 ? `${hits}d${sides}` : `d${sides}`;
-  const bonusPart = bonus ? `${bonus > 0 ? "+" : ""}${bonus}` : "";
-  return `${weapon.name} · ${range === "near" ? "зблизька" : "здалека"} · ${dicePart}${bonusPart}`;
-}
+
 
 function rollWeaponDamage(player, hits, extraDice=0){
   const profile = weaponDamageProfile(player);
@@ -4217,20 +4181,7 @@ function triggerFlicker(){
   ], { duration: 420, easing:"steps(3)" });
 }
 
-function randomModuleWarning(){
-  const options = [
-    "Модуль: зафіксовано аномальну активність. Болти рекомендовано тримати напоготові.",
-    "Модуль: рівень перешкод зріс. Радіосигнал нестабільний.",
-    "Модуль: рух праворуч. Джерело не ідентифіковано.",
-    "Модуль: температура впала. Можлива прихована аномалія.",
-    "Модуль: пульс нестабільний. Перевір стан персонажа."
-  ];
-  const msg = options[Math.floor(Math.random()*options.length)];
-  addLog(msg, "public");
-  showToast(msg);
-  triggerFlicker();
-  render();
-}
+
 
 document.addEventListener("click", e => {
 

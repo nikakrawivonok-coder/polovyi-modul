@@ -1,12 +1,12 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.18.2
+# DATA_SCHEMA.md — Польовий Модуль V19.18.3
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18.2"
-BUILD_NUMBER = "19634"
+BUILD_VERSION = "V19.18.3"
+BUILD_NUMBER = "19635"
 BUILD_NAME = "Journal Render Helper Cleanup"
 ```
 
@@ -367,9 +367,16 @@ Build/cache: `19622`.
 - `showRollToast(...)` remains only for utility/non-combat checks such as jam clearing.
 
 
-## V19.18.2 — Journal render helper cleanup
+## V19.18.3 — Journal render helper cleanup
 
 - `isJournalEntryVisibleForCurrentRole(j)` — централізована перевірка видимості запису журналу для поточної ролі.
 - `visibleJournalEntriesForCurrentRole()` — єдине джерело списку записів, які можна рендерити в журналі.
 - `isLegacyCombatTechnicalLog(text)` лишається захисним фільтром проти старих технічних бойових записів.
 - Бойова математика не змінювалась.
+
+
+## V19.18.3 — Unused Helper Cleanup
+
+- Прибрані невикористані helper-функції: `safeCall`, `enemyRow`, `weaponConditionText`, `damageFormulaText`, `randomModuleWarning`.
+- Активний бойовий підсумок лишається через `setCombatBrief(...)`, `addCombatBriefToJournal(...)`, `showCombatBriefToastForCurrentRole(...)`.
+- Бойова математика і Firebase-схема не змінювались.
