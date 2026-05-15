@@ -2331,3 +2331,67 @@ body.role-gm .compact-gm-debug strong{
   font-size:0.85rem;
   white-space:pre;
 }
+
+
+.gm-comfort-dashboard{
+  border:1px solid var(--line);
+  border-radius:1rem;
+  padding:0.85rem;
+  margin:0 0 0.85rem;
+  background:linear-gradient(135deg, rgba(255,205,120,0.08), rgba(0,0,0,0.22));
+}
+.gm-comfort-head{
+  display:flex;
+  justify-content:space-between;
+  gap:0.75rem;
+  align-items:flex-start;
+  margin-bottom:0.65rem;
+}
+.gm-comfort-head h3{
+  margin:0.1rem 0 0;
+}
+.gm-comfort-pill{
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:0.25rem 0.55rem;
+  white-space:nowrap;
+  opacity:0.9;
+}
+.gm-comfort-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:0.45rem;
+  margin-bottom:0.65rem;
+}
+.gm-comfort-card{
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:0.75rem;
+  padding:0.5rem;
+  background:rgba(0,0,0,0.18);
+}
+.gm-comfort-card b{
+  display:block;
+  margin-bottom:0.22rem;
+}
+.gm-comfort-card span{
+  opacity:0.86;
+  font-size:0.92rem;
+}
+.gm-comfort-actions{
+  display:flex;
+  gap:0.4rem;
+  flex-wrap:wrap;
+  margin-bottom:0.65rem;
+}
+.gm-comfort-note-row{
+  display:grid;
+  gap:0.45rem;
+}
+.gm-comfort-note-row textarea{
+  width:100%;
+}
+.gm-comfort-note-actions{
+  display:flex;
+  gap:0.4rem;
+  flex-wrap:wrap;
+}

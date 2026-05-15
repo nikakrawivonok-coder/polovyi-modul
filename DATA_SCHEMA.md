@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.25"
-BUILD_NUMBER = "19662"
-BUILD_NAME = "Dev Toolkit Pack"
+BUILD_VERSION = "V19.26"
+BUILD_NUMBER = "19663"
+BUILD_NAME = "GM Comfort Dashboard"
 ```
 
 ## appSession
@@ -635,3 +635,12 @@ Dev UI:
 - `#runDevToolkit`
 - `#copyDebugSnapshot`
 - `#resetSafeTestRoom`
+
+
+## V19.26 — GM Comfort Dashboard
+
+Schema не змінена.
+UI additions:
+- `gmComfortDashboardHtml()`
+- `applyGmComfortAction()`
+- quick GM journal notes/actions.
