@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.22 Enemy Full Editor Panel
+// Польовий Модуль — V19.22.1 Enemy Editor Journal + Scroll Stability Fix
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.22";
-const BUILD_NUMBER = "19654";
-const BUILD_NAME = "Enemy Full Editor Panel";
+const BUILD_VERSION = "V19.22.1";
+const BUILD_NUMBER = "19655";
+const BUILD_NAME = "Enemy Editor Journal + Scroll Stability Fix";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -634,8 +634,7 @@ function addEnemyTemplate(templateId){
   data.enemies = Array.isArray(data.enemies) ? data.enemies : [];
   data.enemies.push(enemy);
   if(data.combat?.active) buildTurnOrder();
-  const loot = enemy.gm?.lootText ? ` Лут: ${enemy.gm.lootText}.` : "";
-  addLog(`Майстер додав ворога: ${enemy.name}.${loot}`, "gm");
+  addLog(`Майстер додав ворога: ${enemy.name}.`, "gm");
   showToast(`Додано: ${enemy.name}`);
   render();
 }
@@ -2549,6 +2548,14 @@ function auditWeaponInventoryAuthority(){
   }
 }
 
+
+
+function renderPreserveScroll(){
+  const x = window.scrollX || 0;
+  const y = window.scrollY || 0;
+  render();
+  requestAnimationFrame(() => window.scrollTo(x, y));
+}
 
 function render(){
   const focusState = captureFocusState();
@@ -4982,7 +4989,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
       const item = setActiveWeaponForCharacter(enemy, gmSetEnemyActive.dataset.weaponId);
       enemy.weapon = activeWeaponKey(enemy);
       save();
-      render();
+      renderPreserveScroll();
       showToast(item ? `${enemy.name}: активна зброя — ${activeWeaponLabel(enemy)}.` : "Не вдалося змінити активну зброю ворога.");
     }
     return;
@@ -5556,16 +5563,32 @@ document.addEventListener("change", e => {
       enemy.inventory[idx][field] = gmEnemyInvInput.value;
       normalizeCharacterWeapons(enemy);
       save();
-      render();
+      renderPreserveScroll();
     }
     return;
   }
 
   const gmEnemySelect = e.target.closest("[data-gm-enemy], [data-gm-enemy-gm], [data-gm-enemy-stat]");
   if(gmEnemySelect){
-    // select changes are handled by the input listener in most browsers, but this keeps mobile webviews safe.
-    gmEnemySelect.dispatchEvent(new Event("input", { bubbles: true }));
-    render();
+    // Mobile/webview safe path: save select changes without forcing a full jumpy render.
+    const enemy = findEnemyById(gmEnemySelect.dataset.gmEnemy || gmEnemySelect.dataset.gmEnemyGm || gmEnemySelect.dataset.gmEnemyStat);
+    const field = gmEnemySelect.dataset.field;
+    if(enemy && field){
+      if(gmEnemySelect.dataset.gmEnemyGm !== undefined){
+        enemy.gm = enemy.gm || {};
+        const numeric = ["hp","hpMax","ammo","recoilLevel","exposurePenalty"].includes(field);
+        enemy.gm[field] = numeric ? Number(gmEnemySelect.value || 0) : gmEnemySelect.value;
+        if(field === "hp" || field === "hpMax") updateEnemyStateByHp(enemy);
+      } else if(gmEnemySelect.dataset.gmEnemyStat !== undefined){
+        enemy.stats = enemy.stats || {};
+        enemy.stats[field] = Number(gmEnemySelect.value || 0);
+      } else {
+        if(field === "visible") enemy.visible = gmEnemySelect.value !== "false";
+        else enemy[field] = ["defense","defenseMax","armor","fatigue","infection"].includes(field) ? Number(gmEnemySelect.value || 0) : gmEnemySelect.value;
+      }
+      save();
+      if(field === "visible" || field === "color" || field === "hp" || field === "hpMax") renderPreserveScroll();
+    }
     return;
   }
 
@@ -5576,7 +5599,7 @@ document.addEventListener("change", e => {
       const item = addWeaponToCharacter(enemy, gmAddEnemyWeapon.dataset.weaponKey || "pm", { makeActive: true });
       enemy.weapon = activeWeaponKey(enemy);
       save();
-      render();
+      renderPreserveScroll();
       showToast(item ? `${enemy.name}: додано ${item.name}.` : "Не вдалося додати зброю ворогу.");
     }
     return;
@@ -5590,7 +5613,7 @@ document.addEventListener("change", e => {
       const item = addWeaponToCharacter(enemy, weaponKey, { makeActive: true });
       enemy.weapon = activeWeaponKey(enemy);
       save();
-      render();
+      renderPreserveScroll();
       showToast(item ? `${enemy.name}: додано ${item.name}.` : "Не вдалося додати зброю ворогу.");
     }
     return;
@@ -5603,7 +5626,7 @@ document.addEventListener("change", e => {
       const item = setActiveWeaponForCharacter(enemy, enemyActiveWeapon.value);
       enemy.weapon = activeWeaponKey(enemy);
       save();
-      render();
+      renderPreserveScroll();
       showToast(item ? `${enemy.name}: активна зброя — ${activeWeaponLabel(enemy)}.` : "Не вдалося змінити активну зброю ворога.");
     }
     return;

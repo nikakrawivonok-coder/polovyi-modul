@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.22"
-BUILD_NUMBER = "19654"
-BUILD_NAME = "Enemy Full Editor Panel"
+BUILD_VERSION = "V19.22.1"
+BUILD_NUMBER = "19655"
+BUILD_NAME = "Enemy Editor Journal + Scroll Stability Fix"
 ```
 
 ## appSession
@@ -555,3 +555,11 @@ UI тепер редагує вже наявні поля enemy:
 - `defense`, `defenseMax`, `armor`, `fatigue`, `infection`;
 - `stats.*`;
 - `inventory[]`, `activeWeapon`.
+
+
+## V19.22.1 — Enemy Editor Journal + Scroll Stability Fix
+
+Schema не змінена.
+Зміни тільки в UI/log behavior:
+- shorter add-enemy GM log;
+- scroll-preserving render path for enemy editor.
