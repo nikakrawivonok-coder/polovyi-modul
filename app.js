@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.18.14 Moderate Cleanup Journal Helpers
+// Польовий Модуль — V19.19 Enemy Balance + Weapon Inventory Seed
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.14";
-const BUILD_NUMBER = "19646";
-const BUILD_NAME = "Moderate Cleanup Journal Helpers";
+const BUILD_VERSION = "V19.19";
+const BUILD_NUMBER = "19647";
+const BUILD_NAME = "Enemy Balance + Weapon Inventory Seed";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -528,6 +528,18 @@ function downloadTextFile(filename, text){
   URL.revokeObjectURL(url);
 }
 
+
+
+function enemyInventoryLine(enemy){
+  const items = Array.isArray(enemy?.inventory) ? enemy.inventory : [];
+  if(!items.length) return "";
+  return items.map(item => {
+    const active = item.equipped || item.id === enemy.activeWeapon ? "активна" : "запас";
+    const damage = item.damage ? `, ${item.damage}` : "";
+    const range = item.range ? `, ${item.range}` : "";
+    return `${item.name || item.id} (${active}${damage}${range})`;
+  }).join(" · ");
+}
 
 function makeEnemyFromTemplate(templateId){
   const base = enemyTemplates[templateId] || enemyTemplates.bandit;
