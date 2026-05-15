@@ -2188,3 +2188,17 @@ body.role-gm .compact-gm-debug strong{
   white-space:normal;
   line-height:1.05;
 }
+
+
+.weapon-add-row{
+  display:flex;
+  gap:0.4rem;
+  flex-wrap:wrap;
+  margin:0.35rem 0 0.55rem;
+}
+.weapon-inline-editor{
+  margin-top:0.35rem;
+}
+.inventory-item.active-weapon-item{
+  box-shadow:0 0 0 1px rgba(255,205,120,0.45) inset;
+}

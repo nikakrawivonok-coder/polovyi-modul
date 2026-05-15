@@ -1,3 +1,16 @@
+## V19.21 — Weapon Inventory Management Pack
+
+Об’єднаний inventory/weapon пакет:
+- додавання зброї гравцю;
+- редагування зброї гравця;
+- додавання зброї ворогу;
+- активна зброя ворога;
+- cleanup helper-функцій для activeWeapon.
+
+Після перевірки:
+- зробити stable checkpoint;
+- далі рухатися до Combat Result Object / великого cleanup або до розширення типів зброї.
+
 ## V19.20 — Active Weapon Damage
 
 Об’єднаний крок:

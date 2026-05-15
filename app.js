@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.20 Active Weapon Damage
+// Польовий Модуль — V19.21 Weapon Inventory Management Pack
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.20";
-const BUILD_NUMBER = "19648";
-const BUILD_NAME = "Active Weapon Damage";
+const BUILD_VERSION = "V19.21";
+const BUILD_NUMBER = "19649";
+const BUILD_NAME = "Weapon Inventory Management Pack";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2543,6 +2543,7 @@ function renderGmQuickPanel(){
 function render(){
   const focusState = captureFocusState();
   const p = normalizeCharacterWeapons(currentPlayer());
+  (data.enemies || []).forEach(e => normalizeCharacterWeapons(e));
   qs("#characterName").textContent = p.name;
   qs("#hpNow").textContent = p.hp;
   qs("#hpMax").textContent = p.hpMax;
@@ -2779,7 +2780,12 @@ function invItem(i, idx){
   const active = isWeapon && item.id === p.activeWeapon;
   const weaponLine = isWeapon ? `<p>${escapeHtml(item.damage || "")}${item.range ? ` · ${escapeHtml(item.range)}` : ""}${active ? " · активна" : ""}</p>` : "";
   const action = isWeapon && !active ? `<button class="metal-btn mini" data-set-active-weapon="${escapeAttr(item.id)}">Зробити активною</button>` : "";
-  return `<div class="inventory-item ${active ? "active-weapon-item" : ""}"><div><h4>${escapeHtml(item.name || item.item)}</h4><p>${escapeHtml(item.note || "")}</p>${weaponLine}</div><div class="inventory-count">${escapeHtml(String(item.count ?? 1))}</div>${action}</div>`;
+  const editor = isWeapon ? `<div class="compact-form-grid weapon-inline-editor">
+      <label>Назва <input data-item="${idx}" data-field="name" value="${escapeAttr(item.name || item.item || "")}"></label>
+      <label>Шкода <input data-item="${idx}" data-field="damage" value="${escapeAttr(item.damage || "")}" placeholder="d6 або d4+1"></label>
+      <label>Дист. <select data-item="${idx}" data-field="range"><option value="near" ${item.range === "near" ? "selected" : ""}>близько</option><option value="far" ${item.range !== "near" ? "selected" : ""}>далеко</option></select></label>
+    </div>` : "";
+  return `<div class="inventory-item ${active ? "active-weapon-item" : ""}"><div><h4>${escapeHtml(item.name || item.item)}</h4><p>${escapeHtml(item.note || "")}</p>${weaponLine}${editor}</div><div class="inventory-count">${escapeHtml(String(item.count ?? 1))}</div>${action}</div>`;
 }
 
 // =============================
@@ -3289,6 +3295,66 @@ function activeWeaponLabel(character){
 }
 
 
+function uniqueWeaponItemId(character, baseId){
+  const base = String(baseId || "weapon").replace(/[^a-zA-Z0-9_-]+/g, "_") || "weapon";
+  const used = new Set((character?.inventory || []).map(i => String(i.id || "")));
+  if(!used.has(base)) return base;
+  let n = 2;
+  while(used.has(`${base}_${n}`)) n++;
+  return `${base}_${n}`;
+}
+
+function createWeaponInventoryItem(weaponKey, overrides = {}){
+  const key = weaponKey || "pm";
+  const catalog = WEAPON_CATALOG[key] || WEAPON_CATALOG.pm;
+  const range = overrides.range || (key === "obrez" ? "near" : "far");
+  const profile = catalog[range] || catalog.far || WEAPON_CATALOG.pm.far;
+  const bonus = Number(profile.bonus || 0);
+  const damage = overrides.damage || `${profile.dice}${bonus ? (bonus > 0 ? "+" : "") + bonus : ""}`;
+  return normalizeInventoryItem({
+    id: overrides.id || key,
+    type: "weapon",
+    name: overrides.name || catalog.name || key,
+    item: overrides.name || catalog.name || key,
+    count: Number(overrides.count ?? 1),
+    damage,
+    range,
+    ammoType: overrides.ammoType || "ammo",
+    equipped: !!overrides.equipped,
+    note: overrides.note || "додано до інвентарю"
+  });
+}
+
+function addWeaponToCharacter(character, weaponKey, { makeActive = false } = {}){
+  if(!character) return null;
+  normalizeCharacterWeapons(character);
+  const item = createWeaponInventoryItem(weaponKey, {
+    id: uniqueWeaponItemId(character, weaponKey),
+    equipped: makeActive
+  });
+  character.inventory.push(item);
+  if(makeActive || !character.activeWeapon){
+    setActiveWeaponForCharacter(character, item.id);
+  }
+  return item;
+}
+
+function setActiveWeaponForCharacter(character, weaponId){
+  if(!character || !weaponId) return null;
+  normalizeCharacterWeapons(character);
+  const weapon = (character.inventory || []).find(i => i.type === "weapon" && i.id === weaponId);
+  if(!weapon) return null;
+  character.activeWeapon = weapon.id;
+  character.weapon = WEAPON_CATALOG[weapon.id] ? weapon.id : (character.weapon || weapon.id);
+  character.inventory.forEach(i => {
+    if(i.type === "weapon") i.equipped = i.id === weapon.id;
+  });
+  if(weapon.range) character.range = weapon.range;
+  return weapon;
+}
+
+
+
 const WEAPON_CONDITIONS = {
   good: { name: "добра", jamOn: [], damageMod: 0 },
   normal: { name: "нормальна", jamOn: [], damageMod: 0 },
@@ -3699,7 +3765,11 @@ function renderTargetSelector(){
         ${ammoText}
         ${moraleText}
         ${isGm && enemyInventoryLine(e) ? `<span><b>Інвентар:</b> ${escapeHtml(enemyInventoryLine(e))}</span>` : ""}
-        ${isGm && e.activeWeapon ? `<span><b>Активна зброя:</b> ${escapeHtml(e.activeWeapon)}</span>` : ""}
+        ${isGm && e.activeWeapon ? `<span><b>Активна зброя:</b> ${escapeHtml(activeWeaponLabel(e))}</span>` : ""}
+        ${isGm ? `<div class="compact-form-grid weapon-inline-editor enemy-weapon-editor">
+          <label>Додати зброю <select data-enemy-add-weapon="${escapeAttr(e.id)}"><option value="">—</option>${Object.entries(WEAPON_CATALOG).map(([key,w]) => `<option value="${escapeAttr(key)}">${escapeHtml(w.name)}</option>`).join("")}</select></label>
+          <label>Активна <select data-enemy-active-weapon="${escapeAttr(e.id)}">${weaponInventoryItems(e).map(w => `<option value="${escapeAttr(w.id)}" ${e.activeWeapon === w.id ? "selected" : ""}>${escapeHtml(w.name || w.id)}${w.damage ? ` · ${escapeHtml(w.damage)}` : ""}</option>`).join("")}</select></label>
+        </div>` : ""}
         <span><b>Ефекти:</b> ${escapeHtml(enemyEffectsText(e))}</span>
       </span>
     </button>`;
@@ -4771,18 +4841,22 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   const activeWeaponBtn = e.target.closest("[data-set-active-weapon]");
   if(activeWeaponBtn){
-    const p = normalizeCharacterWeapons(currentPlayer());
-    normalizeCharacterWeapons(p);
-    p.activeWeapon = activeWeaponBtn.dataset.setActiveWeapon;
-    p.weapon = p.activeWeapon;
-    p.inventory.forEach(item => {
-      if(item.type === "weapon") item.equipped = item.id === p.activeWeapon;
-    });
-    const active = activeWeaponItem(p);
-    if(active?.range) p.range = active.range;
+    const p = currentPlayer();
+    const active = setActiveWeaponForCharacter(p, activeWeaponBtn.dataset.setActiveWeapon);
     save();
     render();
-    showToast(`Активна зброя: ${activeWeaponLabel(p)}.`);
+    showToast(active ? `Активна зброя: ${activeWeaponLabel(p)}.` : "Не вдалося обрати активну зброю.");
+    return;
+  }
+
+  const addPlayerWeaponBtn = e.target.closest("[data-add-player-weapon]");
+  if(addPlayerWeaponBtn){
+    const p = currentPlayer();
+    const weaponKey = addPlayerWeaponBtn.dataset.addPlayerWeapon || "pm";
+    const item = addWeaponToCharacter(p, weaponKey, { makeActive: true });
+    save();
+    render();
+    showToast(item ? `Додано зброю: ${item.name}.` : "Не вдалося додати зброю.");
     return;
   }
 
@@ -5206,14 +5280,7 @@ document.addEventListener("input", e => {
       if(numeric && playerInput.value === "") return;
       data.players[pid][field] = numeric ? Number(playerInput.value) : playerInput.value;
       if(field === "activeWeapon"){
-        normalizeCharacterWeapons(data.players[pid]);
-        data.players[pid].activeWeapon = playerInput.value;
-        data.players[pid].weapon = playerInput.value;
-        data.players[pid].inventory.forEach(item => {
-          if(item.type === "weapon") item.equipped = item.id === playerInput.value;
-        });
-        const active = activeWeaponItem(data.players[pid]);
-        if(active?.range) data.players[pid].range = active.range;
+        setActiveWeaponForCharacter(data.players[pid], playerInput.value);
       }
       if(field === "weapon" && !data.players[pid].activeWeapon){
         data.players[pid].activeWeapon = playerInput.value;
@@ -5252,13 +5319,43 @@ document.addEventListener("input", e => {
     const idx = Number(itemInput.dataset.item);
     const field = itemInput.dataset.field;
     const inv = currentInventory();
+    if(!inv[idx]) return;
     if(field === "count" && itemInput.value === "") return;
     inv[idx][field] = field === "count" ? Number(itemInput.value) : itemInput.value;
+    if(field === "name") inv[idx].item = itemInput.value;
+    normalizeCharacterWeapons(currentPlayer());
   }
 });
 
 
 document.addEventListener("change", e => {
+
+  const enemyAddWeapon = e.target.closest("[data-enemy-add-weapon]");
+  if(enemyAddWeapon){
+    const enemy = findEnemyById(enemyAddWeapon.dataset.enemyAddWeapon);
+    const weaponKey = enemyAddWeapon.value;
+    if(enemy && weaponKey){
+      const item = addWeaponToCharacter(enemy, weaponKey, { makeActive: true });
+      enemy.weapon = activeWeaponKey(enemy);
+      save();
+      render();
+      showToast(item ? `${enemy.name}: додано ${item.name}.` : "Не вдалося додати зброю ворогу.");
+    }
+    return;
+  }
+
+  const enemyActiveWeapon = e.target.closest("[data-enemy-active-weapon]");
+  if(enemyActiveWeapon){
+    const enemy = findEnemyById(enemyActiveWeapon.dataset.enemyActiveWeapon);
+    if(enemy){
+      const item = setActiveWeaponForCharacter(enemy, enemyActiveWeapon.value);
+      enemy.weapon = activeWeaponKey(enemy);
+      save();
+      render();
+      showToast(item ? `${enemy.name}: активна зброя — ${activeWeaponLabel(enemy)}.` : "Не вдалося змінити активну зброю ворога.");
+    }
+    return;
+  }
 
   // weaponJammed checkbox V19.7
   const playerCheckbox = e.target.closest('input[type="checkbox"][data-player][data-field="weaponJammed"]');

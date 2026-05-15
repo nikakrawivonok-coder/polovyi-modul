@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.20"
-BUILD_NUMBER = "19648"
-BUILD_NAME = "Active Weapon Damage"
+BUILD_VERSION = "V19.21"
+BUILD_NUMBER = "19649"
+BUILD_NAME = "Weapon Inventory Management Pack"
 ```
 
 ## appSession
@@ -491,3 +491,22 @@ Player/enemy weapon fields:
 
 Fallback:
 - if active inventory weapon is missing, old `weapon` field is used.
+
+
+## V19.21 — Weapon Inventory Management Pack
+
+Inventory weapon item:
+- `id`
+- `type: "weapon"`
+- `name`
+- `item`
+- `count`
+- `damage`, e.g. `d4`, `d4+1`, `d6`
+- `range: "near" | "far"`
+- `ammoType`
+- `equipped`
+- `note`
+
+Characters:
+- `activeWeapon` controls active damage source.
+- `weapon` remains fallback for old rooms.

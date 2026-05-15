@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#120d09" />
-  <title>Польовий Модуль — V19.20 Active Weapon Damage</title>
-  <link rel="stylesheet" href="./styles.css?v=19648">
+  <title>Польовий Модуль — V19.21 Weapon Inventory Management Pack</title>
+  <link rel="stylesheet" href="./styles.css?v=19649">
 
 </head>
 <body>
@@ -126,6 +126,11 @@
 
         <div class="player-panel quick-panel" id="inventoryPanel" hidden>
           <div class="section-title slim"><span>▣</span><h3>Інвентар</h3></div>
+          <div class="weapon-add-row">
+            <button class="metal-btn mini" data-add-player-weapon="pm">+ ПМ</button>
+            <button class="metal-btn mini" data-add-player-weapon="obrez">+ Обріз</button>
+            <button class="metal-btn mini" data-add-player-weapon="aks74u">+ АКС-74У</button>
+          </div>
           <div id="inventoryInlineList" class="inventory-list"></div>
         </div>
 
@@ -375,6 +380,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   
-  <script src="./app.js?v=19648"></script>
+  <script src="./app.js?v=19649"></script>
 </body>
 </html>
