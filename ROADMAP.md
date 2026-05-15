@@ -1,3 +1,28 @@
+## V19.22 — Enemy Full Editor Panel
+
+Напрям:
+- зробити вкладку `Вороги` повноцінною GM-панеллю редагування ворогів;
+- наблизити редагування ворога до редагування гравця;
+- інвентар гравця — через `Майстер → Гравці`;
+- інвентар ворога — через `Вороги → Редактор ворога`.
+
+Після перевірки:
+- можна переходити до Weapon Types Polish або великого Combat Result Object cleanup.
+
+## V19.21.4 — Weapon Inventory Stability Checkpoint
+
+Checkpoint після V19.21.3:
+- закріпити authority model для weapon/inventory;
+- не змінювати бойову математику;
+- підготувати наступні напрями: Weapon Types Polish або Combat Result Object cleanup.
+
+Поточна модель:
+- гравець бачить інвентар і може вибрати активну зброю;
+- Майстер додає/редагує зброю гравців;
+- Майстер керує зброєю ворогів;
+- шкода береться з activeWeapon / inventory.damage;
+- weapon лишається fallback.
+
 ## V19.21.3 — Remove Old GM Inventory Panel + Damage Text Polish
 
 Hotfix:

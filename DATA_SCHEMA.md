@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.21.3"
-BUILD_NUMBER = "19652"
-BUILD_NAME = "Remove Old GM Inventory Panel + Damage Text Polish"
+BUILD_VERSION = "V19.22"
+BUILD_NUMBER = "19654"
+BUILD_NAME = "Enemy Full Editor Panel"
 ```
 
 ## appSession
@@ -532,3 +532,26 @@ Authority model:
 - Schema не змінена.
 - Видалено лише старий дублюючий GM UI-блок інвентарю.
 - `inventory.damage` продовжує підтримувати кастомні формули типу `d400`.
+
+
+## V19.21.4 — Weapon Inventory Stability Checkpoint
+
+Schema не змінена.
+
+Authority model:
+- Player: view inventory, choose active owned weapon.
+- GM: add/edit player weapons.
+- GM: add/change enemy weapons.
+- Damage source: `activeWeapon` + matching `inventory[].damage`.
+- Fallback: old `weapon` field.
+
+
+## V19.22 — Enemy Full Editor Panel
+
+Schema не змінена.
+
+UI тепер редагує вже наявні поля enemy:
+- `gm.hp`, `gm.hpMax`, `gm.ammo`, `gm.morale`, `gm.recoilLevel`;
+- `defense`, `defenseMax`, `armor`, `fatigue`, `infection`;
+- `stats.*`;
+- `inventory[]`, `activeWeapon`.

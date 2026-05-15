@@ -2230,3 +2230,34 @@ body.role-gm .compact-gm-debug strong{
 .gm-inventory-editor .copy-mini b{
   color: var(--text);
 }
+
+
+.enemy-editor-panel{
+  margin-top:0.8rem;
+  border:1px solid var(--line);
+  border-radius:1rem;
+  padding:0.55rem;
+  background:rgba(0,0,0,0.22);
+}
+.enemy-editor-panel summary{
+  cursor:pointer;
+  font-weight:800;
+  letter-spacing:0.04em;
+  color:var(--gold);
+}
+.enemy-editor-grid{
+  margin-top:0.65rem;
+}
+.enemy-stats-editor{
+  margin-top:0.45rem;
+}
+.enemy-editor-subtitle{
+  margin:0.8rem 0 0.35rem;
+  color:var(--text);
+}
+.gm-enemy-inventory-list{
+  max-height:42vh;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding-right:0.15rem;
+}

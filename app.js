@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.21.3 Remove Old GM Inventory Panel + Damage Text Polish
+// Польовий Модуль — V19.22 Enemy Full Editor Panel
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.21.3";
-const BUILD_NUMBER = "19652";
-const BUILD_NAME = "Remove Old GM Inventory Panel + Damage Text Polish";
+const BUILD_VERSION = "V19.22";
+const BUILD_NUMBER = "19654";
+const BUILD_NAME = "Enemy Full Editor Panel";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2540,6 +2540,16 @@ function renderGmQuickPanel(){
 // RENDER PIPELINE
 // =============================
 
+
+function auditWeaponInventoryAuthority(){
+  // Lightweight self-check for future maintenance. It must not alter gameplay state.
+  const riskyPlayerAddButton = document.querySelector("[data-add-player-weapon]");
+  if(riskyPlayerAddButton){
+    console.warn("Authority warning: player-side weapon add button should not be visible.");
+  }
+}
+
+
 function render(){
   const focusState = captureFocusState();
   const p = normalizeCharacterWeapons(currentPlayer());
@@ -2688,6 +2698,77 @@ function enemyCardPublic(e){
   </article>`;
 }
 
+
+function enemyStatValue(enemy, key){
+  return Number(enemy?.stats?.[key] ?? 0);
+}
+
+function gmEnemyWeaponEditor(enemy){
+  normalizeCharacterWeapons(enemy);
+  const weapons = weaponInventoryItems(enemy);
+  const rows = weapons.length ? weapons.map((item, idx) => {
+    const active = item.id === enemy.activeWeapon;
+    return `<div class="inventory-item ${active ? "active-weapon-item" : ""}">
+      <div>
+        <h4>${escapeHtml(item.name || item.item || item.id)}${active ? " · активна" : ""}</h4>
+        <p>Шкода: ${escapeHtml(item.damage || "—")} · Дистанція: ${escapeHtml(weaponRangeLabel(item.range))}</p>
+        <div class="compact-form-grid weapon-inline-editor">
+          <label>Назва <input data-gm-enemy-inv="${escapeAttr(enemy.id)}" data-inv-idx="${idx}" data-field="name" value="${escapeAttr(item.name || item.item || "")}"></label>
+          <label>Шкода <input data-gm-enemy-inv="${escapeAttr(enemy.id)}" data-inv-idx="${idx}" data-field="damage" value="${escapeAttr(item.damage || "")}" placeholder="d6 або d4+1"></label>
+          <label>Дист. <select data-gm-enemy-inv="${escapeAttr(enemy.id)}" data-inv-idx="${idx}" data-field="range"><option value="near" ${item.range === "near" ? "selected" : ""}>близько</option><option value="far" ${item.range !== "near" ? "selected" : ""}>далеко</option></select></label>
+        </div>
+      </div>
+      <div class="inventory-count">${escapeHtml(String(item.count ?? 1))}</div>
+      ${active ? "" : `<button class="metal-btn mini" data-gm-set-enemy-active-weapon="${escapeAttr(enemy.id)}" data-weapon-id="${escapeAttr(item.id)}">Активна</button>`}
+    </div>`;
+  }).join("") : `<div class="copy-mini">Зброї в інвентарі ворога немає. Буде працювати fallback на старе поле weapon.</div>`;
+
+  return `<div class="gm-inventory-editor enemy-full-inventory-editor">
+    <div class="weapon-add-row gm-weapon-add-row">
+      <button class="metal-btn mini" data-gm-add-enemy-weapon="${escapeAttr(enemy.id)}" data-weapon-key="pm">+ ПМ</button>
+      <button class="metal-btn mini" data-gm-add-enemy-weapon="${escapeAttr(enemy.id)}" data-weapon-key="obrez">+ Обріз</button>
+      <button class="metal-btn mini" data-gm-add-enemy-weapon="${escapeAttr(enemy.id)}" data-weapon-key="aks74u">+ АКС-74У</button>
+    </div>
+    <div class="copy-mini">Майстер керує зброєю ворога. Шкода атаки береться з активної зброї.</div>
+    <div class="inventory-list gm-enemy-inventory-list">${rows}</div>
+  </div>`;
+}
+
+function gmEnemyFullEditor(enemy){
+  enemy.gm = enemy.gm || {};
+  enemy.stats = enemy.stats || {};
+  normalizeCharacterWeapons(enemy);
+  return `<details class="enemy-editor-panel" ${expandedStateEnemyDetails[enemy.id] ? "open" : ""}>
+    <summary>Редактор ворога</summary>
+    <div class="compact-form-grid enemy-editor-grid">
+      <label>Назва <input data-gm-enemy="${escapeAttr(enemy.id)}" data-field="name" value="${escapeAttr(enemy.name || "")}"></label>
+      <label>Стан <input data-gm-enemy="${escapeAttr(enemy.id)}" data-field="state" value="${escapeAttr(enemy.state || "")}"></label>
+      <label>HP <input type="number" data-gm-enemy-gm="${escapeAttr(enemy.id)}" data-field="hp" value="${escapeAttr(String(enemy.gm.hp ?? 0))}"></label>
+      <label>Max HP <input type="number" data-gm-enemy-gm="${escapeAttr(enemy.id)}" data-field="hpMax" value="${escapeAttr(String(enemy.gm.hpMax ?? 1))}"></label>
+      <label>Захист <input type="number" data-gm-enemy="${escapeAttr(enemy.id)}" data-field="defense" value="${escapeAttr(String(enemy.defense ?? 12))}"></label>
+      <label>Max Зах. <input type="number" data-gm-enemy="${escapeAttr(enemy.id)}" data-field="defenseMax" value="${escapeAttr(String(enemy.defenseMax ?? enemy.defense ?? 12))}"></label>
+      <label>Броня <input type="number" data-gm-enemy="${escapeAttr(enemy.id)}" data-field="armor" value="${escapeAttr(String(enemy.armor ?? 0))}"></label>
+      <label>Втома <input type="number" data-gm-enemy="${escapeAttr(enemy.id)}" data-field="fatigue" value="${escapeAttr(String(enemy.fatigue ?? 0))}"></label>
+      <label>Зараж. <input type="number" data-gm-enemy="${escapeAttr(enemy.id)}" data-field="infection" value="${escapeAttr(String(enemy.infection ?? 0))}"></label>
+      <label>Набої <input type="number" data-gm-enemy-gm="${escapeAttr(enemy.id)}" data-field="ammo" value="${escapeAttr(String(enemy.gm.ammo ?? 0))}"></label>
+      <label>Мораль <input data-gm-enemy-gm="${escapeAttr(enemy.id)}" data-field="morale" value="${escapeAttr(enemy.gm.morale || "")}"></label>
+      <label>Віддача <input type="number" data-gm-enemy-gm="${escapeAttr(enemy.id)}" data-field="recoilLevel" value="${escapeAttr(String(enemy.gm.recoilLevel ?? 0))}"></label>
+      <label>Позиція <input data-gm-enemy="${escapeAttr(enemy.id)}" data-field="position" value="${escapeAttr(enemy.position || "")}"></label>
+      <label>Небезпека <input data-gm-enemy="${escapeAttr(enemy.id)}" data-field="danger" value="${escapeAttr(enemy.danger || "")}"></label>
+      <label>Дія <input data-gm-enemy="${escapeAttr(enemy.id)}" data-field="action" value="${escapeAttr(enemy.action || "")}"></label>
+      <label>Лут <input data-gm-enemy-gm="${escapeAttr(enemy.id)}" data-field="lootText" value="${escapeAttr(enemy.gm.lootText || "")}"></label>
+      <label>Колір <select data-gm-enemy="${escapeAttr(enemy.id)}" data-field="color">${["green","orange","yellow","red"].map(c => `<option value="${c}" ${enemy.color===c?"selected":""}>${c}</option>`).join("")}</select></label>
+      <label>Видимість <select data-gm-enemy="${escapeAttr(enemy.id)}" data-field="visible"><option value="true" ${enemy.visible !== false ? "selected" : ""}>видимий</option><option value="false" ${enemy.visible === false ? "selected" : ""}>прихований</option></select></label>
+    </div>
+    <div class="compact-form-grid enemy-editor-grid enemy-stats-editor">
+      ${Object.entries({endurance:"Вит", accuracy:"Точ", agility:"Впр", perception:"Спр", intuition:"Інт", charisma:"Хар"}).map(([key,label]) => `<label>${label} <input type="number" data-gm-enemy-stat="${escapeAttr(enemy.id)}" data-field="${escapeAttr(key)}" value="${escapeAttr(String(enemyStatValue(enemy, key)))}"></label>`).join("")}
+    </div>
+    <h4 class="enemy-editor-subtitle">Інвентар / зброя ворога</h4>
+    ${gmEnemyWeaponEditor(enemy)}
+  </details>`;
+}
+
+
 function enemyCardGm(e){
   const icon = enemyStatusIcon(e);
   const colorClass = enemyColorClass(e.color);
@@ -2768,6 +2849,8 @@ function enemyCardGm(e){
       <button class="metal-btn" data-enemy-state-by-id="${escapeAttr(e.id)}" data-state="наляканий" data-color="yellow">Наляканий</button>
       <button class="metal-btn danger" data-enemy-state-by-id="${escapeAttr(e.id)}" data-state="вибув" data-color="red">Вибув</button>
     </div>
+
+    ${gmEnemyFullEditor(e)}
   </article>`;
 }
 function enemyCard(e){
@@ -3247,6 +3330,16 @@ const WEAPON_CATALOG = {
 
 
 
+// CONTRACT: Weapon / Inventory authority
+// - activeWeapon is the preferred source for weapon identity.
+// - inventory[].damage is the preferred source for damage formula.
+// - weapon remains a fallback for old rooms and incomplete data.
+// - Player may view inventory and choose an already owned active weapon.
+// - Player must not add weapons or edit weapon damage/name/range.
+// - GM controls adding and editing player weapons.
+// - GM controls enemy weapons through enemy details.
+// - Combat math 1/2/3 ammo modes must not change here.
+
 function weaponCatalogKeyFromName(name){
   const value = String(name || "").toLowerCase();
   if(value.includes("акс") || value.includes("аксу") || value.includes("автомат")) return "aks74u";
@@ -3415,6 +3508,7 @@ function criticalCount(dice){
 
 
 function weaponInfo(player){
+  // V19.21.4: activeWeapon/inventory is preferred; catalog is fallback for old rooms.
   const key = activeWeaponKey(player);
   return WEAPON_CATALOG[key] || WEAPON_CATALOG.pm;
 }
@@ -3802,10 +3896,7 @@ function renderTargetSelector(){
         ${moraleText}
         ${isGm && enemyInventoryLine(e) ? `<span><b>Інвентар:</b> ${escapeHtml(enemyInventoryLine(e))}</span>` : ""}
         ${isGm && e.activeWeapon ? `<span><b>Активна зброя:</b> ${escapeHtml(activeWeaponLabel(e))}</span>` : ""}
-        ${isGm ? `<div class="compact-form-grid weapon-inline-editor enemy-weapon-editor">
-          <label>Додати зброю <select data-enemy-add-weapon="${escapeAttr(e.id)}"><option value="">—</option>${Object.entries(WEAPON_CATALOG).map(([key,w]) => `<option value="${escapeAttr(key)}">${escapeHtml(w.name)}</option>`).join("")}</select></label>
-          <label>Активна <select data-enemy-active-weapon="${escapeAttr(e.id)}">${weaponInventoryItems(e).map(w => `<option value="${escapeAttr(w.id)}" ${e.activeWeapon === w.id ? "selected" : ""}>${escapeHtml(w.name || w.id)}${w.damage ? ` · ${escapeHtml(w.damage)}` : ""}</option>`).join("")}</select></label>
-        </div>` : ""}
+
         <span><b>Ефекти:</b> ${escapeHtml(enemyEffectsText(e))}</span>
       </span>
     </button>`;
@@ -4884,6 +4975,19 @@ const enemyStep = e.target.closest("[data-enemy-step]");
     return;
   }
 
+  const gmSetEnemyActive = e.target.closest("[data-gm-set-enemy-active-weapon]");
+  if(gmSetEnemyActive){
+    const enemy = findEnemyById(gmSetEnemyActive.dataset.gmSetEnemyActiveWeapon);
+    if(enemy){
+      const item = setActiveWeaponForCharacter(enemy, gmSetEnemyActive.dataset.weaponId);
+      enemy.weapon = activeWeaponKey(enemy);
+      save();
+      render();
+      showToast(item ? `${enemy.name}: активна зброя — ${activeWeaponLabel(enemy)}.` : "Не вдалося змінити активну зброю ворога.");
+    }
+    return;
+  }
+
   const nav = e.target.closest(".nav-btn");
   if(nav) switchScreen(nav.dataset.target);
 
@@ -5310,6 +5414,65 @@ document.addEventListener("input", e => {
     return;
   }
 
+  const gmEnemyInvInput = e.target.closest("[data-gm-enemy-inv]");
+  if(gmEnemyInvInput){
+    const enemy = findEnemyById(gmEnemyInvInput.dataset.gmEnemyInv);
+    const idx = Number(gmEnemyInvInput.dataset.invIdx);
+    const field = gmEnemyInvInput.dataset.field;
+    if(enemy && Array.isArray(enemy.inventory) && enemy.inventory[idx]){
+      enemy.inventory[idx][field] = gmEnemyInvInput.value;
+      if(field === "name") enemy.inventory[idx].item = gmEnemyInvInput.value;
+      normalizeCharacterWeapons(enemy);
+      save();
+    }
+    return;
+  }
+
+  const gmEnemyInput = e.target.closest("[data-gm-enemy]");
+  if(gmEnemyInput){
+    const enemy = findEnemyById(gmEnemyInput.dataset.gmEnemy);
+    const field = gmEnemyInput.dataset.field;
+    if(enemy){
+      const numeric = ["defense","defenseMax","armor","fatigue","infection"].includes(field);
+      if(numeric && gmEnemyInput.value === "") return;
+      if(field === "visible") enemy.visible = gmEnemyInput.value !== "false";
+      else enemy[field] = numeric ? Number(gmEnemyInput.value) : gmEnemyInput.value;
+      if(field === "defenseMax") enemy.defense = Math.min(Number(enemy.defense ?? 12), Number(enemy.defenseMax ?? 12));
+      if(field === "defense") enemy.defenseMax = Math.max(Number(enemy.defenseMax ?? enemy.defense ?? 12), Number(enemy.defense ?? 12));
+      save();
+    }
+    return;
+  }
+
+  const gmEnemyGmInput = e.target.closest("[data-gm-enemy-gm]");
+  if(gmEnemyGmInput){
+    const enemy = findEnemyById(gmEnemyGmInput.dataset.gmEnemyGm);
+    const field = gmEnemyGmInput.dataset.field;
+    if(enemy){
+      enemy.gm = enemy.gm || {};
+      const numeric = ["hp","hpMax","ammo","recoilLevel","exposurePenalty"].includes(field);
+      if(numeric && gmEnemyGmInput.value === "") return;
+      enemy.gm[field] = numeric ? Number(gmEnemyGmInput.value) : gmEnemyGmInput.value;
+      if(field === "hpMax") enemy.gm.hp = clamp(Number(enemy.gm.hp ?? 0), 0, Number(enemy.gm.hpMax || 1));
+      if(field === "hp" || field === "hpMax") updateEnemyStateByHp(enemy);
+      save();
+    }
+    return;
+  }
+
+  const gmEnemyStatInput = e.target.closest("[data-gm-enemy-stat]");
+  if(gmEnemyStatInput){
+    const enemy = findEnemyById(gmEnemyStatInput.dataset.gmEnemyStat);
+    const field = gmEnemyStatInput.dataset.field;
+    if(enemy){
+      if(gmEnemyStatInput.value === "") return;
+      enemy.stats = enemy.stats || {};
+      enemy.stats[field] = Number(gmEnemyStatInput.value);
+      save();
+    }
+    return;
+  }
+
   const playerInput = e.target.closest("[data-player]");
   if(playerInput){
     const pid = playerInput.dataset.player;
@@ -5380,6 +5543,41 @@ document.addEventListener("change", e => {
       normalizeCharacterWeapons(p);
       save();
       render();
+    }
+    return;
+  }
+
+  const gmEnemyInvInput = e.target.closest("[data-gm-enemy-inv]");
+  if(gmEnemyInvInput){
+    const enemy = findEnemyById(gmEnemyInvInput.dataset.gmEnemyInv);
+    const idx = Number(gmEnemyInvInput.dataset.invIdx);
+    const field = gmEnemyInvInput.dataset.field;
+    if(enemy && Array.isArray(enemy.inventory) && enemy.inventory[idx]){
+      enemy.inventory[idx][field] = gmEnemyInvInput.value;
+      normalizeCharacterWeapons(enemy);
+      save();
+      render();
+    }
+    return;
+  }
+
+  const gmEnemySelect = e.target.closest("[data-gm-enemy], [data-gm-enemy-gm], [data-gm-enemy-stat]");
+  if(gmEnemySelect){
+    // select changes are handled by the input listener in most browsers, but this keeps mobile webviews safe.
+    gmEnemySelect.dispatchEvent(new Event("input", { bubbles: true }));
+    render();
+    return;
+  }
+
+  const gmAddEnemyWeapon = e.target.closest("[data-gm-add-enemy-weapon]");
+  if(gmAddEnemyWeapon){
+    const enemy = findEnemyById(gmAddEnemyWeapon.dataset.gmAddEnemyWeapon);
+    if(enemy){
+      const item = addWeaponToCharacter(enemy, gmAddEnemyWeapon.dataset.weaponKey || "pm", { makeActive: true });
+      enemy.weapon = activeWeaponKey(enemy);
+      save();
+      render();
+      showToast(item ? `${enemy.name}: додано ${item.name}.` : "Не вдалося додати зброю ворогу.");
     }
     return;
   }
