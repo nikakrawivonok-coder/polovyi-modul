@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.21 Weapon Inventory Management Pack
+// Польовий Модуль — V19.21.1 GM Inventory Authority Fix
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.21";
-const BUILD_NUMBER = "19649";
-const BUILD_NAME = "Weapon Inventory Management Pack";
+const BUILD_VERSION = "V19.21.1";
+const BUILD_NUMBER = "19650";
+const BUILD_NAME = "GM Inventory Authority Fix";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2773,19 +2773,22 @@ function enemyCardGm(e){
 function enemyCard(e){
   return appSession.role === "gm" ? enemyCardGm(e) : enemyCardPublic(e);
 }
+function weaponRangeLabel(range){
+  if(range === "near") return "близько";
+  if(range === "far") return "далеко";
+  return range || "—";
+}
+
 function invItem(i, idx){
   const item = normalizeInventoryItem(i);
   const isWeapon = item.type === "weapon";
   const p = currentPlayer();
   const active = isWeapon && item.id === p.activeWeapon;
-  const weaponLine = isWeapon ? `<p>${escapeHtml(item.damage || "")}${item.range ? ` · ${escapeHtml(item.range)}` : ""}${active ? " · активна" : ""}</p>` : "";
+  const weaponLine = isWeapon
+    ? `<p>Шкода: ${escapeHtml(item.damage || "—")} · Дистанція: ${escapeHtml(weaponRangeLabel(item.range))}${active ? " · активна" : ""}</p><p class="muted-text">Параметри зброї змінює Майстер.</p>`
+    : "";
   const action = isWeapon && !active ? `<button class="metal-btn mini" data-set-active-weapon="${escapeAttr(item.id)}">Зробити активною</button>` : "";
-  const editor = isWeapon ? `<div class="compact-form-grid weapon-inline-editor">
-      <label>Назва <input data-item="${idx}" data-field="name" value="${escapeAttr(item.name || item.item || "")}"></label>
-      <label>Шкода <input data-item="${idx}" data-field="damage" value="${escapeAttr(item.damage || "")}" placeholder="d6 або d4+1"></label>
-      <label>Дист. <select data-item="${idx}" data-field="range"><option value="near" ${item.range === "near" ? "selected" : ""}>близько</option><option value="far" ${item.range !== "near" ? "selected" : ""}>далеко</option></select></label>
-    </div>` : "";
-  return `<div class="inventory-item ${active ? "active-weapon-item" : ""}"><div><h4>${escapeHtml(item.name || item.item)}</h4><p>${escapeHtml(item.note || "")}</p>${weaponLine}${editor}</div><div class="inventory-count">${escapeHtml(String(item.count ?? 1))}</div>${action}</div>`;
+  return `<div class="inventory-item ${active ? "active-weapon-item" : ""}"><div><h4>${escapeHtml(item.name || item.item)}</h4><p>${escapeHtml(item.note || "")}</p>${weaponLine}</div><div class="inventory-count">${escapeHtml(String(item.count ?? 1))}</div>${action}</div>`;
 }
 
 // =============================
@@ -3034,6 +3037,44 @@ function renderEnemyTemplateButtons(){
 }
 
 
+
+function gmPlayerInventoryEditor(pid, p){
+  normalizeCharacterWeapons(p);
+  const inv = Array.isArray(p.inventory) ? p.inventory : [];
+  const rows = inv.length ? inv.map((raw, idx) => {
+    const item = normalizeInventoryItem(raw);
+    const isWeapon = item.type === "weapon";
+    const active = isWeapon && item.id === p.activeWeapon;
+    if(!isWeapon){
+      return `<div class="inventory-item"><div><h4>${escapeHtml(item.name || item.item)}</h4><p>${escapeHtml(item.note || "")}</p></div><div class="inventory-count">${escapeHtml(String(item.count ?? 1))}</div></div>`;
+    }
+    return `<div class="inventory-item ${active ? "active-weapon-item" : ""}">
+      <div>
+        <h4>${escapeHtml(item.name || item.item)}${active ? " · активна" : ""}</h4>
+        <p>Шкода: ${escapeHtml(item.damage || "—")} · Дистанція: ${escapeHtml(weaponRangeLabel(item.range))}</p>
+        <div class="compact-form-grid weapon-inline-editor">
+          <label>Назва <input data-gm-player-inv="${escapeAttr(pid)}" data-inv-idx="${idx}" data-field="name" value="${escapeAttr(item.name || item.item || "")}"></label>
+          <label>Шкода <input data-gm-player-inv="${escapeAttr(pid)}" data-inv-idx="${idx}" data-field="damage" value="${escapeAttr(item.damage || "")}" placeholder="d6 або d4+1"></label>
+          <label>Дист. <select data-gm-player-inv="${escapeAttr(pid)}" data-inv-idx="${idx}" data-field="range"><option value="near" ${item.range === "near" ? "selected" : ""}>близько</option><option value="far" ${item.range !== "near" ? "selected" : ""}>далеко</option></select></label>
+        </div>
+      </div>
+      <div class="inventory-count">${escapeHtml(String(item.count ?? 1))}</div>
+      ${active ? "" : `<button class="metal-btn mini" data-gm-set-player-active-weapon="${escapeAttr(pid)}" data-weapon-id="${escapeAttr(item.id)}">Активна</button>`}
+    </div>`;
+  }).join("") : `<div class="copy-mini">Інвентар порожній.</div>`;
+
+  return `<div class="gm-inventory-editor">
+    <div class="weapon-add-row gm-weapon-add-row">
+      <button class="metal-btn mini" data-gm-add-player-weapon="${escapeAttr(pid)}" data-weapon-key="pm">+ ПМ</button>
+      <button class="metal-btn mini" data-gm-add-player-weapon="${escapeAttr(pid)}" data-weapon-key="obrez">+ Обріз</button>
+      <button class="metal-btn mini" data-gm-add-player-weapon="${escapeAttr(pid)}" data-weapon-key="aks74u">+ АКС-74У</button>
+    </div>
+    <div class="copy-mini">Майстер керує зброєю гравця. Гравець може лише обрати активну зі вже виданої.</div>
+    <div class="inventory-list gm-player-inventory-list">${rows}</div>
+  </div>`;
+}
+
+
 function fillMaster(){
   renderEnemyTemplateButtons();
   const p = currentPlayer(), s = data.scene;
@@ -3152,7 +3193,7 @@ function renderGmPlayers(){
         <label>Інтуїц. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="intuition" value="${escapeAttr(String(p.stats?.intuition ?? 0))}"></label>
         <label>Хар. <input type="number" data-player-stat="${escapeAttr(pid)}" data-stat-field="charisma" value="${escapeAttr(String(p.stats?.charisma ?? 0))}"></label>
       </div>`;
-    const inventoryBody = `<div class="copy-mini">${invCount ? `${invCount} позицій. Детально — у вкладці “Інвентар”.` : "Інвентар порожній."}</div>`;
+    const inventoryBody = gmPlayerInventoryEditor(pid, p);
 
     return `<div class="gm-player-card compact-player-editor collapsible-player-editor ${pid === currentPlayerId() ? "active-selected" : ""}">
       <h4>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
@@ -4849,17 +4890,6 @@ const enemyStep = e.target.closest("[data-enemy-step]");
     return;
   }
 
-  const addPlayerWeaponBtn = e.target.closest("[data-add-player-weapon]");
-  if(addPlayerWeaponBtn){
-    const p = currentPlayer();
-    const weaponKey = addPlayerWeaponBtn.dataset.addPlayerWeapon || "pm";
-    const item = addWeaponToCharacter(p, weaponKey, { makeActive: true });
-    save();
-    render();
-    showToast(item ? `Додано зброю: ${item.name}.` : "Не вдалося додати зброю.");
-    return;
-  }
-
   const nav = e.target.closest(".nav-btn");
   if(nav) switchScreen(nav.dataset.target);
 
@@ -5271,6 +5301,21 @@ document.addEventListener("input", e => {
     return;
   }
 
+  const gmPlayerInvInput = e.target.closest("[data-gm-player-inv]");
+  if(gmPlayerInvInput){
+    const pid = gmPlayerInvInput.dataset.gmPlayerInv;
+    const idx = Number(gmPlayerInvInput.dataset.invIdx);
+    const field = gmPlayerInvInput.dataset.field;
+    const p = data.players?.[pid];
+    if(p && Array.isArray(p.inventory) && p.inventory[idx]){
+      p.inventory[idx][field] = gmPlayerInvInput.value;
+      if(field === "name") p.inventory[idx].item = gmPlayerInvInput.value;
+      normalizeCharacterWeapons(p);
+      save();
+    }
+    return;
+  }
+
   const playerInput = e.target.closest("[data-player]");
   if(playerInput){
     const pid = playerInput.dataset.player;
@@ -5329,6 +5374,21 @@ document.addEventListener("input", e => {
 
 
 document.addEventListener("change", e => {
+
+  const gmPlayerInvInput = e.target.closest("[data-gm-player-inv]");
+  if(gmPlayerInvInput){
+    const pid = gmPlayerInvInput.dataset.gmPlayerInv;
+    const idx = Number(gmPlayerInvInput.dataset.invIdx);
+    const field = gmPlayerInvInput.dataset.field;
+    const p = data.players?.[pid];
+    if(p && Array.isArray(p.inventory) && p.inventory[idx]){
+      p.inventory[idx][field] = gmPlayerInvInput.value;
+      normalizeCharacterWeapons(p);
+      save();
+      render();
+    }
+    return;
+  }
 
   const enemyAddWeapon = e.target.closest("[data-enemy-add-weapon]");
   if(enemyAddWeapon){

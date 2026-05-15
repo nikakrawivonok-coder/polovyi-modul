@@ -2202,3 +2202,27 @@ body.role-gm .compact-gm-debug strong{
 .inventory-item.active-weapon-item{
   box-shadow:0 0 0 1px rgba(255,205,120,0.45) inset;
 }
+
+
+#inventoryPanel{
+  max-height: 58vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 5.5rem;
+}
+#inventoryInlineList{
+  padding-bottom: 4rem;
+}
+.gm-player-inventory-list{
+  max-height: 42vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 0.15rem;
+}
+.muted-text{
+  opacity:0.72;
+  font-size:0.88em;
+}
+.gm-weapon-add-row{
+  margin-top:0;
+}

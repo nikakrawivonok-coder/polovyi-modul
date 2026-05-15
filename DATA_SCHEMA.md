@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.21"
-BUILD_NUMBER = "19649"
-BUILD_NAME = "Weapon Inventory Management Pack"
+BUILD_VERSION = "V19.21.1"
+BUILD_NUMBER = "19650"
+BUILD_NAME = "GM Inventory Authority Fix"
 ```
 
 ## appSession
@@ -510,3 +510,11 @@ Inventory weapon item:
 Characters:
 - `activeWeapon` controls active damage source.
 - `weapon` remains fallback for old rooms.
+
+
+## V19.21.1 — GM Inventory Authority Fix
+
+Authority model:
+- Player can view inventory and select active owned weapon.
+- GM controls adding and editing weapon parameters.
+- Weapon damage remains sourced from `activeWeapon` / `inventory.damage`.
