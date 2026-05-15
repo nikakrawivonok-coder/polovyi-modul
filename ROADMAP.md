@@ -1,3 +1,11 @@
+## V19.23 — Render Firebase Architecture Cleanup
+
+Cleanup:
+- формалізувати render/Firebase contract;
+- зменшити дублювання save/render/suppress helpers;
+- стабілізувати локальне редагування полів;
+- підготувати код до майбутнього великого Combat Result Object cleanup.
+
 ## V19.22.2 — Enemy Editor No-Jump Fix
 
 Hotfix:

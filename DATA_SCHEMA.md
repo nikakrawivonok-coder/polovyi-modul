@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.22.2"
-BUILD_NUMBER = "19656"
-BUILD_NAME = "Enemy Editor No-Jump Fix"
+BUILD_VERSION = "V19.23"
+BUILD_NUMBER = "19657"
+BUILD_NAME = "Render Firebase Architecture Cleanup"
 ```
 
 ## appSession
@@ -572,3 +572,15 @@ UI/runtime only:
 - `suppressRemoteRenderUntil`;
 - `suppressRemoteRenderBriefly()`;
 - enemy editor details open-state tracking.
+
+
+## V19.23 — Render Firebase Architecture Cleanup
+
+Schema не змінена.
+
+Runtime helper additions:
+- `quietSaveFieldEdit(ms=900)`
+- `saveAndRenderPreserveScroll(ms=900)`
+
+Purpose:
+- reduce render/Firebase echo bugs during local editing.

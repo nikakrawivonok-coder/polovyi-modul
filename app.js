@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.22.2 Enemy Editor No-Jump Fix
+// Польовий Модуль — V19.23 Render Firebase Architecture Cleanup
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -11,6 +11,13 @@
 // 7) Event handlers
 // Cache rule: test links must use both v=BUILD and hard=BUILD.
 // Rule: combat math must only change after explicit approval.
+// CONTRACT: Render / Firebase architecture
+// - Direct field editing should usually call quietSaveFieldEdit(), not render().
+// - Firebase echo after local field editing may be suppressed briefly.
+// - Full render() is reserved for structural UI changes: add/remove entities, visibility, active weapon, screen changes.
+// - Use renderPreserveScroll() when UI must update without losing scroll position.
+// - Combat math must not be changed inside render/Firebase cleanup.
+
 
 (function(){
       var q = new URLSearchParams(location.search);
@@ -73,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.22.2";
-const BUILD_NUMBER = "19656";
-const BUILD_NAME = "Enemy Editor No-Jump Fix";
+const BUILD_VERSION = "V19.23";
+const BUILD_NUMBER = "19657";
+const BUILD_NAME = "Render Firebase Architecture Cleanup";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2557,11 +2564,16 @@ function auditWeaponInventoryAuthority(){
 
 
 function suppressRemoteRenderBriefly(ms=900){
-  suppressRemoteRenderUntil = Date.now() + ms;
+  suppressRemoteRenderUntil = Math.max(suppressRemoteRenderUntil || 0, Date.now() + ms);
 }
 
 function shouldSuppressRemoteRender(){
   return Date.now() < suppressRemoteRenderUntil;
+}
+
+function quietSaveFieldEdit(ms=900){
+  suppressRemoteRenderBriefly(ms);
+  save();
 }
 
 function renderPreserveScroll(){
@@ -2569,6 +2581,12 @@ function renderPreserveScroll(){
   const y = window.scrollY || 0;
   render();
   requestAnimationFrame(() => window.scrollTo(x, y));
+}
+
+function saveAndRenderPreserveScroll(ms=900){
+  suppressRemoteRenderBriefly(ms);
+  save();
+  renderPreserveScroll();
 }
 
 function render(){
@@ -5011,9 +5029,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
     if(enemy){
       const item = setActiveWeaponForCharacter(enemy, gmSetEnemyActive.dataset.weaponId);
       enemy.weapon = activeWeaponKey(enemy);
-      suppressRemoteRenderBriefly();
-      save();
-      renderPreserveScroll();
+      saveAndRenderPreserveScroll();
       showToast(item ? `${enemy.name}: активна зброя — ${activeWeaponLabel(enemy)}.` : "Не вдалося змінити активну зброю ворога.");
     }
     return;
@@ -5454,8 +5470,7 @@ document.addEventListener("input", e => {
       enemy.inventory[idx][field] = gmEnemyInvInput.value;
       if(field === "name") enemy.inventory[idx].item = gmEnemyInvInput.value;
       normalizeCharacterWeapons(enemy);
-      suppressRemoteRenderBriefly();
-      save();
+      quietSaveFieldEdit();
     }
     return;
   }
@@ -5471,8 +5486,7 @@ document.addEventListener("input", e => {
       else enemy[field] = numeric ? Number(gmEnemyInput.value) : gmEnemyInput.value;
       if(field === "defenseMax") enemy.defense = Math.min(Number(enemy.defense ?? 12), Number(enemy.defenseMax ?? 12));
       if(field === "defense") enemy.defenseMax = Math.max(Number(enemy.defenseMax ?? enemy.defense ?? 12), Number(enemy.defense ?? 12));
-      suppressRemoteRenderBriefly();
-      save();
+      quietSaveFieldEdit();
     }
     return;
   }
@@ -5488,8 +5502,7 @@ document.addEventListener("input", e => {
       enemy.gm[field] = numeric ? Number(gmEnemyGmInput.value) : gmEnemyGmInput.value;
       if(field === "hpMax") enemy.gm.hp = clamp(Number(enemy.gm.hp ?? 0), 0, Number(enemy.gm.hpMax || 1));
       if(field === "hp" || field === "hpMax") updateEnemyStateByHp(enemy);
-      suppressRemoteRenderBriefly();
-      save();
+      quietSaveFieldEdit();
     }
     return;
   }
@@ -5502,8 +5515,7 @@ document.addEventListener("input", e => {
       if(gmEnemyStatInput.value === "") return;
       enemy.stats = enemy.stats || {};
       enemy.stats[field] = Number(gmEnemyStatInput.value);
-      suppressRemoteRenderBriefly();
-      save();
+      quietSaveFieldEdit();
     }
     return;
   }
@@ -5576,8 +5588,7 @@ document.addEventListener("change", e => {
     if(p && Array.isArray(p.inventory) && p.inventory[idx]){
       p.inventory[idx][field] = gmPlayerInvInput.value;
       normalizeCharacterWeapons(p);
-      save();
-      render();
+      saveAndRenderPreserveScroll();
     }
     return;
   }
@@ -5590,8 +5601,7 @@ document.addEventListener("change", e => {
     if(enemy && Array.isArray(enemy.inventory) && enemy.inventory[idx]){
       enemy.inventory[idx][field] = gmEnemyInvInput.value;
       normalizeCharacterWeapons(enemy);
-      suppressRemoteRenderBriefly();
-      save();
+      quietSaveFieldEdit();
     }
     return;
   }
@@ -5613,8 +5623,8 @@ document.addEventListener("change", e => {
       } else {
         if(field === "visible") enemy.visible = gmEnemySelect.value !== "false";
         else enemy[field] = ["defense","defenseMax","armor","fatigue","infection"].includes(field) ? Number(gmEnemySelect.value || 0) : gmEnemySelect.value;
-      }      suppressRemoteRenderBriefly();
-      save();
+      }
+      quietSaveFieldEdit();
       if(field === "visible" || field === "color" || field === "hp" || field === "hpMax") renderPreserveScroll();
     }
     return;
@@ -5626,9 +5636,7 @@ document.addEventListener("change", e => {
     if(enemy){
       const item = addWeaponToCharacter(enemy, gmAddEnemyWeapon.dataset.weaponKey || "pm", { makeActive: true });
       enemy.weapon = activeWeaponKey(enemy);
-      suppressRemoteRenderBriefly();
-      save();
-      renderPreserveScroll();
+      saveAndRenderPreserveScroll();
       showToast(item ? `${enemy.name}: додано ${item.name}.` : "Не вдалося додати зброю ворогу.");
     }
     return;
@@ -5641,9 +5649,7 @@ document.addEventListener("change", e => {
     if(enemy && weaponKey){
       const item = addWeaponToCharacter(enemy, weaponKey, { makeActive: true });
       enemy.weapon = activeWeaponKey(enemy);
-      suppressRemoteRenderBriefly();
-      save();
-      renderPreserveScroll();
+      saveAndRenderPreserveScroll();
       showToast(item ? `${enemy.name}: додано ${item.name}.` : "Не вдалося додати зброю ворогу.");
     }
     return;
@@ -5655,9 +5661,7 @@ document.addEventListener("change", e => {
     if(enemy){
       const item = setActiveWeaponForCharacter(enemy, enemyActiveWeapon.value);
       enemy.weapon = activeWeaponKey(enemy);
-      suppressRemoteRenderBriefly();
-      save();
-      renderPreserveScroll();
+      saveAndRenderPreserveScroll();
       showToast(item ? `${enemy.name}: активна зброя — ${activeWeaponLabel(enemy)}.` : "Не вдалося змінити активну зброю ворога.");
     }
     return;

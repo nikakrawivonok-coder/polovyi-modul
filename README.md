@@ -1,4 +1,4 @@
-# Польовий Модуль — V19.22.2 Enemy Editor No-Jump Fix
+# Польовий Модуль — V19.23 Render Firebase Architecture Cleanup
 
 Це документаційний checkpoint після V19.18.11.
 
@@ -357,4 +357,24 @@ Hotfix:
 - бойова математика;
 - розрахунок шкоди;
 - activeWeapon / inventory.damage;
+- privacy HP ворогів.
+
+
+## V19.23 — Render Firebase Architecture Cleanup
+
+Стабілізаційний cleanup після V19.22.2.
+
+Зміни:
+- додано contract-коментар для render/Firebase архітектури;
+- додано `quietSaveFieldEdit()` для локального редагування полів без стрибків;
+- додано `saveAndRenderPreserveScroll()` для контрольованих змін із перемальовкою без втрати scroll;
+- зменшено дублювання `suppressRemoteRenderBriefly(); save();`;
+- збережено поведінку enemy editor no-jump;
+- оновлено документацію.
+
+Не змінювалось:
+- бойова математика;
+- розрахунок шкоди;
+- activeWeapon / inventory.damage;
+- інвентарі;
 - privacy HP ворогів.
