@@ -1,4 +1,4 @@
-# Польовий Модуль — V19.24.2 Test Harness Runtime Fix
+# Польовий Модуль — V19.25 Dev Toolkit Pack
 
 Це документаційний checkpoint після V19.18.11.
 
@@ -442,3 +442,41 @@ Hotfix після V19.24.1:
 - редактор ворогів;
 - Firebase;
 - privacy HP у самій грі.
+
+
+## V19.24.3 — Test Harness Warning Polish
+
+Hotfix тестової системи:
+- прибрано хибне попередження `Build number неочікуваний`;
+- build check тепер перевіряє коректність BUILD_NUMBER без старого hardcode;
+- legacy combat log test більше не показує зайве ⚠️, якщо фільтр не спрацював на тестовому рядку;
+- ігрова логіка не змінювалась.
+
+
+## V19.25 — Dev Toolkit Pack
+
+Об’єднано три dev/test напрями:
+1. Release Preflight + Risk Labels.
+2. Dev Mode / Debug Snapshot Lite.
+3. Safe Test Room Reset / Test Scenario A.
+
+Додано у вкладку Майстра блок `Dev Toolkit`:
+- `Preflight + Tests`;
+- `Debug snapshot`;
+- `Reset test-room`.
+
+Safe reset:
+- доступний тільки Майстру;
+- працює тільки в кімнатах, назва яких починається з `test`;
+- перезаписує поточну test-room стандартною тестовою сценою.
+
+Debug snapshot:
+- збирає version/build/role/room/player/enemies/activeWeapon/target/combat/Firebase status;
+- копіює JSON або показує його в textarea.
+
+Не змінювалось:
+- бойова математика;
+- activeWeapon / inventory.damage;
+- інвентарі;
+- редактор ворогів;
+- privacy HP.

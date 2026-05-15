@@ -1,3 +1,25 @@
+## V19.25 — Dev Toolkit Pack
+
+Dev/test інфраструктура:
+- Release Preflight;
+- Risk Labels;
+- Debug Snapshot Lite;
+- Safe Test Room Reset;
+- стандартний test scenario.
+
+Мета:
+- скоротити ручне тестування;
+- швидко ловити cache/build/UI regression;
+- давати асистенту debug snapshot замість багатьох скріншотів;
+- тестувати нові версії в однаковій стандартній сцені.
+
+## V19.24.3 — Test Harness Warning Polish
+
+Hotfix:
+- прибрати хибні warnings у Self-check;
+- build test не має бути hardcoded на старий номер;
+- legacy journal test має бути defensive і не засмічувати звіт.
+
 ## V19.24.2 — Test Harness Runtime Fix
 
 Hotfix:

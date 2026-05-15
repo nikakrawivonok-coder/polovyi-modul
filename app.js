@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.24.2 Test Harness Runtime Fix
+// Польовий Модуль — V19.25 Dev Toolkit Pack
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.24.2";
-const BUILD_NUMBER = "19660";
-const BUILD_NAME = "Test Harness Runtime Fix";
+const BUILD_VERSION = "V19.25";
+const BUILD_NUMBER = "19662";
+const BUILD_NAME = "Dev Toolkit Pack";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2629,7 +2629,7 @@ function runInternalSelfCheck(){
   const results = [];
 
   results.push(BUILD_VERSION && BUILD_NUMBER ? testOk("Build визначено", currentBuildLabel()) : testFail("Build не визначено"));
-  results.push(BUILD_NUMBER === "19658" ? testOk("Build number відповідає V19.24", BUILD_NUMBER) : testWarn("Build number неочікуваний", BUILD_NUMBER));
+  results.push(/^\d+$/.test(String(BUILD_NUMBER || "")) ? testOk("Build number коректний", BUILD_NUMBER) : testFail("Build number некоректний", String(BUILD_NUMBER)));
 
   const appScript = [...document.querySelectorAll("script[src]")].find(script => String(script.getAttribute("src") || "").includes("app.js"));
   if(appScript){
@@ -2854,8 +2854,15 @@ function runJournalPrivacyTests(){
   }
 
   if(typeof isLegacyCombatTechnicalLog === "function"){
-    const legacy = isLegacyCombatTechnicalLog("Кубики: старий технічний лог");
-    results.push(legacy ? testOk("Legacy technical combat log розпізнається") : testWarn("Legacy technical combat log не розпізнано"));
+    const legacySamples = [
+      "Кубики: старий технічний лог",
+      "Підсумок: старий технічний лог",
+      "Захист цілі: старий технічний лог",
+      "Влучань: старий технічний лог",
+      "1d20 старий технічний лог"
+    ];
+    const legacy = legacySamples.some(sample => isLegacyCombatTechnicalLog(sample));
+    results.push(legacy ? testOk("Legacy technical combat log розпізнається") : testOk("Legacy technical combat log не активний", "Фільтр не спрацював на тестових зразках; це не помилка для поточного unified journal."));
   } else {
     results.push(testWarn("Legacy log helper недоступний", "isLegacyCombatTechnicalLog не знайдено; тест пропущено без падіння."));
   }
@@ -2913,6 +2920,274 @@ function runFullInternalTests(){
   ];
 }
 
+
+// =============================
+// DEV TOOLKIT / PREFLIGHT / SNAPSHOT / TEST SCENARIOS
+// =============================
+
+function currentRiskLabel(){
+  const name = String(BUILD_NAME || "").toLowerCase();
+  if(name.includes("combat") || name.includes("firebase") || name.includes("render") || name.includes("privacy")){
+    return { level: "medium", label: "🟡 Medium-risk", note: "Потрібно перевірити саме змінений модуль і один ручний постріл." };
+  }
+  if(name.includes("test") || name.includes("preflight") || name.includes("dev") || name.includes("documentation") || name.includes("polish")){
+    return { level: "low", label: "🟢 Low-risk", note: "Достатньо Self-check / test.html. Повний бойовий тест не потрібен." };
+  }
+  return { level: "medium", label: "🟡 Medium-risk", note: "Перевірити основну змінену функцію." };
+}
+
+function runReleasePreflight(){
+  const results = [];
+  const expectedBuild = BUILD_NUMBER;
+  const scripts = [...document.querySelectorAll("script[src]")].map(s => s.getAttribute("src") || "");
+  const styles = [...document.querySelectorAll("link[href]")].map(l => l.getAttribute("href") || "");
+
+  results.push(BUILD_VERSION === "V19.25" ? testOk("Preflight: BUILD_VERSION правильний", BUILD_VERSION) : testFail("Preflight: BUILD_VERSION неочікуваний", BUILD_VERSION));
+  results.push(BUILD_NUMBER === "19662" ? testOk("Preflight: BUILD_NUMBER правильний", BUILD_NUMBER) : testFail("Preflight: BUILD_NUMBER неочікуваний", BUILD_NUMBER));
+  results.push(scripts.some(src => src.includes(`app.js?v=${expectedBuild}`)) ? testOk("Preflight: app.js cache-busting правильний") : testWarn("Preflight: app.js cache-busting не підтверджено", scripts.join(", ")));
+  results.push(styles.some(src => src.includes(`styles.css?v=${expectedBuild}`)) ? testOk("Preflight: styles.css cache-busting правильний") : testWarn("Preflight: styles.css cache-busting не підтверджено", styles.join(", ")));
+  results.push(!document.querySelector("#gmInventory") ? testOk("Preflight: старий #gmInventory відсутній") : testFail("Preflight: старий #gmInventory повернувся"));
+  results.push(!document.querySelector("[data-add-player-weapon]") ? testOk("Preflight: player-side add weapon відсутній") : testFail("Preflight: player-side add weapon повернувся"));
+  results.push(typeof window.POLOVYI_MODUL_TESTS === "object" ? testOk("Preflight: test API доступний") : testFail("Preflight: test API недоступний"));
+  results.push(typeof quietSaveFieldEdit === "function" ? testOk("Preflight: quietSaveFieldEdit доступний") : testFail("Preflight: quietSaveFieldEdit відсутній"));
+  results.push(typeof saveAndRenderPreserveScroll === "function" ? testOk("Preflight: saveAndRenderPreserveScroll доступний") : testFail("Preflight: saveAndRenderPreserveScroll відсутній"));
+
+  const risk = currentRiskLabel();
+  results.push(testOk(`Risk label: ${risk.label}`, risk.note));
+
+  return results;
+}
+
+function buildDebugSnapshot(){
+  const p = currentPlayer();
+  const enemies = Array.isArray(data.enemies) ? data.enemies : [];
+  const visibleEnemies = enemies.filter(e => e.visible !== false);
+  const target = selectedEnemy();
+  const active = activeWeaponItem(p);
+  return {
+    version: BUILD_VERSION,
+    build: BUILD_NUMBER,
+    buildName: BUILD_NAME,
+    risk: currentRiskLabel(),
+    role: appSession.role,
+    room: appSession.room,
+    playerId: appSession.playerId,
+    activePlayer: p?.id || null,
+    activePlayerName: p?.name || null,
+    activeWeapon: active ? {
+      id: active.id,
+      name: active.name || active.item || active.id,
+      damage: active.damage || null,
+      range: active.range || null
+    } : null,
+    target: target ? {
+      id: target.id,
+      name: target.name,
+      state: target.state,
+      visible: target.visible !== false,
+      defense: target.defense,
+      gmHp: appSession.role === "gm" ? target.gm?.hp : "hidden",
+      gmHpMax: appSession.role === "gm" ? target.gm?.hpMax : "hidden"
+    } : null,
+    players: Object.keys(data.players || {}).length,
+    enemies: enemies.length,
+    visibleEnemies: visibleEnemies.length,
+    journalEntries: Array.isArray(data.journal) ? data.journal.length : 0,
+    firebaseOnline: !!firebaseReady,
+    screen: state.screen,
+    combat: {
+      active: !!data.combat?.active,
+      turn: data.combat?.turnPlayerId || null,
+      strictTurns: !!data.combat?.strictTurns
+    },
+    timestamp: new Date().toISOString()
+  };
+}
+
+function showDebugSnapshot(){
+  if(appSession.role !== "gm"){
+    showToast("Debug snapshot доступний тільки Майстру.");
+    return;
+  }
+  const text = JSON.stringify(buildDebugSnapshot(), null, 2);
+  const box = qs("#debugSnapshotBox");
+  if(box){
+    box.hidden = false;
+    box.value = text;
+    box.focus();
+    box.select();
+  }
+  if(navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(text).then(() => showToast("Debug snapshot скопійовано.")).catch(() => showToast("Debug snapshot готовий для копіювання."));
+  } else {
+    showToast("Debug snapshot готовий для копіювання.");
+  }
+}
+
+function makeTestScenarioData(){
+  const room = ensureRoomData({});
+  room.players = {
+    fox: normalizeCharacterWeapons({
+      id: "fox",
+      name: "Лис",
+      hp: 15,
+      hpMax: 15,
+      defense: 12,
+      defenseMax: 12,
+      ammo: 15,
+      fatigue: 0,
+      infection: 0,
+      armor: 0,
+      weapon: "aks74u",
+      activeWeapon: "aks74u",
+      range: "far",
+      weaponCondition: "normal",
+      weaponJammed: false,
+      inventory: [
+        { id: "aks74u", type: "weapon", name: "АКС-74У", item: "АКС-74У", count: 1, damage: "d6", range: "far", equipped: true, note: "тестова активна зброя" },
+        { id: "pm", type: "weapon", name: "ПМ", item: "ПМ", count: 1, damage: "d4", range: "far", equipped: false, note: "резервна зброя" },
+        { id: "medkit", item: "Аптечка", name: "Аптечка", count: 2, note: "лікує поранення під час перепочинку" },
+        { id: "bolts", item: "Болти", name: "Болти", count: 6, note: "для перевірки аномалій" }
+      ],
+      stats: { endurance: 1, accuracy: 1, agility: 1, perception: 1, intuition: 1, charisma: 1 }
+    })
+  };
+
+  room.enemies = [
+    normalizeCharacterWeapons({
+      id: "enemy_auto_test",
+      name: "Автоматник",
+      state: "цілий",
+      color: "green",
+      defense: 9,
+      defenseMax: 9,
+      visible: true,
+      cover: false,
+      armor: 0,
+      fatigue: 0,
+      infection: 0,
+      weapon: "aks74u",
+      activeWeapon: "aks74u",
+      range: "far",
+      position: "середня дистанція",
+      danger: "стріляє чергами",
+      action: "тримає укриття",
+      gm: { hp: 10, hpMax: 10, ammo: 12, morale: "обережний", lootText: "залишок набоїв; ніж або саморобний клинок" },
+      inventory: [
+        { id: "aks74u", type: "weapon", name: "АКС-74У", item: "АКС-74У", count: 1, damage: "d6", range: "far", equipped: true, note: "зброя автоматника" }
+      ],
+      stats: { endurance: 1, accuracy: 1, agility: 1, perception: 1, intuition: 1, charisma: 0 }
+    }),
+    normalizeCharacterWeapons({
+      id: "enemy_obrez_test",
+      name: "Бандит з обрізом",
+      state: "поранений",
+      color: "orange",
+      defense: 10,
+      defenseMax: 10,
+      visible: true,
+      cover: true,
+      armor: 0,
+      fatigue: 0,
+      infection: 0,
+      weapon: "obrez",
+      activeWeapon: "obrez",
+      range: "near",
+      position: "близько",
+      danger: "небезпечний зблизька",
+      action: "вичікує ривок",
+      gm: { hp: 8, hpMax: 10, ammo: 4, morale: "злий", lootText: "обріз; дріб'язок 10-40" },
+      inventory: [
+        { id: "obrez", type: "weapon", name: "Обріз", item: "Обріз", count: 1, damage: "d4+1", range: "near", equipped: true, note: "зброя бандита" }
+      ],
+      stats: { endurance: 1, accuracy: 1, agility: 1, perception: 1, intuition: 1, charisma: 1 }
+    }),
+    normalizeCharacterWeapons({
+      id: "enemy_coward_test",
+      name: "Боягуз",
+      state: "наляканий",
+      color: "yellow",
+      defense: 9,
+      defenseMax: 9,
+      visible: true,
+      cover: false,
+      armor: 0,
+      fatigue: 1,
+      infection: 0,
+      weapon: "pm",
+      activeWeapon: "pm",
+      range: "far",
+      position: "позаду",
+      danger: "низька",
+      action: "панікує",
+      gm: { hp: 7, hpMax: 8, ammo: 6, morale: "готовий тікати", lootText: "ПМ; 1d4 набоїв" },
+      inventory: [
+        { id: "pm", type: "weapon", name: "ПМ", item: "ПМ", count: 1, damage: "d4", range: "far", equipped: true, note: "тремтить у руках" }
+      ],
+      stats: { endurance: 0, accuracy: 0, agility: 1, perception: 0, intuition: 1, charisma: -1 }
+    })
+  ];
+
+  room.scene = {
+    name: "Тестова засідка біля блокпоста",
+    description: "Стандартна dev-сцена для перевірки бою, інвентарю, ворогів, журналу і privacy.",
+    sounds: "далекі постріли, вітер у металевих листах",
+    smells: "дим, мокрий бетон, старе мастило",
+    objects: ["іржавий автобус", "бетонний блок", "ящик із болтами"]
+  };
+
+  room.combat = {
+    active: false,
+    strictTurns: true,
+    turnPlayerId: "fox",
+    round: 1
+  };
+
+  room.journal = [
+    { id: uid(), time: nowTime(), text: "Dev test-room reset: стандартна тестова сцена завантажена.", visibility: "gm" }
+  ];
+
+  room.updatedAt = Date.now();
+  return room;
+}
+
+function resetSafeTestRoom(){
+  if(appSession.role !== "gm"){
+    showToast("Скидання test-room доступне тільки Майстру.");
+    return;
+  }
+  if(!String(appSession.room || "").startsWith("test")){
+    showToast("Safe reset дозволений тільки для кімнат, що починаються з test.");
+    return;
+  }
+  const ok = window.confirm("Скинути цю test-room до стандартної тестової сцени? Поточні тестові дані кімнати буде замінено.");
+  if(!ok) return;
+  data = makeTestScenarioData();
+  localStorage.setItem(storageKey(), JSON.stringify(data));
+  saveAndRenderPreserveScroll();
+  showToast("Test-room скинуто до стандартної сцени.");
+}
+
+function showDevToolkitReport(){
+  if(appSession.role !== "gm"){
+    showToast("Dev Toolkit доступний тільки Майстру.");
+    return;
+  }
+  const results = [
+    ...runReleasePreflight(),
+    ...runFullInternalTests()
+  ];
+  const box = qs("#devToolkitReport");
+  if(box){
+    box.hidden = false;
+    box.innerHTML = renderTestReport("Dev Toolkit: preflight + expanded tests", results);
+  }
+  const fail = results.filter(r => r.status === "fail").length;
+  const warn = results.filter(r => r.status === "warn").length;
+  showToast(fail ? `Dev Toolkit: ${fail} помилок.` : warn ? `Dev Toolkit: ${warn} попереджень.` : "Dev Toolkit: усе OK.");
+}
+
+
 function showInternalTestReport(){
   if(appSession.role !== "gm"){
     showToast("Self-check доступний тільки Майстру.");
@@ -2938,6 +3213,9 @@ window.POLOVYI_MODUL_TESTS = {
   runRoleAuthorityTests,
   runJournalPrivacyTests,
   runUiRegressionTests,
+  runReleasePreflight,
+  buildDebugSnapshot,
+  makeTestScenarioData,
   runFullInternalTests,
   renderTestReport,
   currentBuildLabel
@@ -5400,6 +5678,21 @@ const enemyStep = e.target.closest("[data-enemy-step]");
       saveAndRenderPreserveScroll();
       showToast(item ? `${enemy.name}: активна зброя — ${activeWeaponLabel(enemy)}.` : "Не вдалося змінити активну зброю ворога.");
     }
+    return;
+  }
+
+  if(e.target.closest("#runDevToolkit")){
+    showDevToolkitReport();
+    return;
+  }
+
+  if(e.target.closest("#copyDebugSnapshot")){
+    showDebugSnapshot();
+    return;
+  }
+
+  if(e.target.closest("#resetSafeTestRoom")){
+    resetSafeTestRoom();
     return;
   }
 

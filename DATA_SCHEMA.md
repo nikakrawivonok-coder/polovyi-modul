@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.24.2"
-BUILD_NUMBER = "19660"
-BUILD_NAME = "Test Harness Runtime Fix"
+BUILD_VERSION = "V19.25"
+BUILD_NUMBER = "19662"
+BUILD_NAME = "Dev Toolkit Pack"
 ```
 
 ## appSession
@@ -614,3 +614,24 @@ Expanded test API additions:
 Schema не змінена.
 Test harness runtime-only hotfix:
 - removed dependency on `prepareCombatBriefText` from `runJournalPrivacyTests`.
+
+
+## V19.24.3 — Test Harness Warning Polish
+
+Schema не змінена.
+Тільки polish тестової системи.
+
+
+## V19.25 — Dev Toolkit Pack
+
+Schema не змінена.
+
+New dev APIs:
+- `runReleasePreflight()`
+- `buildDebugSnapshot()`
+- `makeTestScenarioData()`
+
+Dev UI:
+- `#runDevToolkit`
+- `#copyDebugSnapshot`
+- `#resetSafeTestRoom`
