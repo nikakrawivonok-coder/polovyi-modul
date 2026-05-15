@@ -1,12 +1,12 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.18.9
+# DATA_SCHEMA.md — Польовий Модуль V19.18.10
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.18.9"
-BUILD_NUMBER = "19641"
+BUILD_VERSION = "V19.18.10"
+BUILD_NUMBER = "19642"
 BUILD_NAME = "Journal Render Helper Cleanup"
 ```
 
@@ -409,7 +409,7 @@ Cleanup-only підхід після V19.18.3.
 - Бойова математика не змінювалась.
 
 
-## V19.18.9 — Combat Result Object Preparation
+## V19.18.10 — Combat Result Object Preparation
 
 No schema change.
 
@@ -420,15 +420,22 @@ Maintenance notes:
 - Combat math and Firebase structure unchanged.
 
 
-## V19.18.9 — Combat Result Object Preparation
+## V19.18.10 — Combat Result Object Preparation
 
 - `prepareCombatBriefResult(input)` нормалізує вхідні поля бойового підсумку для `setCombatBrief(input)`.
 - Це не нова Firebase-схема і не зміна бойової математики.
 - Мета: підготувати поступовий перехід до структурованого `Combat Result Object`, з якого будуть будуватись `Остання дія`, toast, Journal, GM view і Player view.
 
 
-## V19.18.9 — Journal Clear Options
+## V19.18.10 — Journal Clear Options
 
 - Схема Firebase не змінена.
 - `data.journal` лишається масивом записів із `visibility`: `public`, `gm`, `private`.
 - Локальне очищення журналу зберігається в `localStorage` як перелік прихованих ID записів для ролі/гравця.
+
+
+## V19.18.10 — Player Journal Visibility Fix
+
+- Схема Firebase не змінювалась.
+- Локальний journal clear і надалі використовує ключ `pm_journal_hidden_<room>_<role/player>`.
+- Виправлено лише клієнтський фільтр видимості: `hiddenJournalIdsForCurrentRole()` є актуальним helper для GM і player.

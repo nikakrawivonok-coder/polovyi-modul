@@ -1,6 +1,6 @@
 ### V19.18.5 — Remove Module Signal Button
 
-## V19.18.9 — Section Alignment + Cache Link Standard
+## V19.18.10 — Section Alignment + Cache Link Standard
 
 Cleanup-only checkpoint after V19.18.6.
 
@@ -2217,7 +2217,7 @@ Cleanup-only крок для читабельності `app.js`.
 - Позначити активний шлях бойового підсумку.
 - Не змінювати бойову математику.
 
-### V19.18.9 — Combat Result Object Preparation
+### V19.18.10 — Combat Result Object Preparation
 
 - Додано `prepareCombatBriefResult(input)` як перший легкий контракт для майбутнього `Combat Result Object`.
 - `setCombatBrief(...)` тепер спершу нормалізує вхідні дані через цей helper, а вже потім формує public/GM тексти.
@@ -2225,9 +2225,16 @@ Cleanup-only крок для читабельності `app.js`.
 - Наступний cleanup-крок може поступово переводити `player → enemy` та `enemy → player` атаки на структурований combat result без різкого рефакторингу.
 
 
-## V19.18.9 — Journal Clear Options + Compact GM Buttons
+## V19.18.10 — Journal Clear Options + Compact GM Buttons
 
 - Розширити очищення журналу для Майстра: локально у себе, усім, публічні, службові Майстра, приватні.
 - Зменшити візуальний розмір кнопок журналу Майстра.
 - Зберегти безпечне локальне очищення для гравця.
 - Не змінювати бойову математику.
+
+
+## V19.18.10 — Player Journal Visibility Fix
+
+- Hotfix після V19.18.9: виправлено помилковий виклик `hiddenJournalIdsForCurrentPlayer()` у фільтрі журналу гравця.
+- Акаунт гравця знову має бачити власні нові дії у `Останній дії`, toast та журналі.
+- Логіка очищення журналу, бойова математика і privacy HP не змінені.

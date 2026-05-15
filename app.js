@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.18.9 Journal Clear Options + Compact GM Buttons
+// Польовий Модуль — V19.18.10 Player Journal Visibility Fix
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -73,9 +73,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.18.9";
-const BUILD_NUMBER = "19641";
-const BUILD_NAME = "Journal Clear Options + Compact GM Buttons";
+const BUILD_VERSION = "V19.18.10";
+const BUILD_NUMBER = "19642";
+const BUILD_NAME = "Player Journal Visibility Fix";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2816,7 +2816,7 @@ function isJournalEntryVisibleForCurrentRole(j){
   if(isLegacyCombatTechnicalLog(j.text)) return false;
 
   if(appSession.role !== "gm"){
-    if(hiddenJournalIdsForCurrentPlayer().has(j.id)) return false;
+    if(hiddenJournalIdsForCurrentRole().has(j.id)) return false;
     if(j.visibility === "gm") return false;
     if(j.visibility === "private") return j.targetPlayerId === appSession.player;
     return true;
