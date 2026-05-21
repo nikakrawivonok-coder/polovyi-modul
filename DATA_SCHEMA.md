@@ -5,9 +5,9 @@
 ## Build
 
 ```js
-BUILD_VERSION = "V19.26.2"
-BUILD_NUMBER = "19665"
-BUILD_NAME = "Debug Snapshot Display Fix"
+BUILD_VERSION = "V19.27"
+BUILD_NUMBER = "19666"
+BUILD_NAME = "State Profile Focus + Tap Edit"
 ```
 
 ## appSession
@@ -637,26 +637,10 @@ Dev UI:
 - `#resetSafeTestRoom`
 
 
-## V19.26 — GM Comfort Dashboard
+## V19.27 — State Profile Focus + Tap Edit
 
 Schema не змінена.
-UI additions:
-- `gmComfortDashboardHtml()`
-- `applyGmComfortAction()`
-- quick GM journal notes/actions.
-
-
-## V19.26.1 — Dev Toolkit Preflight Snapshot Fix
-
-Schema не змінена.
-Dev Toolkit hotfix:
-- generalized Preflight checks;
-- improved Debug snapshot visibility.
-
-
-## V19.26.2 — Debug Snapshot Display Fix
-
-Schema не змінена.
-Dev Toolkit UI-only hotfix:
-- `#debugSnapshotPanel`
-- robust `showDebugSnapshot()`
+UI changes:
+- `identity-panel` moved inside state screen;
+- `#profileGmQuickEdit`;
+- `renderProfileGmQuickEdit(p)`.

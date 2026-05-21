@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.26.2 Debug Snapshot Display Fix
+// Польовий Модуль — V19.27 State Profile Focus + Tap Edit
 // Cleanup-only build. Combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.26.2";
-const BUILD_NUMBER = "19665";
-const BUILD_NAME = "Debug Snapshot Display Fix";
+const BUILD_VERSION = "V19.27";
+const BUILD_NUMBER = "19666";
+const BUILD_NAME = "State Profile Focus + Tap Edit";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -2340,92 +2340,6 @@ function doCommand(command){
 }
 
 
-
-function gmVisibleEnemySummary(){
-  const enemies = getVisibleEnemies();
-  if(!enemies.length) return "Видимих ворогів немає";
-  return `${enemies.length} видим. · ${enemies.map(e => `${e.name}: ${e.state || "?"}`).slice(0,3).join(" · ")}`;
-}
-
-function gmLastActionText(){
-  const journal = Array.isArray(data.journal) ? data.journal : [];
-  const last = [...journal].reverse().find(j => j && j.text);
-  return last ? String(last.text).slice(0, 140) : "Ще немає дій у журналі.";
-}
-
-function gmComfortDashboardHtml(activePlayer, activePlayerId, activeEnemy){
-  const sceneName = data.scene?.name || "Сцена без назви";
-  const combatText = data.combat?.active ? `Бій · Раунд ${data.combat.round || 1}` : "Поза боєм";
-  const targetText = activeEnemy ? `${activeEnemy.name} · ${activeEnemy.state || "стан?"}` : "ціль не обрана";
-  const playerText = activePlayer ? `${activePlayer.name || activePlayerId} · HP ${activePlayer.hp ?? "?"}/${activePlayer.hpMax ?? "?"} · 🛡 ${playerDefenseDisplay(activePlayer, true)}` : "активного гравця немає";
-  return `<section class="gm-comfort-dashboard">
-    <div class="gm-comfort-head">
-      <div>
-        <div class="enemy-template-kicker">Пульт Майстра · живий режим</div>
-        <h3>${escapeHtml(sceneName)}</h3>
-      </div>
-      <span class="gm-comfort-pill">${escapeHtml(combatText)}</span>
-    </div>
-
-    <div class="gm-comfort-grid">
-      <div class="gm-comfort-card"><b>Активний гравець</b><span>${escapeHtml(playerText)}</span></div>
-      <div class="gm-comfort-card"><b>Активна ціль</b><span>${escapeHtml(targetText)}</span></div>
-      <div class="gm-comfort-card"><b>Вороги</b><span>${escapeHtml(gmVisibleEnemySummary())}</span></div>
-      <div class="gm-comfort-card"><b>Остання дія</b><span>${escapeHtml(gmLastActionText())}</span></div>
-    </div>
-
-    <div class="gm-comfort-actions">
-      <button class="metal-btn small" data-gm-comfort="complication">Ускладнення</button>
-      <button class="metal-btn small" data-gm-comfort="atmosphere">Атмосфера</button>
-      <button class="metal-btn small" data-gm-comfort="hook">Зачіпка</button>
-      <button class="metal-btn small" data-gm-comfort="danger">Небезпека</button>
-      <button class="metal-btn small" data-gm-comfort="loot">Лут</button>
-      <button class="metal-btn small" data-gm-comfort="panic">Паніка ворога</button>
-      <button class="metal-btn small" data-gm-comfort="flank">Фланг</button>
-      <button class="metal-btn small" data-gm-comfort="quiet">Тиха сцена</button>
-    </div>
-
-    <div class="gm-comfort-note-row">
-      <textarea id="gmComfortQuickNote" rows="2" placeholder="Швидкий запис: подія, наслідок, опис, приватна думка Майстра..."></textarea>
-      <div class="gm-comfort-note-actions">
-        <button class="metal-btn small" data-gm-comfort-note="public">Всім</button>
-        <button class="metal-btn small" data-gm-comfort-note="gm">Майстру</button>
-      </div>
-    </div>
-  </section>`;
-}
-
-function gmComfortText(kind){
-  const activeEnemy = selectedTargetEnemy() || getVisibleEnemies()[0] || null;
-  const enemyName = activeEnemy?.name || "ворог";
-  const activePlayer = currentPlayer();
-  const playerName = activePlayer?.name || "сталкер";
-  const map = {
-    complication: `Ускладнення: ситуація змінюється. ${playerName} помічає нову загрозу або ціну своєї дії.`,
-    atmosphere: `Атмосфера: у повітрі відчувається металевий присмак, десь у тумані коротко тріщить гілка.`,
-    hook: `Зачіпка: серед деталей сцени видно слід, який може привести до схованки, аномалії або чужої групи.`,
-    danger: `Небезпека: Зона реагує. Наступна необережна дія може дати Втому, шум або втрату позиції.`,
-    loot: `Лут: після сцени можна знайти дрібну корисну річ, набої або підказку про цінніший сховок.`,
-    panic: `${enemyName} нервує і може помилитися, відступити або відкрити позицію.`,
-    flank: `${enemyName} або інша загроза намагається зайти з флангу. Укриття більше не гарантує повної безпеки.`,
-    quiet: `Тиха сцена: після напруги все стихає. Чути тільки вітер, далекі постріли і власне дихання.`
-  };
-  return map[kind] || "Подія Майстра.";
-}
-
-function applyGmComfortAction(kind){
-  if(appSession.role !== "gm") return;
-  const text = gmComfortText(kind);
-  const visibility = kind === "panic" || kind === "flank" ? "gm" : "public";
-  addLog(text, visibility);
-  data.combat = data.combat || {};
-  data.combat.lastEvent = text;
-  save();
-  render();
-  showToast("Додано подію Майстра.");
-}
-
-
 function renderGmQuickPanel(){
   const box = qs("#gmQuickPanel");
   if(!box) return;
@@ -2578,7 +2492,6 @@ function renderGmQuickPanel(){
   ` : `<div class="gm-enemy-control"><div class="gm-empty-line">Активного ворога немає. Додай або покажи ворога.</div></div>`;
 
   box.innerHTML = `
-    ${gmComfortDashboardHtml(activePlayer, activePlayerId, activeEnemy)}
     <div class="gm-quick-head">
       <strong>Панель Майстра</strong>
       <span>${data.combat?.active ? `Бій · Раунд ${data.combat.round || 1}` : "Поза боєм"}</span>
@@ -3103,54 +3016,18 @@ function showDebugSnapshot(){
     showToast("Debug snapshot доступний тільки Майстру.");
     return;
   }
-
   const text = JSON.stringify(buildDebugSnapshot(), null, 2);
-  const panel = qs("#debugSnapshotPanel");
   const box = qs("#debugSnapshotBox");
-
-  if(panel){
-    panel.style.display = "block";
-    panel.hidden = false;
-    panel.classList.add("debug-snapshot-box-visible");
-  }
-
   if(box){
     box.hidden = false;
     box.value = text;
-    box.removeAttribute("hidden");
-    box.style.display = "block";
-    box.classList.add("debug-snapshot-box-visible");
+    box.focus();
+    box.select();
   }
-
-  const report = qs("#devToolkitReport");
-  if(report){
-    report.hidden = false;
-    const safeText = escapeHtml(text);
-    report.innerHTML = `<div class="debug-snapshot-preview">
-      <h4>Debug snapshot готовий</h4>
-      <p>JSON показано у полі вище. Його можна скопіювати й надіслати мені.</p>
-      <pre>${safeText.slice(0, 1600)}${safeText.length > 1600 ? "\\n..." : ""}</pre>
-    </div>` + (report.innerHTML || "");
-  }
-
-  requestAnimationFrame(() => {
-    const target = panel || box || report;
-    if(target?.scrollIntoView) target.scrollIntoView({ behavior: "smooth", block: "center" });
-    if(box){
-      try{
-        box.focus();
-        box.select();
-        box.setSelectionRange(0, box.value.length);
-      }catch(err){}
-    }
-  });
-
   if(navigator.clipboard?.writeText){
-    navigator.clipboard.writeText(text)
-      .then(() => showToast("Debug snapshot показано і скопійовано."))
-      .catch(() => showToast("Debug snapshot показано. Скопіюй JSON вручну."));
+    navigator.clipboard.writeText(text).then(() => showToast("Debug snapshot скопійовано.")).catch(() => showToast("Debug snapshot готовий для копіювання."));
   } else {
-    showToast("Debug snapshot показано. Скопіюй JSON вручну.");
+    showToast("Debug snapshot готовий для копіювання.");
   }
 }
 
@@ -3365,6 +3242,70 @@ function saveAndRenderPreserveScroll(ms=900){
   renderPreserveScroll();
 }
 
+
+function renderProfileGmQuickEdit(p){
+  const box = qs("#profileGmQuickEdit");
+  if(!box) return;
+  if(appSession.role !== "gm"){
+    box.innerHTML = "";
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const pid = currentPlayerId();
+  box.innerHTML = `
+    <div class="profile-edit-head">
+      <span>Швидке редагування профілю Майстром</span>
+      <small>тапай +/- без пошуку внизу панелі</small>
+    </div>
+    <div class="profile-edit-grid">
+      <div class="profile-edit-line">
+        <b>HP</b>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="hp" data-delta="-1">−</button>
+        <span>${escapeHtml(String(p.hp ?? "?"))}/${escapeHtml(String(p.hpMax ?? "?"))}</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="hp" data-delta="1">+</button>
+      </div>
+      <div class="profile-edit-line">
+        <b>Max HP</b>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="hpMax" data-delta="-1">−</button>
+        <span>${escapeHtml(String(p.hpMax ?? "?"))}</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="hpMax" data-delta="1">+</button>
+      </div>
+      <div class="profile-edit-line">
+        <b>Захист</b>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="defense" data-delta="-1">−</button>
+        <span>${escapeHtml(playerDefenseDisplay(p, true))}</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="defense" data-delta="1">+</button>
+      </div>
+      <div class="profile-edit-line">
+        <b>Max Зах.</b>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="defenseMax" data-delta="-1">−</button>
+        <span>${escapeHtml(String(p.defenseMax ?? p.defense ?? 12))}</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="defenseMax" data-delta="1">+</button>
+      </div>
+      <div class="profile-edit-line">
+        <b>Втома</b>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="fatigue" data-delta="-1">−</button>
+        <span>${escapeHtml(String(p.fatigue ?? 0))}/5</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="fatigue" data-delta="1">+</button>
+      </div>
+      <div class="profile-edit-line">
+        <b>Зараж.</b>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="infection" data-delta="-1">−</button>
+        <span>${escapeHtml(String(p.infection ?? p.radiation ?? 0))}</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="infection" data-delta="1">+</button>
+      </div>
+      <div class="profile-edit-line">
+        <b>Набої</b>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="ammo" data-delta="-1">−</button>
+        <span>${escapeHtml(String(p.ammo ?? 0))}</span>
+        <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="ammo" data-delta="1">+</button>
+      </div>
+    </div>
+  `;
+}
+
+
 function render(){
   const focusState = captureFocusState();
   const p = normalizeCharacterWeapons(currentPlayer());
@@ -3381,6 +3322,7 @@ function render(){
   qs("#radDots").innerHTML = dots(p.infection ?? p.radiation ?? 0, 7, "rad");
   qs("#ammoDots").innerHTML = dots(Math.min(p.ammo, 6), 6);
   renderCharacterDetails(p);
+  renderProfileGmQuickEdit(p);
 
   const s = data.scene;
   safeSetText("#sceneNameShort", s.name);
@@ -5572,15 +5514,6 @@ document.addEventListener("toggle", e => {
 }, true);
 
 
-
-document.addEventListener("click", e => {
-  if(e.target && e.target.id === "copyDebugSnapshot"){
-    e.preventDefault();
-    showDebugSnapshot();
-  }
-}, true);
-
-
 document.addEventListener("click", e => {
 
   if(e.target.closest("#gmStickyNextTurn")){
@@ -5816,27 +5749,6 @@ const enemyStep = e.target.closest("[data-enemy-step]");
       enemy.weapon = activeWeaponKey(enemy);
       saveAndRenderPreserveScroll();
       showToast(item ? `${enemy.name}: активна зброя — ${activeWeaponLabel(enemy)}.` : "Не вдалося змінити активну зброю ворога.");
-    }
-    return;
-  }
-
-  const comfortAction = e.target.closest("[data-gm-comfort]");
-  if(comfortAction){
-    applyGmComfortAction(comfortAction.dataset.gmComfort);
-    return;
-  }
-
-  const comfortNote = e.target.closest("[data-gm-comfort-note]");
-  if(comfortNote){
-    const text = qs("#gmComfortQuickNote")?.value.trim();
-    if(!text){
-      showToast("Напиши швидкий запис.");
-    } else {
-      addLog(text, comfortNote.dataset.gmComfortNote === "gm" ? "gm" : "public");
-      qs("#gmComfortQuickNote").value = "";
-      save();
-      render();
-      showToast("Швидкий запис додано.");
     }
     return;
   }
