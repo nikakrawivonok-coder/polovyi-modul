@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.18.10
+# DATA_SCHEMA.md — Польовий Модуль V19.28
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.27"
-BUILD_NUMBER = "19666"
-BUILD_NAME = "State Profile Focus + Tap Edit"
+BUILD_VERSION = "V19.28"
+BUILD_NUMBER = "19668"
+BUILD_NAME = "Attribute Check Roller"
 ```
 
 ## appSession
@@ -94,6 +94,55 @@ data.enemies = [
 
 Гравець не має бачити точні HP, набої, мораль, лут і небезпеку ворога.  
 Майстер бачить усіх ворогів, включно з прихованими.
+
+## data.combat.attributeCheck
+
+V19.28 додає shared-об’єкт останньої перевірки характеристики:
+
+```js
+data.combat.attributeCheck = {
+  id: string,
+  kind: "attributeCheck",
+  playerId: string,
+  playerName: string,
+  stat: "endurance" | "accuracy" | "agility" | "perception" | "intuition" | "charisma",
+  statLabel: string,
+  mode: "normal" | "advantage" | "disadvantage",
+  modeLabel: string,
+  difficulty: number,
+  sceneMod: number,
+  sceneReason: string,
+  fatigue: number,
+  fatiguePenalty: number,
+  statMod: number,
+  rolls: number[],
+  chosenRoll: number,
+  total: number,
+  naturalOne: boolean,
+  success: boolean,
+  resultText: string,
+  canReroll: boolean,
+  rerolled: boolean,
+  previous?: {
+    total: number,
+    resultText: string,
+    chosenRoll: number,
+    rolls: number[],
+    fatigue: number,
+    fatiguePenalty: number
+  },
+  createdAt: string,
+  time: string
+}
+```
+
+Призначення:
+- показати останню перевірку гравцю у вкладці `Стан`;
+- дозволити відповідному гравцю один перекид за `+1 Втома`;
+- не змінювати бойову математику 1/2/3 патрони.
+
+Правило natural 1:
+- перекид блокується тільки якщо фінально обраний d20 = 1.
 
 ## Лут V19.16.6
 
@@ -644,3 +693,34 @@ UI changes:
 - `identity-panel` moved inside state screen;
 - `#profileGmQuickEdit`;
 - `renderProfileGmQuickEdit(p)`.
+
+
+## V19.27.1 — ROADMAP Attribute Checks Plan
+
+Schema не змінена.
+
+Це документаційний/roadmap checkpoint для майбутньої V19.28:
+- Attribute Check Roller ще не реалізовано;
+- нові поля у Firebase-схему не додавались;
+- структура `players`, `enemies`, `journal`, `combat`, `scene` не змінювалась;
+- правила Втоми, Умови сцени, Переваги/Перешкоди і Перекиду за +1 Втома зафіксовано тільки в `ROADMAP.md`.
+
+
+## V19.28 — Attribute Check Roller
+
+Schema змінена мінімально:
+- додано `data.combat.attributeCheck`;
+- максимум Втоми для гравця тепер 6.
+- локальний fallback-синк для localhost використовує той самий room snapshot у `localStorage` і не додає нових Firebase-полів.
+
+Нові helper-и:
+- `fatigueCombatPenalty(fatigue)`;
+- `fatigueOtherStatsPenalty(fatigue)`;
+- `rollAttributeCheck(input, options)`.
+
+Не змінено:
+- бойова математика 1/2/3 патрони;
+- activeWeapon / inventory.damage;
+- інвентарі;
+- редактор ворогів;
+- privacy HP ворогів.

@@ -2382,3 +2382,77 @@ body.role-gm .compact-gm-debug strong{
   text-align:center;
   font-weight:800;
 }
+
+
+/* V19.28 — Attribute Check Roller */
+.attribute-check-panel{
+  margin-bottom:0.85rem;
+  border:1px solid var(--line);
+  border-radius:1rem;
+  padding:0.75rem;
+  background:rgba(0,0,0,0.22);
+}
+.attribute-check-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:0.55rem;
+}
+.attribute-check-grid label{
+  display:grid;
+  gap:0.3rem;
+}
+.attribute-check-reason{
+  grid-column:1 / -1;
+}
+.attribute-check-player-panel{
+  margin:0.75rem 0 0;
+}
+.attribute-check-card{
+  border:1px solid var(--line);
+  border-radius:1rem;
+  padding:0.7rem;
+  background:rgba(0,0,0,0.22);
+  display:grid;
+  gap:0.45rem;
+}
+.attribute-check-head{
+  display:flex;
+  justify-content:space-between;
+  gap:0.6rem;
+  align-items:baseline;
+}
+.attribute-check-head strong{
+  color:var(--gold);
+}
+.attribute-check-head span,
+.attribute-check-note,
+.attribute-check-reason-line{
+  opacity:0.78;
+}
+.attribute-check-dice{
+  font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight:800;
+}
+.attribute-check-breakdown{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+  gap:0.35rem;
+}
+.attribute-check-breakdown span{
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:0.65rem;
+  padding:0.35rem;
+  background:rgba(0,0,0,0.14);
+}
+.attribute-check-total{
+  font-weight:800;
+}
+.attribute-ok{
+  box-shadow:inset 0 0 0 1px rgba(71,170,92,0.22);
+}
+.attribute-warn{
+  box-shadow:inset 0 0 0 1px rgba(214,170,70,0.22);
+}
+.attribute-fail{
+  box-shadow:inset 0 0 0 1px rgba(210,70,70,0.28);
+}

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Польовий Модуль — Test Harness V19.27</title>
-  <link rel="stylesheet" href="./styles.css?v=19666">
+  <title>Польовий Модуль — Test Harness V19.28</title>
+  <link rel="stylesheet" href="./styles.css?v=19668">
   <style>
     body{padding:1rem;max-width:900px;margin:0 auto;}
     .test-page-box{border:1px solid var(--line);border-radius:1rem;padding:1rem;background:rgba(0,0,0,.22);}
@@ -17,7 +17,7 @@
     <p>Ця сторінка завантажує той самий <code>app.js</code> і запускає розширені внутрішні тести без ручного проходження всіх функцій.</p>
     <div class="test-page-actions">
       <button class="metal-btn" id="runTestPage">Запустити тести</button>
-      <a class="metal-btn" href="./?role=gm&room=test19666&gmKey=zona-master&v=19666&hard=19666">Відкрити Майстра</a>
+      <a class="metal-btn" href="./?role=gm&room=test19668&gmKey=zona-master&v=19668&hard=19668">Відкрити Майстра</a>
     </div>
     <div id="testPageReport">Натисни “Запустити тести”.</div>
   </div>
@@ -31,6 +31,7 @@
     <div id="enemyTemplateDock"></div><div id="enemyCards"></div>
     <div id="inventoryList"></div><div id="inventoryInlineList"></div>
     <div id="targetSelector"></div>
+    <div id="attributeCheckPlayerPanel"></div>
     <div id="journalList"></div><div id="journalPrivateTargets"></div>
     <div id="gmQuickPanel"></div><div id="gmCombatPanel"></div><div id="gmPlayers"></div><div id="gmEnemies"></div>
     <select id="lootTargetPlayer"></select><select id="enemyAttackTarget"></select>
@@ -40,7 +41,7 @@
   <script>
     window.POLOVYI_MODUL_TEST_PAGE = true;
   </script>
-  <script src="./app.js?v=19666"></script>
+  <script src="./app.js?v=19668"></script>
   <script>
     document.querySelector("#runTestPage").addEventListener("click", () => {
       const box = document.querySelector("#testPageReport");

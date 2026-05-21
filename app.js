@@ -1,5 +1,5 @@
-// Польовий Модуль — V19.27 State Profile Focus + Tap Edit
-// Cleanup-only build. Combat math intentionally unchanged.
+// Польовий Модуль — V19.28 Attribute Check Roller
+// Attribute checks added. Locked 1/2/3 ammo combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
 // 1) Boot / session / Firebase helpers
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.27";
-const BUILD_NUMBER = "19666";
-const BUILD_NAME = "State Profile Focus + Tap Edit";
+const BUILD_VERSION = "V19.28";
+const BUILD_NUMBER = "19668";
+const BUILD_NAME = "Attribute Check Roller";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -437,7 +437,7 @@ const defeatScenes = {
     apply(players){
       Object.values(players).forEach(p => {
         p.hp = Math.max(1, Math.min(Number(p.hpMax || 10), Math.ceil(Number(p.hpMax || 10) * 0.25)));
-        p.fatigue = clamp(Number(p.fatigue || 0) + 2, 0, 5);
+        p.fatigue = clamp(Number(p.fatigue || 0) + 2, 0, 6);
         p.ammo = Math.max(0, Math.floor(Number(p.ammo || 0) / 2));
       });
     }
@@ -455,7 +455,7 @@ const defeatScenes = {
     apply(players){
       Object.values(players).forEach(p => {
         p.hp = Math.max(1, Math.min(Number(p.hpMax || 10), Math.ceil(Number(p.hpMax || 10) * 0.35)));
-        p.fatigue = clamp(Number(p.fatigue || 0) + 1, 0, 5);
+        p.fatigue = clamp(Number(p.fatigue || 0) + 1, 0, 6);
         p.infection = clamp(Number(p.infection || 0) + 1, 0, 7);
       });
     }
@@ -473,7 +473,7 @@ const defeatScenes = {
     apply(players){
       Object.values(players).forEach(p => {
         p.hp = Math.max(1, Math.min(Number(p.hpMax || 10), Math.ceil(Number(p.hpMax || 10) * 0.3)));
-        p.fatigue = clamp(Number(p.fatigue || 0) + 2, 0, 5);
+        p.fatigue = clamp(Number(p.fatigue || 0) + 2, 0, 6);
         p.ammo = 0;
       });
     }
@@ -491,7 +491,7 @@ const defeatScenes = {
     apply(players){
       Object.values(players).forEach(p => {
         p.hp = Math.max(2, Math.min(Number(p.hpMax || 10), Math.ceil(Number(p.hpMax || 10) * 0.45)));
-        p.fatigue = clamp(Number(p.fatigue || 0) + 1, 0, 5);
+        p.fatigue = clamp(Number(p.fatigue || 0) + 1, 0, 6);
       });
     }
   }
@@ -502,7 +502,7 @@ function loadAdventurePack(packId){
   if(!pack) return;
   loadSceneTemplate(pack.scene);
   Object.values(data.players || {}).forEach(p => {
-    p.fatigue = clamp(Number(p.fatigue || 0) + Number(pack.playerEffect?.fatigue || 0), 0, 5);
+    p.fatigue = clamp(Number(p.fatigue || 0) + Number(pack.playerEffect?.fatigue || 0), 0, 6);
     p.infection = clamp(Number(p.infection || 0) + Number(pack.playerEffect?.infection || 0), 0, 7);
   });
   addLog(`Пак пригоди: ${pack.title}. ${pack.intro}`, "public");
@@ -745,6 +745,18 @@ function storageKey(){
   return `${STORAGE_PREFIX}:${appSession.room}`;
 }
 
+function saveLocalSnapshot(roomData = data, syncMode = appSession.syncMode || "local"){
+  try{
+    roomData.meta = roomData.meta || {};
+    roomData.meta.updatedAt = new Date().toISOString();
+    roomData.meta.roomId = appSession.room;
+    roomData.meta.syncMode = syncMode;
+    localStorage.setItem(storageKey(), JSON.stringify(roomData));
+  }catch(err){
+    console.warn("Local room save failed", err);
+  }
+}
+
 function makeId(prefix="id"){
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
 }
@@ -799,7 +811,7 @@ function normalizeRoomDataLight(roomData){
     if(!p.name) p.name = pid;
     p.hp = Number(p.hp ?? 10);
     p.hpMax = Number(p.hpMax ?? p.hp ?? 10);
-    p.fatigue = Number(p.fatigue ?? 0);
+    p.fatigue = clamp(p.fatigue ?? 0, 0, 6);
     p.infection = Number(p.infection ?? 0);
     p.ammo = Number(p.ammo ?? 0);
     if(!p.weapon) p.weapon = "pm";
@@ -956,7 +968,7 @@ const syncAdapter = {
     roomData.meta.roomId = appSession.room;
     roomData.meta.syncMode = "firebase";
 
-    localStorage.setItem(storageKey(), JSON.stringify(roomData));
+    saveLocalSnapshot(roomData, "firebase");
 
     clearTimeout(pendingSaveTimer);
     pendingSaveTimer = setTimeout(() => {
@@ -995,6 +1007,11 @@ const syncAdapter = {
 
 function save(){
   if(isApplyingRemote) return;
+  if(!syncAdapter.roomRef){
+    appSession.syncMode = "local";
+    saveLocalSnapshot(data, "local");
+    return;
+  }
   syncAdapter.save(data);
 }
 
@@ -1211,6 +1228,286 @@ function dots(current, max, mode="normal"){
     out += `<span class="${cls}"></span>`;
   }
   return out;
+}
+
+const ATTRIBUTE_CHECK_STATS = {
+  endurance: { label: "Витривалість", short: "Витр.", fatigue: "other" },
+  accuracy: { label: "Точність", short: "Точн.", fatigue: "combat" },
+  agility: { label: "Вправність", short: "Вправ.", fatigue: "other" },
+  perception: { label: "Сприйняття", short: "Сприйн.", fatigue: "other" },
+  intuition: { label: "Інтуїція", short: "Інт.", fatigue: "other" },
+  charisma: { label: "Харизма", short: "Хар.", fatigue: "other" }
+};
+
+const ATTRIBUTE_CHECK_MODES = {
+  normal: "звичайний",
+  advantage: "перевага",
+  disadvantage: "перешкода"
+};
+
+function fatigueCombatPenalty(fatigue){
+  return Math.ceil(clamp(fatigue, 0, 6) / 2);
+}
+
+function fatigueOtherStatsPenalty(fatigue){
+  return Math.floor(clamp(fatigue, 0, 6) / 2);
+}
+
+function attributeStatConfig(stat){
+  return ATTRIBUTE_CHECK_STATS[stat] || ATTRIBUTE_CHECK_STATS.perception;
+}
+
+function attributeModeLabel(mode){
+  return ATTRIBUTE_CHECK_MODES[mode] || ATTRIBUTE_CHECK_MODES.normal;
+}
+
+function attributeFatiguePenalty(stat, fatigue){
+  return attributeStatConfig(stat).fatigue === "combat" ? fatigueCombatPenalty(fatigue) : fatigueOtherStatsPenalty(fatigue);
+}
+
+function chooseAttributeCheckRoll(rolls, mode){
+  if(mode === "advantage") return Math.max(...rolls);
+  if(mode === "disadvantage") return Math.min(...rolls);
+  return rolls[0];
+}
+
+function rollAttributeCheck(input = {}, options = {}){
+  const playerId = String(input.playerId || currentPlayerId());
+  const player = data.players?.[playerId] || currentPlayer();
+  const stat = ATTRIBUTE_CHECK_STATS[input.stat] ? input.stat : "perception";
+  const mode = ATTRIBUTE_CHECK_MODES[input.mode] ? input.mode : "normal";
+  const diceCount = mode === "normal" ? 1 : 2;
+  const forced = Array.isArray(options.rolls) ? options.rolls.map(n => clamp(n, 1, 20)).slice(0, diceCount) : [];
+  while(forced.length < diceCount) forced.push(rollDie(20));
+  const rolls = forced;
+  const chosenRoll = chooseAttributeCheckRoll(rolls, mode);
+  const stats = player.stats || {};
+  const statMod = Number(stats[stat] ?? 0);
+  const sceneMod = clamp(input.sceneMod ?? 0, -10, 10);
+  const difficulty = Math.max(1, Number(input.difficulty || 14));
+  const fatigue = clamp(player.fatigue ?? 0, 0, 6);
+  const fatiguePenalty = attributeFatiguePenalty(stat, fatigue);
+  const total = chosenRoll + statMod + sceneMod - fatiguePenalty;
+  const naturalOne = chosenRoll === 1;
+  const success = !naturalOne && total >= difficulty;
+  const resultText = naturalOne ? "критична невдача" : (success ? "успіх" : "провал");
+
+  return {
+    id: makeId("attr"),
+    kind: "attributeCheck",
+    playerId,
+    playerName: player.name || playerId,
+    stat,
+    statLabel: attributeStatConfig(stat).label,
+    mode,
+    modeLabel: attributeModeLabel(mode),
+    difficulty,
+    sceneMod,
+    sceneReason: String(input.sceneReason || "").trim(),
+    fatigue,
+    fatiguePenalty,
+    statMod,
+    rolls,
+    chosenRoll,
+    total,
+    naturalOne,
+    success,
+    resultText,
+    canReroll: !naturalOne && fatigue < 6,
+    rerolled: !!input.rerolled,
+    createdAt: new Date().toISOString(),
+    time: nowTime()
+  };
+}
+
+function attributeCheckDiceLine(check){
+  const rolls = (check.rolls || []).map(n => Number(n));
+  if(rolls.length > 1) return `d20: ${rolls.join(", ")} → обрано ${check.chosenRoll}`;
+  return `d20: ${check.chosenRoll}`;
+}
+
+function formatAttributeCheckJournal(check, { reroll=false } = {}){
+  const lines = [];
+  const intro = reroll ? `Перекид за +1 Втома: ${check.playerName} кидає ${check.statLabel}.` : `${check.playerName} кидає ${check.statLabel}${check.mode === "normal" ? "" : " з " + check.modeLabel}.`;
+  lines.push(intro);
+  if(reroll && check.previous){
+    lines.push(`Попередній підсумок: ${check.previous.total} (${check.previous.resultText}).`);
+  }
+  lines.push(attributeCheckDiceLine(check));
+  lines.push(`${check.statLabel}: ${fmtMod(check.statMod)}`);
+  lines.push(`Умова сцени: ${fmtMod(check.sceneMod)}`);
+  if(check.sceneReason) lines.push(`Причина: ${check.sceneReason}`);
+  lines.push(`Втома: -${check.fatiguePenalty} (рівень ${check.fatigue})`);
+  lines.push(`Підсумок: ${check.total}`);
+  lines.push(`Складність: ${check.difficulty} — ${check.resultText}.`);
+  if(check.naturalOne) lines.push("Натуральна 1: перекид заблоковано.");
+  else if(check.canReroll && !check.rerolled) lines.push("Перекид за +1 Втома доступний гравцю.");
+  else if(check.rerolled) lines.push("Перекид уже використано.");
+  return lines.join("\n");
+}
+
+function currentAttributeCheck(){
+  return data.combat?.attributeCheck || null;
+}
+
+function canCurrentPlayerRerollAttributeCheck(check = currentAttributeCheck()){
+  if(!check || appSession.role === "gm") return false;
+  if(check.playerId !== appSession.player) return false;
+  if(check.rerolled || check.naturalOne) return false;
+  const player = data.players?.[check.playerId];
+  return !!player && Number(player.fatigue || 0) < 6;
+}
+
+function attributeCheckStatusNote(check){
+  if(!check) return "";
+  if(check.naturalOne) return "Натуральна 1: перекид недоступний.";
+  if(check.rerolled) return "Перекид уже використано.";
+  const player = data.players?.[check.playerId];
+  if(player && Number(player.fatigue || 0) >= 6) return "Втома 6: перекид недоступний.";
+  if(appSession.role === "gm") return "Перекид може зробити відповідний гравець.";
+  if(check.playerId !== appSession.player) return "Це перевірка іншого гравця.";
+  return "Можна перекинути за +1 Втома.";
+}
+
+function attributeCheckResultHtml(check){
+  if(!check) return "";
+  const statusClass = check.naturalOne ? "fail" : (check.success ? "ok" : "warn");
+  return `<div class="attribute-check-card attribute-${statusClass}">
+    <div class="attribute-check-head">
+      <strong>${escapeHtml(check.playerName)} · ${escapeHtml(check.statLabel)}</strong>
+      <span>${escapeHtml(check.modeLabel)}</span>
+    </div>
+    <div class="attribute-check-dice">${escapeHtml(attributeCheckDiceLine(check))}</div>
+    <div class="attribute-check-breakdown">
+      <span>${escapeHtml(check.statLabel)}: ${escapeHtml(fmtMod(check.statMod))}</span>
+      <span>Умова сцени: ${escapeHtml(fmtMod(check.sceneMod))}</span>
+      <span>Втома: -${escapeHtml(String(check.fatiguePenalty))}</span>
+      <span>Складність: ${escapeHtml(String(check.difficulty))}</span>
+    </div>
+    ${check.sceneReason ? `<div class="attribute-check-reason-line">${escapeHtml(check.sceneReason)}</div>` : ""}
+    <div class="attribute-check-total">Підсумок: <strong>${escapeHtml(String(check.total))}</strong> — ${escapeHtml(check.resultText)}</div>
+    <div class="attribute-check-note">${escapeHtml(attributeCheckStatusNote(check))}</div>
+    ${canCurrentPlayerRerollAttributeCheck(check) ? `<button class="metal-btn" id="rerollAttributeCheck" type="button">Перекинути за +1 Втома</button>` : ""}
+  </div>`;
+}
+
+function renderAttributeCheckPlayerPanel(){
+  const box = qs("#attributeCheckPlayerPanel");
+  if(!box) return;
+  if(appSession.role === "gm"){
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  const check = currentAttributeCheck();
+  if(!check || check.playerId !== appSession.player){
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML = attributeCheckResultHtml(check);
+}
+
+function renderAttributeCheckGmPanel(){
+  const playerSelect = qs("#attributeCheckPlayer");
+  if(!playerSelect) return;
+  if(appSession.role !== "gm"){
+    const result = qs("#attributeCheckGmResult");
+    if(result){
+      result.hidden = true;
+      result.innerHTML = "";
+    }
+    return;
+  }
+  const previous = playerSelect.value || currentPlayerId();
+  const playerIds = Object.keys(data.players || {});
+  playerSelect.innerHTML = playerIds.map(pid => `<option value="${escapeAttr(pid)}">${escapeHtml(data.players[pid]?.name || pid)} (${escapeHtml(pid)})</option>`).join("");
+  playerSelect.value = data.players?.[previous] ? previous : currentPlayerId();
+
+  const result = qs("#attributeCheckGmResult");
+  if(result){
+    const check = currentAttributeCheck();
+    if(check){
+      result.hidden = false;
+      result.innerHTML = attributeCheckResultHtml(check);
+    } else {
+      result.hidden = true;
+      result.innerHTML = "";
+    }
+  }
+}
+
+function runAttributeCheckFromGmForm(){
+  if(appSession.role !== "gm"){
+    showToast("Перевірку створює Майстер.");
+    return;
+  }
+  const check = rollAttributeCheck({
+    playerId: qs("#attributeCheckPlayer")?.value || currentPlayerId(),
+    stat: qs("#attributeCheckStat")?.value || "perception",
+    difficulty: Number(qs("#attributeCheckDifficulty")?.value || 14),
+    sceneMod: Number(qs("#attributeCheckSceneMod")?.value || 0),
+    sceneReason: qs("#attributeCheckSceneReason")?.value || "",
+    mode: qs("#attributeCheckMode")?.value || "normal"
+  });
+  data.combat = data.combat || {};
+  data.combat.attributeCheck = check;
+  addLog(formatAttributeCheckJournal(check), "public");
+  render();
+  showToast(`${check.statLabel}: ${check.total} — ${check.resultText}.`);
+}
+
+function rerollAttributeCheckForCurrentPlayer(){
+  const check = currentAttributeCheck();
+  if(!check){
+    showToast("Немає активної перевірки.");
+    return;
+  }
+  if(check.playerId !== appSession.player || appSession.role === "gm"){
+    showToast("Перекид робить саме гравець цієї перевірки.");
+    return;
+  }
+  if(check.naturalOne){
+    showToast("Натуральна 1 не перекидається.");
+    return;
+  }
+  if(check.rerolled){
+    showToast("Перекид уже використано.");
+    return;
+  }
+  const player = data.players?.[check.playerId];
+  if(!player){
+    showToast("Гравця для перекиду не знайдено.");
+    return;
+  }
+  if(Number(player.fatigue || 0) >= 6){
+    showToast("Втома вже 6. Перекид недоступний.");
+    return;
+  }
+  player.fatigue = clamp(Number(player.fatigue || 0) + 1, 0, 6);
+  const rerolled = rollAttributeCheck({
+    playerId: check.playerId,
+    stat: check.stat,
+    difficulty: check.difficulty,
+    sceneMod: check.sceneMod,
+    sceneReason: check.sceneReason,
+    mode: check.mode,
+    rerolled: true
+  });
+  rerolled.previous = {
+    total: check.total,
+    resultText: check.resultText,
+    chosenRoll: check.chosenRoll,
+    rolls: check.rolls,
+    fatigue: check.fatigue,
+    fatiguePenalty: check.fatiguePenalty
+  };
+  rerolled.canReroll = false;
+  data.combat.attributeCheck = rerolled;
+  addLog(formatAttributeCheckJournal(rerolled, { reroll:true }), "public");
+  render();
+  showToast(`Перекид: ${rerolled.total} — ${rerolled.resultText}.`);
 }
 
 function enemyColorClass(color){
@@ -1504,7 +1801,7 @@ function resolveMutantDamage(enemy, mode, hits, target){
     damage = r.value;
     formulaText = r.text;
     if(hits >= 2){
-      target.fatigue = clamp(Number(target.fatigue || 0) + 1, 0, 5);
+      target.fatigue = clamp(Number(target.fatigue || 0) + 1, 0, 6);
       notes.push("+1 Втома або падіння");
     }
     if(mode === "burst" && hits >= 3){
@@ -1524,7 +1821,7 @@ function resolveMutantDamage(enemy, mode, hits, target){
       damage = r.value;
       formulaText = r.text;
       if(hits >= 2){
-        target.fatigue = clamp(Number(target.fatigue || 0) + 1, 0, 5);
+        target.fatigue = clamp(Number(target.fatigue || 0) + 1, 0, 6);
         notes.push("хватка: +1 Втома або утримання");
       }
       enemy.gm = enemy.gm || {};
@@ -1547,7 +1844,7 @@ function resolveMutantDamage(enemy, mode, hits, target){
   } else if(kind === "controller"){
     damage = mode === "aimed" ? 0 : (mode === "normal" ? 0 : 0);
     formulaText = "контроль";
-    target.fatigue = clamp(Number(target.fatigue || 0) + 1, 0, 5);
+    target.fatigue = clamp(Number(target.fatigue || 0) + 1, 0, 6);
     if(mode === "aimed") notes.push("Погляд: +1 Втома або -1 до наступного кидка");
     if(mode === "normal") notes.push("Наказ у голові: відкриття / паніка / втрата реакції");
     if(mode === "burst") notes.push("Ментальний злам: предмет / постріл не туди / короткий контроль при 3 влучаннях");
@@ -2090,7 +2387,7 @@ function renderCharacterDetails(p = currentPlayer()){
     <div class="detail-card"><strong>Броня</strong><span>${escapeHtml(String(p.armor ?? 0))}</span></div>
     <div class="detail-card"><strong>Укриття</strong><span>${p.cover ? "так" : "ні"}</span></div>
     <div class="detail-card"><strong>Набої</strong><span>${escapeHtml(String(p.ammo ?? 0))}</span></div>
-    <div class="detail-card full"><strong>Поточні стани</strong><span>HP ${escapeHtml(String(p.hp ?? 0))}/${escapeHtml(String(p.hpMax ?? 10))}, Втома ${escapeHtml(String(p.fatigue ?? 0))}/5, Зараження ${escapeHtml(String(p.infection ?? 0))}/7</span></div>
+    <div class="detail-card full"><strong>Поточні стани</strong><span>HP ${escapeHtml(String(p.hp ?? 0))}/${escapeHtml(String(p.hpMax ?? 10))}, Втома ${escapeHtml(String(p.fatigue ?? 0))}/6, Зараження ${escapeHtml(String(p.infection ?? 0))}/7</span></div>
     <div class="detail-card full"><strong>Характеристики</strong>
       <div class="attr-grid">
         <div class="attr-pill"><strong>Витривалість</strong><span>${attrValue(p, "endurance")}</span></div>
@@ -2148,7 +2445,8 @@ async function copyTextToClipboard(text, label="Посилання"){
 
 function playerSpecificUrl(pid){
   const safePid = String(pid || "").trim();
-  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=19636`;
+  const build = encodeURIComponent(BUILD_NUMBER);
+  return `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(safePid)}&v=${build}&hard=${build}`;
 }
 
 function renderPlayerSpecificLinks(){
@@ -2222,7 +2520,7 @@ function doCommand(command){
         p.defenseMax = Math.max(1, Number(p.defenseMax ?? p.defense ?? 12) + delta);
         p.defense = clamp(Number(p.defense ?? p.defenseMax), 1, p.defenseMax);
       }
-      else if(field === "fatigue") p.fatigue = clamp(Number(p.fatigue ?? 0) + delta, 0, 5);
+      else if(field === "fatigue") p.fatigue = clamp(Number(p.fatigue ?? 0) + delta, 0, 6);
       else if(field === "infection") p.infection = Math.max(0, Number(p.infection ?? 0) + delta);
       else if(field === "ammo") p.ammo = Math.max(0, Number(p.ammo ?? 0) + delta);
       else return { ok:false, error:"unknown_player_field" };
@@ -2396,7 +2694,7 @@ function renderGmQuickPanel(){
       <div class="gm-enemy-line">
         <span>Втома</span>
         <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="fatigue" data-delta="-1">−</button>
-        <strong>${escapeHtml(String(activePlayer.fatigue ?? 0))}/5</strong>
+        <strong>${escapeHtml(String(activePlayer.fatigue ?? 0))}/6</strong>
         <button class="micro-btn" data-player-step="${escapeAttr(activePlayerId)}" data-field="fatigue" data-delta="1">+</button>
       </div>
 
@@ -2638,6 +2936,9 @@ function runInternalSelfCheck(){
   } else {
     results.push(testFail("Не знайдено script app.js"));
   }
+
+  const samplePlayerUrl = playerSpecificUrl(currentPlayerId());
+  results.push(samplePlayerUrl.includes(`v=${BUILD_NUMBER}`) && samplePlayerUrl.includes(`hard=${BUILD_NUMBER}`) ? testOk("Player links використовують актуальний build/cache", samplePlayerUrl) : testFail("Player links мають старий cache-busting", samplePlayerUrl));
 
   const oldGmInventory = document.querySelector("#gmInventory");
   results.push(!oldGmInventory ? testOk("Старий GM-блок #gmInventory не повернувся") : testFail("Старий GM-блок #gmInventory знову є в DOM"));
@@ -2908,11 +3209,57 @@ function runExpandedCombatRuleTests(){
   return results;
 }
 
+function runAttributeCheckTests(){
+  const results = [];
+  const oldPlayers = data.players;
+  const oldActive = data.meta?.activePlayerId;
+  try{
+    data.players = {
+      test_attr: {
+        id: "test_attr",
+        name: "Тест Атрибутів",
+        fatigue: 2,
+        stats: { endurance: 1, accuracy: 3, agility: 0, perception: 2, intuition: -1, charisma: 0 }
+      }
+    };
+    data.meta = data.meta || {};
+    data.meta.activePlayerId = "test_attr";
+
+    const combatExpected = [0,1,1,2,2,3,3];
+    const otherExpected = [0,0,1,1,2,2,3];
+    results.push(combatExpected.every((v, i) => fatigueCombatPenalty(i) === v) ? testOk("Attribute: fatigueCombatPenalty 0-6") : testFail("Attribute: fatigueCombatPenalty 0-6"));
+    results.push(otherExpected.every((v, i) => fatigueOtherStatsPenalty(i) === v) ? testOk("Attribute: fatigueOtherStatsPenalty 0-6") : testFail("Attribute: fatigueOtherStatsPenalty 0-6"));
+
+    const normal = rollAttributeCheck({ playerId:"test_attr", stat:"perception", difficulty:12, sceneMod:-1, mode:"normal" }, { rolls:[12] });
+    results.push(normal.total === 12 && normal.success ? testOk("Attribute: normal formula", JSON.stringify({total:normal.total, fatigue:normal.fatiguePenalty})) : testFail("Attribute: normal formula", JSON.stringify(normal)));
+
+    const accuracy = rollAttributeCheck({ playerId:"test_attr", stat:"accuracy", difficulty:14, sceneMod:0, mode:"normal" }, { rolls:[12] });
+    results.push(accuracy.fatiguePenalty === 1 && accuracy.total === 14 ? testOk("Attribute: accuracy uses combat fatigue penalty", JSON.stringify({total:accuracy.total, fatigue:accuracy.fatiguePenalty})) : testFail("Attribute: accuracy fatigue penalty", JSON.stringify(accuracy)));
+
+    const adv = rollAttributeCheck({ playerId:"test_attr", stat:"perception", difficulty:10, sceneMod:0, mode:"advantage" }, { rolls:[7,15] });
+    results.push(adv.chosenRoll === 15 ? testOk("Attribute: advantage бере кращий d20", JSON.stringify(adv.rolls)) : testFail("Attribute: advantage", JSON.stringify(adv)));
+
+    const dis = rollAttributeCheck({ playerId:"test_attr", stat:"perception", difficulty:10, sceneMod:0, mode:"disadvantage" }, { rolls:[7,15] });
+    results.push(dis.chosenRoll === 7 ? testOk("Attribute: disadvantage бере гірший d20", JSON.stringify(dis.rolls)) : testFail("Attribute: disadvantage", JSON.stringify(dis)));
+
+    const advNatural = rollAttributeCheck({ playerId:"test_attr", stat:"perception", difficulty:10, sceneMod:0, mode:"advantage" }, { rolls:[1,14] });
+    results.push(advNatural.chosenRoll === 14 && advNatural.canReroll ? testOk("Attribute: 2d20 natural 1 блокує тільки фінальний обраний кубик") : testFail("Attribute: advantage natural 1 rule", JSON.stringify(advNatural)));
+
+    const disNatural = rollAttributeCheck({ playerId:"test_attr", stat:"perception", difficulty:10, sceneMod:0, mode:"disadvantage" }, { rolls:[1,14] });
+    results.push(disNatural.chosenRoll === 1 && disNatural.naturalOne && !disNatural.canReroll ? testOk("Attribute: фінальна natural 1 блокує перекид") : testFail("Attribute: final natural 1 rule", JSON.stringify(disNatural)));
+  } finally {
+    data.players = oldPlayers;
+    if(data.meta) data.meta.activePlayerId = oldActive;
+  }
+  return results;
+}
+
 function runFullInternalTests(){
   return [
     ...runInternalSelfCheck(),
     ...runCombatSmokeTest(),
     ...runExpandedCombatRuleTests(),
+    ...runAttributeCheckTests(),
     ...runInventoryDamageTests(),
     ...runRoleAuthorityTests(),
     ...runJournalPrivacyTests(),
@@ -3216,6 +3563,7 @@ window.POLOVYI_MODUL_TESTS = {
   runInternalSelfCheck,
   runCombatSmokeTest,
   runExpandedCombatRuleTests,
+  runAttributeCheckTests,
   runInventoryDamageTests,
   runRoleAuthorityTests,
   runJournalPrivacyTests,
@@ -3223,6 +3571,9 @@ window.POLOVYI_MODUL_TESTS = {
   runReleasePreflight,
   buildDebugSnapshot,
   makeTestScenarioData,
+  rollAttributeCheck,
+  fatigueCombatPenalty,
+  fatigueOtherStatsPenalty,
   runFullInternalTests,
   renderTestReport,
   currentBuildLabel
@@ -3286,7 +3637,7 @@ function renderProfileGmQuickEdit(p){
       <div class="profile-edit-line">
         <b>Втома</b>
         <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="fatigue" data-delta="-1">−</button>
-        <span>${escapeHtml(String(p.fatigue ?? 0))}/5</span>
+        <span>${escapeHtml(String(p.fatigue ?? 0))}/6</span>
         <button class="micro-btn" data-player-step="${escapeAttr(pid)}" data-field="fatigue" data-delta="1">+</button>
       </div>
       <div class="profile-edit-line">
@@ -3318,7 +3669,7 @@ function render(){
   qs("#radiationNow").textContent = p.infection ?? p.radiation ?? 0;
   qs("#ammoNow").textContent = p.ammo;
   qs("#hpDots").innerHTML = dots(p.hp, p.hpMax);
-  qs("#fatigueDots").innerHTML = dots(p.fatigue, 5, "fatigue");
+  qs("#fatigueDots").innerHTML = dots(p.fatigue, 6, "fatigue");
   qs("#radDots").innerHTML = dots(p.infection ?? p.radiation ?? 0, 7, "rad");
   qs("#ammoDots").innerHTML = dots(Math.min(p.ammo, 6), 6);
   renderCharacterDetails(p);
@@ -3341,6 +3692,7 @@ function render(){
   const inlineInv = qs("#inventoryInlineList");
   if(inlineInv) inlineInv.innerHTML = currentInventory().map((item, idx) => invItem(item, idx)).join("");
   renderTargetSelector();
+  renderAttributeCheckPlayerPanel();
   ensureJournalComposer();
   renderJournalPrivateTargets();
   qs("#journalList").innerHTML = visibleJournalEntriesForCurrentRole().slice().reverse().map(logItem).join("");
@@ -3351,6 +3703,7 @@ function render(){
   renderGmCombatStickyBar();
   renderGmCombatPanel();
   fillMaster();
+  renderAttributeCheckGmPanel();
   renderGmQuickPanel();
   renderPlayerSpecificLinks();
   applyRoleMode();
@@ -3994,7 +4347,7 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
-    const playerUrl = `${location.origin}${location.pathname}?role=player&room=${encodeURIComponent(appSession.room)}&player=${encodeURIComponent(pid)}&v=19636`;
+    const playerUrl = playerSpecificUrl(pid);
     const invCount = (p.inventory || []).length;
 
     const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
@@ -5516,6 +5869,16 @@ document.addEventListener("toggle", e => {
 
 document.addEventListener("click", e => {
 
+  if(e.target.closest("#runAttributeCheck")){
+    runAttributeCheckFromGmForm();
+    return;
+  }
+
+  if(e.target.closest("#rerollAttributeCheck")){
+    rerollAttributeCheckForCurrentPlayer();
+    return;
+  }
+
   if(e.target.closest("#gmStickyNextTurn")){
     nextTurn();
     return;
@@ -5844,7 +6207,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
     const stat = pDelta.dataset.stat;
     const delta = Number(pDelta.dataset.delta);
     if(data.players[pid]){
-      const max = stat === "hp" ? (data.players[pid].hpMax ?? 10) : (stat === "fatigue" ? 5 : (stat === "infection" ? 7 : 999));
+      const max = stat === "hp" ? (data.players[pid].hpMax ?? 10) : (stat === "fatigue" ? 6 : (stat === "infection" ? 7 : 999));
       data.players[pid][stat] = clamp((Number(data.players[pid][stat]) || 0) + delta, 0, max);
       addLog(`${data.players[pid].name || pid}: ${stat} ${data.players[pid][stat]}.`, "public");
       render();
@@ -6118,7 +6481,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   if(hpDelta){ const p = currentPlayer(); p.hp = clamp(p.hp + Number(hpDelta.dataset.deltaHp), 0, p.hpMax); addLog(`${p.name}: HP ${p.hp}/${p.hpMax}.`, "public"); render(); }
 
   const fDelta = e.target.closest("[data-delta-fatigue]");
-  if(fDelta){ const p = currentPlayer(); p.fatigue = clamp(p.fatigue + Number(fDelta.dataset.deltaFatigue), 0, 5); addLog(`${p.name}: Втома ${p.fatigue}/5.`, "public"); render(); }
+  if(fDelta){ const p = currentPlayer(); p.fatigue = clamp(p.fatigue + Number(fDelta.dataset.deltaFatigue), 0, 6); addLog(`${p.name}: Втома ${p.fatigue}/6.`, "public"); render(); }
 if(e.target.id === "copyPlayerLink"){
     const pid = appSession.role === "gm" ? currentPlayerId() : appSession.player;
     const url = playerSpecificUrl(pid);
@@ -6266,6 +6629,7 @@ document.addEventListener("input", e => {
       const numeric = ["hp","hpMax","fatigue","infection","ammo","defense","defenseMax","armor"].includes(field);
       if(numeric && playerInput.value === "") return;
       data.players[pid][field] = numeric ? Number(playerInput.value) : playerInput.value;
+      if(field === "fatigue") data.players[pid].fatigue = clamp(data.players[pid].fatigue, 0, 6);
       if(field === "activeWeapon"){
         setActiveWeaponForCharacter(data.players[pid], playerInput.value);
       }
@@ -6472,6 +6836,19 @@ if(importCampaignInput) importCampaignInput.addEventListener("change", async e =
 });
 
 
+window.addEventListener("storage", e => {
+  if(e.key !== storageKey() || !e.newValue || appSession.syncMode !== "local") return;
+  try{
+    isApplyingRemote = true;
+    data = ensureRoomData(JSON.parse(e.newValue));
+    render();
+  }catch(err){
+    console.warn("Local room sync failed", err);
+  }finally{
+    isApplyingRemote = false;
+  }
+});
+
 setInterval(() => {
   const d = new Date();
   qs("#clock").textContent = d.toLocaleTimeString("uk-UA", {hour:"2-digit", minute:"2-digit"});
@@ -6490,5 +6867,9 @@ syncAdapter.init().then(() => {
 }).catch(err => {
   const runtimeError = document.querySelector("#runtimeError");
   if(runtimeError) runtimeError.textContent = "Помилка Firebase: " + (err && err.message ? err.message : err);
+  appSession.syncMode = "local";
+  saveLocalSnapshot(data, "local");
+  applyRoleMode();
+  render();
   console.error(err);
 });
