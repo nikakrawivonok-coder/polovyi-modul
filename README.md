@@ -1,14 +1,14 @@
-# Польовий Модуль — V19.28.1 Attribute Check UX Polish
+# Польовий Модуль — V19.28.3 Lightweight Close Controls
 
-Це UX-polish checkpoint після `V19.28 — Attribute Check Roller`.
+Це перший малий UX/QА checkpoint після `V19.28.2 — Attribute Check Close Control`.
 
 ## Важливо
 
-У цій версії відполіровано Attribute Check Roller: Майстер отримав швидкі кнопки складності й Умови сцени, а після перекиду картка показує попередній результат.
+У цій версії почато майбутній audit кнопок і меню: легкі повідомлення та службові звіти тепер простіше закривати без перезавантаження сторінки.
 
 ## Поточна стабільна база перед цим checkpoint
 
-Остання підтверджена стабільна база: `V19.28 — Attribute Check Roller`, build/cache `19668`.
+Остання підтверджена стабільна база: `V19.28.2 — Attribute Check Close Control`, build/cache `19670`.
 
 Не використовувати експериментальні `V19.26.x` як основу для цього напряму, бо там була проблемна гілка з Debug snapshot.
 
@@ -27,7 +27,7 @@
 ## Обов’язковий тест перед подальшим розвитком
 
 1. Відкрити Майстра і Гравця.
-2. Перевірити, що відображається `V19.28.1 · 19669`.
+2. Перевірити, що відображається `V19.28.3 · 19671`.
 3. Перевірити 1 патрон: немає розкриття.
 4. Перевірити 2 патрони з 0 влучань: є розкриття `-1`.
 5. Перевірити 2 патрони з 1+ влучанням: розкриття немає.
@@ -43,14 +43,37 @@
 ## Cache-busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19669">
-<script src="./app.js?v=19669"></script>
+<link rel="stylesheet" href="./styles.css?v=19671">
+<script src="./app.js?v=19671"></script>
 ```
 
 
 ---
 
 ## Попередні нотатки / archive
+
+## V19.28.3 — Lightweight Close Controls
+
+UX/QА checkpoint для майбутнього Button & Menu Close Audit.
+
+Що додано:
+
+- build/cache оновлено до `19671`;
+- `toast` можна закрити кліком або клавішею Escape;
+- звіти `Self-check` і `Dev Toolkit` отримали явну кнопку `Закрити звіт`;
+- Escape закриває `Self-check`, `Dev Toolkit`, `Debug snapshot` і активний `toast`;
+- звичайне введення в `input`, `textarea`, `select` і `contenteditable` захищене від випадкового Escape-закриття;
+- додано lightweight close тести до внутрішнього Test Harness;
+- виправлено старий helper `Debug snapshot`, щоб snapshot знову будувався у Dev Toolkit.
+
+Що не змінювалось:
+
+- бойова математика 1/2/3 патрони;
+- `activeWeapon` / `inventory.damage`;
+- інвентарі;
+- редактор ворогів;
+- журнал і privacy HP;
+- Firebase-схема.
 
 
 ## V19.18.10 — Player Journal Visibility Fix
@@ -480,6 +503,27 @@ Debug snapshot:
 - інвентарі;
 - редактор ворогів;
 - privacy HP.
+
+
+## V19.28.2 — Attribute Check Close Control
+
+Невеликий control-патч після V19.28.1.
+
+Оновлено:
+- build/cache до `19670`;
+- у панель Майстра додано кнопку `Закрити перевірку`;
+- закриття прибирає активну перевірку з player-facing блоку у вкладці `Стан`;
+- запис у журналі не видаляється і лишається історією кидка;
+- кнопка закриття неактивна, якщо активної перевірки немає;
+- Test Harness перевіряє очищення `data.combat.attributeCheck`.
+
+Не змінювалось:
+- бойова математика 1/2/3 патрони;
+- activeWeapon / inventory.damage;
+- інвентарі;
+- редактор ворогів;
+- privacy HP ворогів;
+- Firebase-схема.
 
 
 ## V19.28.1 — Attribute Check UX Polish

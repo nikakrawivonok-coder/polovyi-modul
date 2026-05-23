@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.28.1
+# DATA_SCHEMA.md — Польовий Модуль V19.28.3
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.28.1"
-BUILD_NUMBER = "19669"
-BUILD_NAME = "Attribute Check UX Polish"
+BUILD_VERSION = "V19.28.3"
+BUILD_NUMBER = "19671"
+BUILD_NAME = "Lightweight Close Controls"
 ```
 
 ## appSession
@@ -704,6 +704,30 @@ Schema не змінена.
 - нові поля у Firebase-схему не додавались;
 - структура `players`, `enemies`, `journal`, `combat`, `scene` не змінювалась;
 - правила Втоми, Умови сцени, Переваги/Перешкоди і Перекиду за +1 Втома зафіксовано тільки в `ROADMAP.md`.
+
+
+## V19.28.3 — Lightweight Close Controls
+
+Schema unchanged.
+
+V19.28.3 додає тільки lightweight UX controls для закриття тимчасових панелей:
+
+- `toast`;
+- `internalTestReport`;
+- `devToolkitReport`;
+- `debugSnapshotBox`.
+
+Нові поля у `data`, Firebase або journal records не додавались.
+`Debug snapshot` виправлено через наявні runtime helpers, без зміни schema.
+
+## V19.28.2 — Attribute Check Close Control
+
+Schema не змінена.
+
+Оновлено тільки керування поточною перевіркою:
+- `Закрити перевірку` видаляє `data.combat.attributeCheck`;
+- записи в `journal` не видаляються;
+- нові Firebase-поля не додаються.
 
 
 ## V19.28.1 — Attribute Check UX Polish

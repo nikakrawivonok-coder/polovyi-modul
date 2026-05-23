@@ -1,5 +1,5 @@
-// Польовий Модуль — V19.28.1 Attribute Check UX Polish
-// Attribute check UX polish. Locked 1/2/3 ammo combat math intentionally unchanged.
+// Польовий Модуль — V19.28.3 Lightweight Close Controls
+// Lightweight close controls. Locked 1/2/3 ammo combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
 // 1) Boot / session / Firebase helpers
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.28.1";
-const BUILD_NUMBER = "19669";
-const BUILD_NAME = "Attribute Check UX Polish";
+const BUILD_VERSION = "V19.28.3";
+const BUILD_NUMBER = "19671";
+const BUILD_NAME = "Lightweight Close Controls";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -1350,6 +1350,14 @@ function currentAttributeCheck(){
   return data.combat?.attributeCheck || null;
 }
 
+function clearAttributeCheckState(){
+  const check = currentAttributeCheck();
+  if(!check) return null;
+  data.combat = data.combat || {};
+  delete data.combat.attributeCheck;
+  return check;
+}
+
 function canCurrentPlayerRerollAttributeCheck(check = currentAttributeCheck()){
   if(!check || appSession.role === "gm") return false;
   if(check.playerId !== appSession.player) return false;
@@ -1447,6 +1455,8 @@ function renderAttributeCheckGmPanel(){
       result.innerHTML = "";
     }
   }
+  const closeBtn = qs("#closeAttributeCheck");
+  if(closeBtn) closeBtn.disabled = !currentAttributeCheck();
   syncAttributeCheckQuickButtons();
 }
 
@@ -1479,6 +1489,21 @@ function runAttributeCheckFromGmForm(){
   addLog(formatAttributeCheckJournal(check), "public");
   render();
   showToast(`${check.statLabel}: ${check.total} — ${check.resultText}.`);
+}
+
+function closeAttributeCheckFromGm(){
+  if(appSession.role !== "gm"){
+    showToast("Закрити перевірку може тільки Майстер.");
+    return;
+  }
+  const closed = clearAttributeCheckState();
+  if(!closed){
+    showToast("Активної перевірки немає.");
+    renderAttributeCheckGmPanel();
+    return;
+  }
+  render();
+  showToast(`Перевірку закрито: ${closed.playerName} · ${closed.statLabel}.`);
 }
 
 function rerollAttributeCheckForCurrentPlayer(){
@@ -2946,6 +2971,13 @@ function renderTestReport(title, results){
   </div>`;
 }
 
+function renderDismissibleTestReport(title, results, panelId){
+  return `${renderTestReport(title, results)}
+    <div class="report-close-row">
+      <button class="metal-btn mini" type="button" data-close-panel="${escapeAttr(panelId)}">Закрити звіт</button>
+    </div>`;
+}
+
 function runInternalSelfCheck(){
   const results = [];
 
@@ -3210,6 +3242,53 @@ function runUiRegressionTests(){
   return results;
 }
 
+function runLightweightCloseTests(){
+  const results = [];
+  const panels = [
+    qs("#toast"),
+    qs("#internalTestReport"),
+    qs("#devToolkitReport"),
+    qs("#debugSnapshotBox")
+  ].filter(Boolean);
+  const states = panels.map(el => ({
+    el,
+    hidden: el.hidden,
+    html: el.innerHTML,
+    value: "value" in el ? el.value : undefined
+  }));
+
+  try{
+    panels.forEach(el => {
+      el.hidden = false;
+      if("value" in el) el.value = "test";
+      else el.innerHTML = "test";
+    });
+
+    const closed = closeLightweightUi("test");
+    const allClosed = panels.every(el => el.hidden);
+    results.push(closed === panels.length && allClosed ? testOk("Close controls: lightweight panels close together", `${closed} closed`) : testFail("Close controls: lightweight panels close together", `${closed}/${panels.length}`));
+
+    const input = document.createElement("input");
+    const readonlyText = document.createElement("textarea");
+    const button = document.createElement("button");
+    input.type = "text";
+    readonlyText.readOnly = true;
+    const targetRulesOk = isTypingTarget(input) && !isTypingTarget(readonlyText) && !isTypingTarget(button);
+    results.push(targetRulesOk ? testOk("Close controls: typing fields are protected") : testFail("Close controls: typing target detection"));
+
+    const snapshot = buildDebugSnapshot();
+    results.push(snapshot?.build === BUILD_NUMBER ? testOk("Close controls: debug snapshot builds") : testFail("Close controls: debug snapshot builds", JSON.stringify(snapshot)));
+  } finally {
+    states.forEach(state => {
+      state.el.hidden = state.hidden;
+      state.el.innerHTML = state.html;
+      if(state.value !== undefined) state.el.value = state.value;
+    });
+  }
+
+  return results;
+}
+
 function runExpandedCombatRuleTests(){
   const results = [];
 
@@ -3236,6 +3315,7 @@ function runAttributeCheckTests(){
   const results = [];
   const oldPlayers = data.players;
   const oldActive = data.meta?.activePlayerId;
+  const oldCombat = data.combat;
   try{
     data.players = {
       test_attr: {
@@ -3277,8 +3357,13 @@ function runAttributeCheckTests(){
       previous: { total: 8, resultText: "провал", chosenRoll: 6, rolls: [6, 3], fatigue: 2 }
     });
     results.push(rerolledHtml.includes("Попередній результат") ? testOk("Attribute: reroll card показує попередній результат") : testFail("Attribute: reroll previous result card", rerolledHtml));
+
+    data.combat = { ...(oldCombat || {}), attributeCheck: adv };
+    const closed = clearAttributeCheckState();
+    results.push(closed?.id === adv.id && !data.combat.attributeCheck ? testOk("Attribute: active check можна закрити без журналу") : testFail("Attribute: clear active check state", JSON.stringify({ closed, combat:data.combat })));
   } finally {
     data.players = oldPlayers;
+    data.combat = oldCombat;
     if(data.meta) data.meta.activePlayerId = oldActive;
   }
   return results;
@@ -3293,6 +3378,7 @@ function runFullInternalTests(){
     ...runInventoryDamageTests(),
     ...runRoleAuthorityTests(),
     ...runJournalPrivacyTests(),
+    ...runLightweightCloseTests(),
     ...runUiRegressionTests()
   ];
 }
@@ -3307,7 +3393,7 @@ function currentRiskLabel(){
   if(name.includes("combat") || name.includes("firebase") || name.includes("render") || name.includes("privacy")){
     return { level: "medium", label: "🟡 Medium-risk", note: "Потрібно перевірити саме змінений модуль і один ручний постріл." };
   }
-  if(name.includes("test") || name.includes("preflight") || name.includes("dev") || name.includes("documentation") || name.includes("polish")){
+  if(name.includes("test") || name.includes("preflight") || name.includes("dev") || name.includes("documentation") || name.includes("polish") || name.includes("close") || name.includes("ux")){
     return { level: "low", label: "🟢 Low-risk", note: "Достатньо Self-check / test.html. Повний бойовий тест не потрібен." };
   }
   return { level: "medium", label: "🟡 Medium-risk", note: "Перевірити основну змінену функцію." };
@@ -3346,7 +3432,7 @@ function buildDebugSnapshot(){
   const p = currentPlayer();
   const enemies = Array.isArray(data.enemies) ? data.enemies : [];
   const visibleEnemies = enemies.filter(e => e.visible !== false);
-  const target = selectedEnemy();
+  const target = selectedTargetEnemy();
   const active = activeWeaponItem(p);
   return {
     version: BUILD_VERSION,
@@ -3377,8 +3463,8 @@ function buildDebugSnapshot(){
     enemies: enemies.length,
     visibleEnemies: visibleEnemies.length,
     journalEntries: Array.isArray(data.journal) ? data.journal.length : 0,
-    firebaseOnline: !!firebaseReady,
-    screen: state.screen,
+    firebaseOnline: appSession.syncMode === "firebase" && !!syncAdapter.roomRef,
+    screen: activeScreenForDebug(),
     combat: {
       active: !!data.combat?.active,
       turn: data.combat?.turnPlayerId || null,
@@ -3564,7 +3650,7 @@ function showDevToolkitReport(){
   const box = qs("#devToolkitReport");
   if(box){
     box.hidden = false;
-    box.innerHTML = renderTestReport("Dev Toolkit: preflight + expanded tests", results);
+    box.innerHTML = renderDismissibleTestReport("Dev Toolkit: preflight + expanded tests", results, "devToolkitReport");
   }
   const fail = results.filter(r => r.status === "fail").length;
   const warn = results.filter(r => r.status === "warn").length;
@@ -3578,7 +3664,7 @@ function showInternalTestReport(){
     return;
   }
   const results = runFullInternalTests();
-  const html = renderTestReport("Internal self-check + combat smoke-test", results);
+  const html = renderDismissibleTestReport("Internal self-check + combat smoke-test", results, "internalTestReport");
   const box = qs("#internalTestReport");
   if(box){
     box.innerHTML = html;
@@ -3597,11 +3683,13 @@ window.POLOVYI_MODUL_TESTS = {
   runInventoryDamageTests,
   runRoleAuthorityTests,
   runJournalPrivacyTests,
+  runLightweightCloseTests,
   runUiRegressionTests,
   runReleasePreflight,
   buildDebugSnapshot,
   makeTestScenarioData,
   rollAttributeCheck,
+  clearAttributeCheckState,
   fatigueCombatPenalty,
   fatigueOtherStatsPenalty,
   runFullInternalTests,
@@ -5865,11 +5953,45 @@ function addLog(text, visibility="public"){
 
 function showToast(text, html=false, duration=3000){
   const t = qs("#toast");
+  if(!t) return;
   if(html) t.innerHTML = text;
   else t.textContent = text;
+  t.title = "Натисни, щоб закрити";
   t.hidden = false;
   clearTimeout(showToast._timer);
   showToast._timer = setTimeout(() => t.hidden = true, duration);
+}
+
+function hideToast(){
+  const t = qs("#toast");
+  if(!t) return false;
+  const wasVisible = !t.hidden;
+  t.hidden = true;
+  clearTimeout(showToast._timer);
+  return wasVisible;
+}
+
+function closePanelById(id){
+  const el = document.getElementById(id);
+  if(!el || el.hidden) return false;
+  el.hidden = true;
+  return true;
+}
+
+function isTypingTarget(target){
+  const el = target?.closest?.("input, textarea, select, [contenteditable='true']");
+  if(!el) return false;
+  if(el.matches("input, textarea") && (el.readOnly || el.disabled)) return false;
+  return true;
+}
+
+function closeLightweightUi(source="manual"){
+  let closed = 0;
+  if(hideToast()) closed++;
+  ["internalTestReport", "devToolkitReport", "debugSnapshotBox"].forEach(id => {
+    if(closePanelById(id)) closed++;
+  });
+  return closed;
 }
 
 function triggerFlicker(){
@@ -5896,8 +6018,25 @@ document.addEventListener("toggle", e => {
   }
 }, true);
 
+document.addEventListener("keydown", e => {
+  if(e.key !== "Escape") return;
+  if(isTypingTarget(e.target)) return;
+  const closed = closeLightweightUi("escape");
+  if(closed) e.preventDefault();
+});
 
 document.addEventListener("click", e => {
+
+  const closePanel = e.target.closest("[data-close-panel]");
+  if(closePanel){
+    closePanelById(closePanel.dataset.closePanel);
+    return;
+  }
+
+  if(e.target.closest("#toast")){
+    hideToast();
+    return;
+  }
 
   const attrDifficulty = e.target.closest("[data-attr-difficulty]");
   if(attrDifficulty){
@@ -5917,6 +6056,11 @@ document.addEventListener("click", e => {
 
   if(e.target.closest("#runAttributeCheck")){
     runAttributeCheckFromGmForm();
+    return;
+  }
+
+  if(e.target.closest("#closeAttributeCheck")){
+    closeAttributeCheckFromGm();
     return;
   }
 

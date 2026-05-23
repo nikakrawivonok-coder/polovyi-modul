@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#120d09" />
-  <title>Польовий Модуль — V19.28.1 Attribute Check UX Polish</title>
-  <link rel="stylesheet" href="./styles.css?v=19669">
+  <title>Польовий Модуль — V19.28.3 Lightweight Close Controls</title>
+  <link rel="stylesheet" href="./styles.css?v=19671">
 
 </head>
 <body>
@@ -302,6 +302,7 @@
         </div>
         <div class="button-row">
           <button class="metal-btn" id="runAttributeCheck" type="button">Кинути перевірку</button>
+          <button class="metal-btn" id="closeAttributeCheck" type="button" disabled>Закрити перевірку</button>
         </div>
         <div id="attributeCheckGmResult" class="attribute-check-result" hidden></div>
       </div>
@@ -445,11 +446,11 @@
       <button class="nav-btn gm-only" data-target="master"><span>⚙</span><b>МАЙСТЕР</b></button>
     </nav>
 
-    <div class="toast" id="toast" hidden></div>
+    <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
   </main>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   
-  <script src="./app.js?v=19669"></script>
+  <script src="./app.js?v=19671"></script>
 </body>
 </html>
