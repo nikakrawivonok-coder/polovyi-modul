@@ -1,5 +1,5 @@
-// Польовий Модуль — V19.28 Attribute Check Roller
-// Attribute checks added. Locked 1/2/3 ammo combat math intentionally unchanged.
+// Польовий Модуль — V19.28.1 Attribute Check UX Polish
+// Attribute check UX polish. Locked 1/2/3 ammo combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
 // 1) Boot / session / Firebase helpers
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.28";
-const BUILD_NUMBER = "19668";
-const BUILD_NAME = "Attribute Check Roller";
+const BUILD_VERSION = "V19.28.1";
+const BUILD_NUMBER = "19669";
+const BUILD_NAME = "Attribute Check UX Polish";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -1369,9 +1369,19 @@ function attributeCheckStatusNote(check){
   return "Можна перекинути за +1 Втома.";
 }
 
+function attributeCheckPreviousLine(check){
+  const previous = check?.previous;
+  if(!previous) return "";
+  const rolls = Array.isArray(previous.rolls) ? previous.rolls.map(n => Number(n)).filter(n => Number.isFinite(n)) : [];
+  const dice = rolls.length > 1 ? `d20: ${rolls.join(", ")} → обрано ${previous.chosenRoll}` : `d20: ${previous.chosenRoll ?? "?"}`;
+  const fatigue = previous.fatigue !== undefined ? `, Втома ${previous.fatigue}` : "";
+  return `Попередній результат: ${dice}; підсумок ${previous.total} (${previous.resultText})${fatigue}.`;
+}
+
 function attributeCheckResultHtml(check){
   if(!check) return "";
   const statusClass = check.naturalOne ? "fail" : (check.success ? "ok" : "warn");
+  const previousLine = attributeCheckPreviousLine(check);
   return `<div class="attribute-check-card attribute-${statusClass}">
     <div class="attribute-check-head">
       <strong>${escapeHtml(check.playerName)} · ${escapeHtml(check.statLabel)}</strong>
@@ -1385,6 +1395,7 @@ function attributeCheckResultHtml(check){
       <span>Складність: ${escapeHtml(String(check.difficulty))}</span>
     </div>
     ${check.sceneReason ? `<div class="attribute-check-reason-line">${escapeHtml(check.sceneReason)}</div>` : ""}
+    ${previousLine ? `<div class="attribute-check-previous">${escapeHtml(previousLine)}</div>` : ""}
     <div class="attribute-check-total">Підсумок: <strong>${escapeHtml(String(check.total))}</strong> — ${escapeHtml(check.resultText)}</div>
     <div class="attribute-check-note">${escapeHtml(attributeCheckStatusNote(check))}</div>
     ${canCurrentPlayerRerollAttributeCheck(check) ? `<button class="metal-btn" id="rerollAttributeCheck" type="button">Перекинути за +1 Втома</button>` : ""}
@@ -1436,6 +1447,18 @@ function renderAttributeCheckGmPanel(){
       result.innerHTML = "";
     }
   }
+  syncAttributeCheckQuickButtons();
+}
+
+function syncAttributeCheckQuickButtons(){
+  const difficulty = Number(qs("#attributeCheckDifficulty")?.value || 14);
+  const sceneMod = Number(qs("#attributeCheckSceneMod")?.value || 0);
+  qsa("[data-attr-difficulty]").forEach(btn => {
+    btn.classList.toggle("active", Number(btn.dataset.attrDifficulty) === difficulty);
+  });
+  qsa("[data-attr-scene-mod]").forEach(btn => {
+    btn.classList.toggle("active", Number(btn.dataset.attrSceneMod) === sceneMod);
+  });
 }
 
 function runAttributeCheckFromGmForm(){
@@ -3247,6 +3270,13 @@ function runAttributeCheckTests(){
 
     const disNatural = rollAttributeCheck({ playerId:"test_attr", stat:"perception", difficulty:10, sceneMod:0, mode:"disadvantage" }, { rolls:[1,14] });
     results.push(disNatural.chosenRoll === 1 && disNatural.naturalOne && !disNatural.canReroll ? testOk("Attribute: фінальна natural 1 блокує перекид") : testFail("Attribute: final natural 1 rule", JSON.stringify(disNatural)));
+
+    const rerolledHtml = attributeCheckResultHtml({
+      ...adv,
+      rerolled: true,
+      previous: { total: 8, resultText: "провал", chosenRoll: 6, rolls: [6, 3], fatigue: 2 }
+    });
+    results.push(rerolledHtml.includes("Попередній результат") ? testOk("Attribute: reroll card показує попередній результат") : testFail("Attribute: reroll previous result card", rerolledHtml));
   } finally {
     data.players = oldPlayers;
     if(data.meta) data.meta.activePlayerId = oldActive;
@@ -5868,6 +5898,22 @@ document.addEventListener("toggle", e => {
 
 
 document.addEventListener("click", e => {
+
+  const attrDifficulty = e.target.closest("[data-attr-difficulty]");
+  if(attrDifficulty){
+    const field = qs("#attributeCheckDifficulty");
+    if(field) field.value = attrDifficulty.dataset.attrDifficulty;
+    syncAttributeCheckQuickButtons();
+    return;
+  }
+
+  const attrSceneMod = e.target.closest("[data-attr-scene-mod]");
+  if(attrSceneMod){
+    const field = qs("#attributeCheckSceneMod");
+    if(field) field.value = attrSceneMod.dataset.attrSceneMod;
+    syncAttributeCheckQuickButtons();
+    return;
+  }
 
   if(e.target.closest("#runAttributeCheck")){
     runAttributeCheckFromGmForm();

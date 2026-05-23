@@ -2404,6 +2404,19 @@ body.role-gm .compact-gm-debug strong{
 .attribute-check-reason{
   grid-column:1 / -1;
 }
+.attribute-check-quick-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:0.3rem;
+}
+.attribute-check-quick-row .micro-btn{
+  min-width:2.35rem;
+}
+.attribute-check-quick-row .micro-btn.active{
+  border-color:rgba(214,170,70,0.75);
+  color:var(--gold);
+  background:rgba(214,170,70,0.16);
+}
 .attribute-check-player-panel{
   margin:0.75rem 0 0;
 }
@@ -2426,8 +2439,13 @@ body.role-gm .compact-gm-debug strong{
 }
 .attribute-check-head span,
 .attribute-check-note,
-.attribute-check-reason-line{
+.attribute-check-reason-line,
+.attribute-check-previous{
   opacity:0.78;
+}
+.attribute-check-previous{
+  border-left:3px solid rgba(214,170,70,0.45);
+  padding-left:0.55rem;
 }
 .attribute-check-dice{
   font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;

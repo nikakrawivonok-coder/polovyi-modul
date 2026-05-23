@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.28
+# DATA_SCHEMA.md — Польовий Модуль V19.28.1
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.28"
-BUILD_NUMBER = "19668"
-BUILD_NAME = "Attribute Check Roller"
+BUILD_VERSION = "V19.28.1"
+BUILD_NUMBER = "19669"
+BUILD_NAME = "Attribute Check UX Polish"
 ```
 
 ## appSession
@@ -704,6 +704,15 @@ Schema не змінена.
 - нові поля у Firebase-схему не додавались;
 - структура `players`, `enemies`, `journal`, `combat`, `scene` не змінювалась;
 - правила Втоми, Умови сцени, Переваги/Перешкоди і Перекиду за +1 Втома зафіксовано тільки в `ROADMAP.md`.
+
+
+## V19.28.1 — Attribute Check UX Polish
+
+Schema не змінена.
+
+Оновлено тільки UI/відображення:
+- швидкі кнопки складності й Умови сцени не додають нових полів;
+- попередній результат перекиду читається з уже наявного `data.combat.attributeCheck.previous`.
 
 
 ## V19.28 — Attribute Check Roller
