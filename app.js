@@ -1,5 +1,5 @@
-// Польовий Модуль — V19.28.3 Lightweight Close Controls
-// Lightweight close controls. Locked 1/2/3 ammo combat math intentionally unchanged.
+// Польовий Модуль — V19.29 Global Button/Menu Audit
+// Global button/menu audit. Locked 1/2/3 ammo combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
 // 1) Boot / session / Firebase helpers
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.28.3";
-const BUILD_NUMBER = "19671";
-const BUILD_NAME = "Lightweight Close Controls";
+const BUILD_VERSION = "V19.29";
+const BUILD_NUMBER = "19673";
+const BUILD_NAME = "Global Button/Menu Audit";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -3278,12 +3278,88 @@ function runLightweightCloseTests(){
 
     const snapshot = buildDebugSnapshot();
     results.push(snapshot?.build === BUILD_NUMBER ? testOk("Close controls: debug snapshot builds") : testFail("Close controls: debug snapshot builds", JSON.stringify(snapshot)));
+
+    const quick = document.createElement("div");
+    quick.className = "quick-panel open";
+    quick.hidden = false;
+    document.body.appendChild(quick);
+    const quickClosed = closeQuickPanels();
+    results.push(quickClosed === 1 && quick.hidden && !quick.classList.contains("open") ? testOk("Close controls: quick panels close") : testFail("Close controls: quick panels close", `${quickClosed}`));
+    quick.remove();
+
+    const detailsScope = document.createElement("div");
+    const detail = document.createElement("details");
+    detail.open = true;
+    detailsScope.appendChild(detail);
+    document.body.appendChild(detailsScope);
+    const detailsClosed = closeOpenDetails(detailsScope);
+    results.push(detailsClosed === 1 && !detail.open ? testOk("Close controls: open details close") : testFail("Close controls: open details close", `${detailsClosed}`));
+    detailsScope.remove();
   } finally {
     states.forEach(state => {
       state.el.hidden = state.hidden;
       state.el.innerHTML = state.html;
       if(state.value !== undefined) state.el.value = state.value;
     });
+  }
+
+  return results;
+}
+
+function runButtonMenuAuditTests(){
+  const results = [];
+
+  const navButtons = qsa(".nav-btn[data-target]");
+  const screens = qsa(".screen[data-screen]");
+  const screenIds = new Set(screens.map(screen => screen.dataset.screen));
+  const brokenNav = navButtons.filter(btn => !screenIds.has(btn.dataset.target));
+  results.push(!brokenNav.length ? testOk("Button audit: nav targets valid", `${navButtons.length} nav buttons`) : testFail("Button audit: nav targets missing", brokenNav.map(btn => btn.dataset.target).join(", ")));
+
+  const openButtons = qsa("[data-open]");
+  const brokenOpen = openButtons.filter(btn => !screenIds.has(btn.dataset.open));
+  results.push(!brokenOpen.length ? testOk("Button audit: data-open targets valid", `${openButtons.length} buttons`) : testFail("Button audit: data-open targets missing", brokenOpen.map(btn => btn.dataset.open).join(", ")));
+
+  const toggleButtons = qsa("[data-toggle-panel]");
+  const brokenToggles = toggleButtons.filter(btn => {
+    const panel = document.getElementById(btn.dataset.togglePanel);
+    return !panel || !panel.classList.contains("quick-panel");
+  });
+  results.push(!brokenToggles.length ? testOk("Button audit: quick-panel toggles valid", `${toggleButtons.length} toggles`) : testFail("Button audit: quick-panel toggle target missing", brokenToggles.map(btn => btn.dataset.togglePanel).join(", ")));
+
+  const missingClose = toggleButtons.filter(btn => {
+    const id = btn.dataset.togglePanel;
+    const panel = document.getElementById(id);
+    return panel && !panel.querySelector(`[data-close-panel="${id}"]`);
+  });
+  results.push(!missingClose.length ? testOk("Button audit: quick panels have close buttons") : testFail("Button audit: quick panels missing close buttons", missingClose.map(btn => btn.dataset.togglePanel).join(", ")));
+
+  syncQuickPanelToggles();
+  const missingAria = toggleButtons.filter(btn => btn.getAttribute("aria-controls") !== btn.dataset.togglePanel || !btn.hasAttribute("aria-expanded"));
+  results.push(!missingAria.length ? testOk("Button audit: toggle buttons expose aria state") : testFail("Button audit: toggle buttons missing aria state", missingAria.map(btn => btn.dataset.togglePanel).join(", ")));
+
+  const fixture = document.createElement("div");
+  fixture.innerHTML = `
+    <button data-toggle-panel="auditQuickOne"></button>
+    <button data-toggle-panel="auditQuickTwo"></button>
+    <div class="quick-panel" id="auditQuickOne" hidden><button data-close-panel="auditQuickOne"></button></div>
+    <div class="quick-panel" id="auditQuickTwo" hidden><button data-close-panel="auditQuickTwo"></button></div>`;
+  document.body.appendChild(fixture);
+  try{
+    syncQuickPanelToggles();
+    setQuickPanelOpen("auditQuickOne", true);
+    const oneOpen = quickPanelIsOpen(document.getElementById("auditQuickOne"));
+    const twoClosed = !quickPanelIsOpen(document.getElementById("auditQuickTwo"));
+    const oneAria = fixture.querySelector('[data-toggle-panel="auditQuickOne"]')?.getAttribute("aria-expanded") === "true";
+    setQuickPanelOpen("auditQuickTwo", true);
+    const oneClosedAfter = !quickPanelIsOpen(document.getElementById("auditQuickOne"));
+    const twoOpenAfter = quickPanelIsOpen(document.getElementById("auditQuickTwo"));
+    results.push(oneOpen && twoClosed && oneAria && oneClosedAfter && twoOpenAfter ? testOk("Button audit: one quick-panel stays open at a time") : testFail("Button audit: quick-panel exclusive open behavior"));
+    closePanelById("auditQuickTwo");
+    const closedByButtonHelper = !quickPanelIsOpen(document.getElementById("auditQuickTwo")) && document.getElementById("auditQuickTwo").hidden;
+    results.push(closedByButtonHelper ? testOk("Button audit: close-panel helper closes quick-panel") : testFail("Button audit: close-panel helper closes quick-panel"));
+  } finally {
+    fixture.remove();
+    syncQuickPanelToggles();
   }
 
   return results;
@@ -3379,6 +3455,7 @@ function runFullInternalTests(){
     ...runRoleAuthorityTests(),
     ...runJournalPrivacyTests(),
     ...runLightweightCloseTests(),
+    ...runButtonMenuAuditTests(),
     ...runUiRegressionTests()
   ];
 }
@@ -3684,12 +3761,18 @@ window.POLOVYI_MODUL_TESTS = {
   runRoleAuthorityTests,
   runJournalPrivacyTests,
   runLightweightCloseTests,
+  runButtonMenuAuditTests,
   runUiRegressionTests,
   runReleasePreflight,
   buildDebugSnapshot,
   makeTestScenarioData,
   rollAttributeCheck,
   clearAttributeCheckState,
+  closeDismissibleUi,
+  closeQuickPanels,
+  closeOpenDetails,
+  setQuickPanelOpen,
+  toggleQuickPanel,
   fatigueCombatPenalty,
   fatigueOtherStatsPenalty,
   runFullInternalTests,
@@ -3828,6 +3911,7 @@ function render(){
   updateBuildDebug();
   enforcePlayerAccessGuards();
   enforceScreenIsolation();
+  syncQuickPanelToggles();
   refreshActionLocks();
   save();
   restoreFocusState(focusState);
@@ -4526,6 +4610,8 @@ function escapeAttr(str){ return escapeHtml(str).replace(/"/g, "&quot;");}
 
 function switchScreen(target){
   if(target === "master" && appSession.role !== "gm") target = "state";
+  const previous = activeScreenName();
+  if(previous !== target) closeUiForScreenChange();
 
   qsa(".screen").forEach(s => {
     const isActive = s.dataset.screen === target;
@@ -5973,9 +6059,12 @@ function hideToast(){
 
 function closePanelById(id){
   const el = document.getElementById(id);
-  if(!el || el.hidden) return false;
+  if(!el) return false;
+  const wasVisible = !el.hidden || el.classList.contains("open");
+  if(el.classList.contains("quick-panel")) el.classList.remove("open");
   el.hidden = true;
-  return true;
+  syncQuickPanelToggles();
+  return wasVisible;
 }
 
 function isTypingTarget(target){
@@ -5992,6 +6081,102 @@ function closeLightweightUi(source="manual"){
     if(closePanelById(id)) closed++;
   });
   return closed;
+}
+
+function closeQuickPanels(){
+  let closed = 0;
+  qsa(".quick-panel.open").forEach(panel => {
+    panel.classList.remove("open");
+    panel.hidden = true;
+    closed++;
+  });
+  syncQuickPanelToggles();
+  return closed;
+}
+
+function quickPanelIsOpen(panel){
+  return !!panel && !panel.hidden && panel.classList.contains("open");
+}
+
+function syncQuickPanelToggles(){
+  qsa("[data-toggle-panel]").forEach(btn => {
+    const id = btn.dataset.togglePanel;
+    const panel = document.getElementById(id);
+    const open = quickPanelIsOpen(panel);
+    if(id) btn.setAttribute("aria-controls", id);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    btn.classList.toggle("panel-open", open);
+  });
+}
+
+function setQuickPanelOpen(panelId, shouldOpen){
+  const target = document.getElementById(panelId);
+  if(!target || !target.classList.contains("quick-panel")) return false;
+  let changed = false;
+  qsa(".quick-panel").forEach(panel => {
+    const openThisPanel = panel.id === panelId && shouldOpen;
+    const wasOpen = quickPanelIsOpen(panel);
+    if(openThisPanel){
+      panel.hidden = false;
+      panel.classList.add("open");
+      changed = changed || !wasOpen;
+    } else if(wasOpen || (!panel.hidden && panel.id !== panelId)){
+      panel.classList.remove("open");
+      panel.hidden = true;
+      changed = true;
+    }
+  });
+  syncQuickPanelToggles();
+  return changed;
+}
+
+function toggleQuickPanel(panelId){
+  const panel = document.getElementById(panelId);
+  return setQuickPanelOpen(panelId, !quickPanelIsOpen(panel));
+}
+
+function closeOpenDetails(scope=document){
+  let closed = 0;
+  const root = scope || document;
+  root.querySelectorAll?.("details[open]")?.forEach(panel => {
+    panel.open = false;
+    closed++;
+  });
+  return closed;
+}
+
+function closePlayerEditorSections(){
+  let closed = 0;
+  qsa(".pm-collapse-section.is-open").forEach(section => {
+    const key = section.querySelector("[data-toggle-player-section]")?.dataset?.togglePlayerSection;
+    const body = section.querySelector(".pm-collapse-body");
+    const arrow = section.querySelector(".pm-collapse-arrow");
+    if(key && expandedPlayerEditorSections) expandedPlayerEditorSections[key] = false;
+    section.classList.remove("is-open");
+    if(body) body.hidden = true;
+    if(arrow) arrow.textContent = "▶";
+    closed++;
+  });
+  return closed;
+}
+
+function activeScreenElement(){
+  return qs(".screen.active") || document;
+}
+
+function closeDismissibleUi(source="manual"){
+  let closed = 0;
+  closed += closeLightweightUi(source);
+  closed += closeQuickPanels();
+  if(source === "escape"){
+    closed += closePlayerEditorSections();
+    closed += closeOpenDetails(activeScreenElement());
+  }
+  return closed;
+}
+
+function closeUiForScreenChange(){
+  return closeLightweightUi("screen-change") + closeQuickPanels();
 }
 
 function triggerFlicker(){
@@ -6021,7 +6206,7 @@ document.addEventListener("toggle", e => {
 document.addEventListener("keydown", e => {
   if(e.key !== "Escape") return;
   if(isTypingTarget(e.target)) return;
-  const closed = closeLightweightUi("escape");
+  const closed = closeDismissibleUi("escape");
   if(closed) e.preventDefault();
 });
 
@@ -6036,6 +6221,10 @@ document.addEventListener("click", e => {
   if(e.target.closest("#toast")){
     hideToast();
     return;
+  }
+
+  if(qs(".quick-panel.open") && !e.target.closest(".quick-panel, [data-toggle-panel]")){
+    closeQuickPanels();
   }
 
   const attrDifficulty = e.target.closest("[data-attr-difficulty]");
@@ -6327,10 +6516,16 @@ const enemyStep = e.target.closest("[data-enemy-step]");
   }
 
   const nav = e.target.closest(".nav-btn");
-  if(nav) switchScreen(nav.dataset.target);
+  if(nav){
+    switchScreen(nav.dataset.target);
+    return;
+  }
 
   const open = e.target.closest("[data-open]");
-  if(open) switchScreen(open.dataset.open);
+  if(open){
+    switchScreen(open.dataset.open);
+    return;
+  }
 
 
   const stateEnemyBtn = e.target.closest("[data-state-enemy]");
@@ -6363,23 +6558,18 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   const panelToggle = e.target.closest("[data-toggle-panel]");
   if(panelToggle){
-    const panel = qs(`#${panelToggle.dataset.togglePanel}`);
-    if(panel){
-      const willOpen = panel.hidden || !panel.classList.contains("open");
-      panel.hidden = false;
-      panel.classList.toggle("open", willOpen);
-      if(!willOpen){
-        window.setTimeout(() => {
-          if(!panel.classList.contains("open")) panel.hidden = true;
-        }, 180);
-      }
-    }
+    toggleQuickPanel(panelToggle.dataset.togglePanel);
+    return;
   }
 
   const action = e.target.closest("[data-action]");
   if(action){
-    if(gmCombatActionOverride(action.dataset.action)) return;
+    if(gmCombatActionOverride(action.dataset.action)){
+      closeQuickPanels();
+      return;
+    }
     doAction(action.dataset.action);
+    closeQuickPanels();
     return;
   }
 

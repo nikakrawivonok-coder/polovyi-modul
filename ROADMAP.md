@@ -1,3 +1,50 @@
+## V19.29 — Global Button/Menu Audit
+
+Статус: глобальніший UX/QА checkpoint у напрямку Button & Menu Close Audit.
+
+Base: `V19.28.4 — Screen Switch Close Polish`, build/cache `19672`.
+Поточна версія: `V19.29`, build/cache `19673`.
+
+Що реалізовано:
+- quick-panels переведено на централізоване керування через `setQuickPanelOpen()` і `toggleQuickPanel()`;
+- одночасно може бути відкритий тільки один quick-panel;
+- клік поза quick-panel закриває відкриту quick-panel;
+- quick-panels отримали явні кнопки закриття;
+- toggle-кнопки quick-panels отримали `aria-controls`, `aria-expanded` і синхронізацію стану;
+- після action-кнопки відкрита quick-panel закривається;
+- Test Harness отримав `runButtonMenuAuditTests()`;
+- аудит перевіряє nav targets, `data-open`, `data-toggle-panel`, close-кнопки quick-panels, aria-state і exclusive-open поведінку.
+
+Не змінювалось:
+- бойова математика 1/2/3 патрони;
+- activeWeapon / inventory.damage;
+- інвентарі;
+- редактор ворогів як структура даних;
+- журнал / privacy HP;
+- Firebase-схема.
+
+## V19.28.4 — Screen Switch Close Polish
+
+Статус: другий малий UX/QА checkpoint у напрямку Button & Menu Close Audit.
+
+Base: `V19.28.3 — Lightweight Close Controls`, build/cache `19671`.
+Поточна версія: `V19.28.4`, build/cache `19672`.
+
+Що реалізовано:
+- додано helpers `closeQuickPanels()`, `closeOpenDetails()`, `closePlayerEditorSections()`, `closeDismissibleUi()` і `closeUiForScreenChange()`;
+- перехід між вкладками закриває тимчасові lightweight-панелі та quick-panels;
+- Escape закриває lightweight UI, quick-panels, відкриті `<details>` у поточній вкладці та компактні секції редактора гравця;
+- захист введення збережено: Escape-close не спрацьовує, коли фокус у полі введення, textarea, select або contenteditable;
+- Test Harness розширено перевірками quick-panels і відкритих `<details>`.
+
+Не змінювалось:
+- бойова математика 1/2/3 патрони;
+- activeWeapon / inventory.damage;
+- інвентарі;
+- редактор ворогів як структура даних;
+- журнал / privacy HP;
+- Firebase-схема.
+
 ## V19.28.3 — Lightweight Close Controls
 
 Статус: перший малий UX/QА checkpoint у напрямку Button & Menu Close Audit.

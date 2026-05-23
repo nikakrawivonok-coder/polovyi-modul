@@ -1,14 +1,14 @@
-# Польовий Модуль — V19.28.3 Lightweight Close Controls
+# Польовий Модуль — V19.29 Global Button/Menu Audit
 
-Це перший малий UX/QА checkpoint після `V19.28.2 — Attribute Check Close Control`.
+Це глобальніший UX/QА checkpoint у напрямку Button & Menu Close Audit.
 
 ## Важливо
 
-У цій версії почато майбутній audit кнопок і меню: легкі повідомлення та службові звіти тепер простіше закривати без перезавантаження сторінки.
+У цій версії quick-panels переведено на централізоване керування, а Test Harness отримав аудит кнопок, навігації й toggle-меню.
 
 ## Поточна стабільна база перед цим checkpoint
 
-Остання підтверджена стабільна база: `V19.28.2 — Attribute Check Close Control`, build/cache `19670`.
+Остання підтверджена стабільна база: `V19.28.4 — Screen Switch Close Polish`, build/cache `19672`.
 
 Не використовувати експериментальні `V19.26.x` як основу для цього напряму, бо там була проблемна гілка з Debug snapshot.
 
@@ -27,7 +27,7 @@
 ## Обов’язковий тест перед подальшим розвитком
 
 1. Відкрити Майстра і Гравця.
-2. Перевірити, що відображається `V19.28.3 · 19671`.
+2. Перевірити, що відображається `V19.29 · 19673`.
 3. Перевірити 1 патрон: немає розкриття.
 4. Перевірити 2 патрони з 0 влучань: є розкриття `-1`.
 5. Перевірити 2 патрони з 1+ влучанням: розкриття немає.
@@ -43,14 +43,60 @@
 ## Cache-busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19671">
-<script src="./app.js?v=19671"></script>
+<link rel="stylesheet" href="./styles.css?v=19673">
+<script src="./app.js?v=19673"></script>
 ```
 
 
 ---
 
 ## Попередні нотатки / archive
+
+## V19.29 — Global Button/Menu Audit
+
+Глобальніший UX/QА checkpoint для Button & Menu Close Audit.
+
+Що додано:
+
+- build/cache оновлено до `19673`;
+- quick-panels тепер керуються централізовано через `setQuickPanelOpen()` і `toggleQuickPanel()`;
+- одночасно може бути відкритий тільки один quick-panel;
+- клік поза quick-panel закриває відкриту quick-panel;
+- quick-panels отримали явні кнопки закриття `×`;
+- toggle-кнопки quick-panels отримали `aria-controls` і автоматичний `aria-expanded`;
+- Test Harness отримав `runButtonMenuAuditTests()`;
+- аудит перевіряє nav targets, `data-open`, `data-toggle-panel`, close-кнопки quick-panels, aria-state і exclusive-open поведінку.
+
+Що не змінювалось:
+
+- бойова математика 1/2/3 патрони;
+- `activeWeapon` / `inventory.damage`;
+- інвентарі;
+- редактор ворогів як структура даних;
+- журнал і privacy HP;
+- Firebase-схема.
+
+## V19.28.4 — Screen Switch Close Polish
+
+UX/QА checkpoint для майбутнього Button & Menu Close Audit.
+
+Що додано:
+
+- build/cache оновлено до `19672`;
+- перехід між вкладками закриває тимчасові lightweight-панелі та швидкі quick-panels;
+- Escape закриває `toast`, службові звіти, `Debug snapshot`, quick-panels і відкриті `<details>` у поточній вкладці;
+- Escape також згортає компактні секції редактора гравця, якщо користувач не редагує поле;
+- захист введення збережено: `input`, `textarea`, `select` і `contenteditable` не втрачають фокус від Escape-close;
+- Test Harness розширено перевірками quick-panels і відкритих `<details>`.
+
+Що не змінювалось:
+
+- бойова математика 1/2/3 патрони;
+- `activeWeapon` / `inventory.damage`;
+- інвентарі;
+- редактор ворогів як структура даних;
+- журнал і privacy HP;
+- Firebase-схема.
 
 ## V19.28.3 — Lightweight Close Controls
 

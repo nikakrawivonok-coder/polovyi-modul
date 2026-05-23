@@ -1,13 +1,13 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.28.3
+# DATA_SCHEMA.md — Польовий Модуль V19.29
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.28.3"
-BUILD_NUMBER = "19671"
-BUILD_NAME = "Lightweight Close Controls"
+BUILD_VERSION = "V19.29"
+BUILD_NUMBER = "19673"
+BUILD_NAME = "Global Button/Menu Audit"
 ```
 
 ## appSession
@@ -705,6 +705,32 @@ Schema не змінена.
 - структура `players`, `enemies`, `journal`, `combat`, `scene` не змінювалась;
 - правила Втоми, Умови сцени, Переваги/Перешкоди і Перекиду за +1 Втома зафіксовано тільки в `ROADMAP.md`.
 
+
+## V19.29 — Global Button/Menu Audit
+
+Schema unchanged.
+
+V19.29 додає тільки UI/runtime helpers і Test Harness аудит:
+
+- централізоване керування quick-panels;
+- close-кнопки quick-panels;
+- aria-state для quick-panel toggles;
+- `runButtonMenuAuditTests()`.
+
+Нові поля у `data`, Firebase або journal records не додавались.
+
+## V19.28.4 — Screen Switch Close Polish
+
+Schema unchanged.
+
+V19.28.4 додає тільки UI helpers для закриття тимчасових/розгорнутих елементів:
+
+- quick-panels;
+- відкриті `<details>` у поточній вкладці;
+- компактні секції редактора гравця;
+- lightweight UI з V19.28.3.
+
+Нові поля у `data`, Firebase або journal records не додавались.
 
 ## V19.28.3 — Lightweight Close Controls
 

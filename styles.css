@@ -1850,6 +1850,20 @@ body.role-player .gm-combat-sticky {
   opacity:1;
   transform:translateY(0) scaleY(1);
 }
+.quick-panel-head{
+  align-items:center;
+}
+.quick-panel-head h3{
+  flex:1;
+}
+.quick-panel-close{
+  min-width:34px;
+  padding:0 9px;
+}
+.action-tile[aria-expanded="true"]{
+  outline:2px solid rgba(230,180,94,.55);
+  background:linear-gradient(180deg,rgba(88,55,28,.96),rgba(31,19,12,.96));
+}
 .target-panel{
   margin-top:10px;
 }
