@@ -1,4 +1,4 @@
-# TESTING.md — Polovyi Modul Standard Testing
+# TESTING.md - Polovyi Modul Standard Testing
 
 Run these checks before finishing a version or code-changing task.
 
@@ -36,32 +36,34 @@ When the app is running:
 
 1. Open the GM link.
 2. Open the Stability Audit panel.
-3. Press "Запустити аудит".
+3. Press `Запустити аудит`.
 4. Confirm there are no critical failed checks.
-5. Use "Скопіювати звіт" when a text report is needed.
+5. Use `Скопіювати звіт` when a text report is needed.
 
 Warnings are allowed only if they are understood and documented in the final response.
 
 ## 4. Mobile Overflow Check
 
-Check the app on a narrow/mobile viewport.
+Check the app on narrow/mobile viewports: 360px, 375px, 390px, and 430px.
 
 Verify:
 
 - No horizontal page scroll.
 - Navigation fits the screen.
+- Quick Actions do not overflow sideways.
 - Cards do not overflow sideways.
 - Buttons do not cut off important text.
 - Panels and modals can be closed comfortably.
 - New UI still works with touch-sized controls.
 
-Suggested browser-console check:
+Suggested browser-console checks:
 
 ```javascript
 document.documentElement.scrollWidth <= window.innerWidth
+document.querySelector(".quick-actions")?.scrollWidth <= document.querySelector(".quick-actions")?.clientWidth
 ```
 
-Expected result: `true`.
+Expected result: both checks return `true`.
 
 ## 5. Privacy Check
 

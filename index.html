@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#120d09" />
-  <title>Польовий Модуль — V19.31 Enemy Control Center Expansion Pack</title>
-  <link rel="stylesheet" href="./styles.css?v=19690">
+  <title>Польовий Модуль — V19.32 Living PDA & Sonic Identity Pack</title>
+  <link rel="stylesheet" href="./styles.css?v=19700">
 
 </head>
 <body>
@@ -32,6 +32,7 @@
       <div class="portrait" aria-label="Портрет сталкера">
         <div class="portrait-inner">
           <div class="portrait-glow"></div>
+          <div id="playerAvatarFrame" class="player-avatar-frame" aria-live="polite"></div>
           <div class="stalker-figure">
             <div class="hood"></div>
             <div class="mask">
@@ -73,9 +74,15 @@
             <div class="dots ammo-dots" id="ammoDots"></div>
           </div>
         </div>
+        <div class="profile-signal-row">
+          <span>Броня: <strong id="armorNow">0</strong></span>
+          <span>Зброя: <strong id="activeWeaponNow">—</strong></span>
+          <span>Статус: <strong id="profileStatusNow">зв'язок стабільний</strong></span>
+        </div>
       </div>
     </section>
       <div id="profileGmQuickEdit" class="profile-gm-quick-edit gm-only"></div>
+      <div id="pdaSettingsPanel" class="pda-settings-panel"></div>
 
       <div class="section-title"><span>⚙</span><h3>ШВИДКІ ДІЇ</h3></div>
       <div class="quick-actions">
@@ -171,13 +178,24 @@
       <div class="section-title"><span>◉</span><h3>Оточення</h3></div>
       <article class="scene-card large">
         <div class="scene-image wide"><span>☣</span></div>
+        <div class="scene-state-badge" id="sceneStateBadge">спокій</div>
         <h4 id="sceneName">Старий блокпост</h4>
         <p id="sceneDescription"></p>
+        <p id="scenePublicDescription" class="scene-public-description"></p>
       </article>
-      <div class="info-grid">
+      <div class="info-grid scene-info-grid">
         <div class="paper-panel"><h4>Звуки</h4><p id="sceneSounds"></p></div>
         <div class="paper-panel"><h4>Запахи</h4><p id="sceneSmells"></p></div>
-        <div class="paper-panel full"><h4>Важливі об’єкти</h4><ul id="sceneObjects"></ul></div>
+        <div class="paper-panel"><h4>Стан сцени</h4><p id="sceneStatus"></p></div>
+        <div class="paper-panel"><h4>Попередження</h4><p id="sceneWarnings"></p></div>
+        <div class="paper-panel full"><h4>Видимі об’єкти</h4><ul id="sceneObjects"></ul></div>
+        <div class="paper-panel full"><h4>Можливості</h4><ul id="sceneOpportunities"></ul></div>
+        <div class="paper-panel full gm-only"><h4>GM-опис</h4><p id="sceneGmDescription"></p></div>
+        <div class="paper-panel gm-only"><h4>Приховані небезпеки</h4><p id="sceneHiddenDangers"></p></div>
+        <div class="paper-panel gm-only"><h4>Аномалії / тригери</h4><p id="sceneGmAnomalies"></p></div>
+        <div class="paper-panel gm-only"><h4>GM-нотатки</h4><p id="sceneGmNotes"></p></div>
+        <div class="paper-panel gm-only"><h4>Прихований лут</h4><p id="sceneHiddenLoot"></p></div>
+        <div class="paper-panel gm-only"><h4>Вороги сцени</h4><p id="sceneEnemiesGm"></p></div>
       </div>
     </section>
 
@@ -343,10 +361,29 @@
       <details class="gm-panel">
         <summary>Сцена</summary>
         <label>Назва <input id="gmSceneName" /></label>
+        <label>Стан сцени
+          <select id="gmSceneState">
+            <option value="calm">спокій</option>
+            <option value="alert">тривога</option>
+            <option value="anomaly">аномальна активність</option>
+            <option value="emission">викид</option>
+            <option value="night">ніч</option>
+            <option value="underground">підземелля</option>
+            <option value="radio">радіоперешкоди</option>
+          </select>
+        </label>
         <label>Опис <textarea id="gmSceneDescription" rows="4"></textarea></label>
+        <label>Опис для гравців <textarea id="gmScenePublicDescription" rows="3"></textarea></label>
+        <label>GM-опис <textarea id="gmSceneGmDescription" rows="3"></textarea></label>
         <label>Звуки <textarea id="gmSceneSounds" rows="2"></textarea></label>
         <label>Запахи <textarea id="gmSceneSmells" rows="2"></textarea></label>
         <label>Об’єкти через кому <textarea id="gmSceneObjects" rows="2"></textarea></label>
+        <label>Можливості через кому <textarea id="gmSceneOpportunities" rows="2"></textarea></label>
+        <label>Стан / попередження <textarea id="gmSceneStatus" rows="2"></textarea></label>
+        <label>Приховані небезпеки <textarea id="gmSceneHiddenDangers" rows="2"></textarea></label>
+        <label>Аномалії / тригери <textarea id="gmSceneAnomalies" rows="2"></textarea></label>
+        <label>GM-нотатки <textarea id="gmSceneNotes" rows="2"></textarea></label>
+        <label>Прихований лут <textarea id="gmSceneHiddenLoot" rows="2"></textarea></label>
         <button class="metal-btn" id="saveScene">Оновити сцену</button><div class="save-hint">Поля сцени зберігаються після натискання цієї кнопки, щоб не перемальовувати екран під час набору тексту.</div>
       </details>
       <details class="gm-panel"><summary>Вороги</summary>
@@ -462,6 +499,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   
-  <script src="./app.js?v=19690"></script>
+  <script src="./app.js?v=19700"></script>
 </body>
 </html>

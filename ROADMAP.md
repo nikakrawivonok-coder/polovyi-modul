@@ -1,3 +1,45 @@
+## V19.32 — Living PDA & Sonic Identity Pack
+
+Статус: immersion / living interface checkpoint без зміни бойової математики.
+
+Base: `V19.31 — Enemy Control Center Expansion Pack`, build/cache `19690`.
+Поточна версія: `V19.32`, build/cache `19700`.
+
+Мета:
+зробити Польовий Модуль не лише службовим інструментом, а живим польовим КПК персонажа: аватар, атмосфера, scene state, м'які реакції інтерфейсу, оригінальна sonic identity, haptic fallback і контроль responsive overflow.
+
+Що реалізовано:
+- додано player avatar fields: `avatarEmoji`, `avatarUrl`, `avatarKey`, `avatarStyle`;
+- профіль у вкладці `Стан` показує аватар/fallback, броню, активну зброю і короткий статус;
+- у Майстра картка гравця показує аватар і компактний редактор avatar fields;
+- додано Living PDA visual layer: scan/noise tone, scene-state classes, low HP / panel / loot reactions;
+- додано PDA settings: sound, haptics, atmosphere, animations;
+- додано Web Audio API генератор без зовнішніх copyrighted assets;
+- додано sound events `module_ready`, `tap_soft`, `panel_open`, `panel_close`, `loot_received`, `private_message`, `combat_hit`, `combat_miss`, `low_hp_warning`, `anomaly_near`, `scene_alert`;
+- звук запускається тільки після user gesture через кнопку `Увімкнути звук КПК`;
+- додано `pdaFeedback(eventName)` як єдину точку звуку/вібрації/fallback;
+- додано haptic feedback через `navigator.vibrate(...)` з безпечним fallback;
+- розширено `Оточення`: public description, GM description, sounds, smells, visible objects, opportunities, status, warnings, hidden dangers, anomalies, triggers, GM notes, hidden loot;
+- додано scene states `calm`, `alert`, `anomaly`, `emission`, `night`, `underground`, `radio`;
+- Stability Audit розширено living PDA, scene privacy і horizontal overflow checks;
+- виправлено mobile responsive / quick actions overflow для 360/375/390/430px;
+- README, ROADMAP і DATA_SCHEMA оновлено.
+
+Не змінювали:
+- бойову математику 1/2/3 патрони;
+- віддачу `-2 / -4 / -6 / -8`;
+- шкоду, критичну шкоду, броню, укриття;
+- Enemy Control Center як бойову модель;
+- лут як ігрову логіку;
+- основні privacy-правила.
+
+Наступний рекомендований крок:
+
+## V19.33 — Player Inventory & Item Details Pack
+
+Мета майбутнього кроку:
+розширити інвентар гравців і деталі предметів без переписування бойової математики: картки предметів, GM-опис, player-facing опис, типи предметів, підготовка до якіснішого обліку спорядження.
+
 ## V19.31 — Enemy Control Center Expansion Pack
 
 Статус: enemy-system expansion без зміни бойової математики.
@@ -36,7 +78,7 @@ Privacy:
 
 Наступний рекомендований крок:
 
-## V19.32 — Player Inventory & Item Details Pack
+## V19.33 — Player Inventory & Item Details Pack
 
 Мета майбутнього кроку:
 розширити інвентар гравців і предмети без переписування бойової математики: деталі предметів, зручні картки, GM-редагування описів, підготовка до якіснішого обліку спорядження.

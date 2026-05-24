@@ -1,4 +1,4 @@
-# CHECKLIST_RELEASE.md — Polovyi Modul Release Checklist
+# CHECKLIST_RELEASE.md - Polovyi Modul Release Checklist
 
 Use this checklist for every new version or release patch.
 

@@ -1,6 +1,82 @@
-# Польовий Модуль — V19.31 Enemy Control Center Expansion Pack
+# Польовий Модуль — V19.32 Living PDA & Sonic Identity Pack
 
-Це великий розвиток вкладки `Вороги`: Майстер отримує Enemy Control Center із категоріями шаблонів, розширеними картками, редагуванням ворога з картки, GM-нотатками, окремими описами для гравця/Майстра, лутом 2.0 і новими audit-перевірками.
+V19.32 додає перший цілісний шар Living PDA: аватари гравців, живий атмосферний профіль, розширене `Оточення`, scene states, оригінальну sonic identity через Web Audio API, haptic fallback, налаштування звуку/вібрації/атмосфери та audit-перевірки responsive overflow.
+
+## Важливо для V19.32
+
+V19.32 не змінює бойову математику, стрільбу 1/2/3 патрони, віддачу `-2 / -4 / -6 / -8`, шкоду, критичну шкоду, броню, укриття, лут як ігрову логіку, Enemy Control Center як бойову модель або основні privacy-правила.
+
+Поточна стабільна база читається з `app.js` / `README.md`, а не з пам'яті.
+
+## Що додано у V19.32
+
+- build/cache оновлено до `19700`;
+- player schema підтримує `avatarEmoji`, `avatarUrl`, `avatarKey`, `avatarStyle`;
+- у вкладці `Стан` профіль показує аватар/fallback, броню, активну зброю та короткий статус;
+- Майстер бачить аватар у картці активного гравця і може редагувати avatar fields;
+- додано локальні налаштування КПК: звуки, вібрація, атмосфера, анімації;
+- звук КПК вмикається тільки після кнопки `Увімкнути звук КПК`;
+- sound events генеруються Web Audio API без зовнішніх MP3/WAV assets;
+- додано `pdaFeedback(eventName)` для звуку/вібрації/fallback;
+- додано haptic patterns для луту, приватного повідомлення, low HP, combat hit і anomaly;
+- `Оточення` стало scene screen з public/GM шарами, можливостями, warning/status і прихованими GM-полями;
+- scene state впливає на тон інтерфейсу: `calm`, `alert`, `anomaly`, `emission`, `night`, `underground`, `radio`;
+- Stability Audit перевіряє avatar fallback, PDA settings, pdaFeedback, scene privacy і horizontal overflow;
+- mobile quick actions отримали responsive overflow fix для 360/375/390/430px.
+
+## Sonic Identity
+
+Звуки Польового Модуля генеруються кодом через Web Audio API. Вони не копіюють S.T.A.L.K.E.R., Half-Life, iPhone або інші відомі системні/ігрові звуки.
+
+Sound events:
+
+- `module_ready`
+- `tap_soft`
+- `panel_open`
+- `panel_close`
+- `loot_received`
+- `private_message`
+- `combat_hit`
+- `combat_miss`
+- `low_hp_warning`
+- `anomaly_near`
+- `scene_alert`
+
+Звук короткий, м'який і не має карати гравця. Якщо AudioContext недоступний або звук не увімкнено вручну, додаток працює без звуку.
+
+## Тестові посилання V19.32
+
+Майстер:
+
+```text
+https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19700&gmKey=zona-master&v=19700&hard=19700
+```
+
+Гравець Лис:
+
+```text
+https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19700&player=fox&v=19700&hard=19700
+```
+
+Тестова сторінка:
+
+```text
+https://nikakrawivonok-coder.github.io/polovyi-modul/test.html?v=19700&hard=19700
+```
+
+## Як перевірити V19.32
+
+1. Відкрити Майстра і Гравця з `v=19700&hard=19700`.
+2. Перевірити, що показується `V19.32 · 19700`.
+3. На екрані `Стан` перевірити avatar fallback, налаштування КПК і quick actions без horizontal overflow.
+4. Натиснути `Увімкнути звук КПК`; звук не має грати до цієї дії.
+5. Відкрити `Оточення` як Гравець і переконатися, що немає GM-spoilers.
+6. Відкрити `Оточення` як Майстер і перевірити GM-опис, hidden dangers, notes.
+7. У Майстра запустити Stability Audit і перевірити responsive / living PDA checks.
+
+## Попередній checkpoint V19.31
+
+V19.31 був великим розвитком вкладки `Вороги`: Майстер отримав Enemy Control Center із категоріями шаблонів, розширеними картками, редагуванням ворога з картки, GM-нотатками, окремими описами для гравця/Майстра, лутом 2.0 і новими audit-перевірками.
 
 ## Важливо
 
@@ -93,12 +169,12 @@ V19.31 не змінює бойову математику, шкоду, брон
 
 Майстер:
 ```text
-https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19690&gmKey=zona-master&v=19690
+https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19690&gmKey=zona-master&v=19690&hard=19690
 ```
 
 Гравець Лис:
 ```text
-https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19690&player=fox&v=19690
+https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19690&player=fox&v=19690&hard=19690
 ```
 
 Статична тестова сторінка:
@@ -276,10 +352,10 @@ resolve shot
 ## Тестові посилання
 
 Майстер:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19642&gmKey=zona-master&v=19642`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19642&gmKey=zona-master&v=19642&hard=19642`
 
 Гравець Лис:
-`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19642&player=fox&v=19642`
+`https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19642&player=fox&v=19642&hard=19642`
 
 ## Перевірка
 

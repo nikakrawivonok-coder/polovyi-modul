@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.31 Enemy Control Center Expansion Pack
+// Польовий Модуль — V19.32 Living PDA & Sonic Identity Pack
 // Stability audit layer. Locked 1/2/3 ammo combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.31";
-const BUILD_NUMBER = "19690";
-const BUILD_NAME = "Enemy Control Center Expansion Pack";
+const BUILD_VERSION = "V19.32";
+const BUILD_NUMBER = "19700";
+const BUILD_NAME = "Living PDA & Sonic Identity Pack";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -148,6 +148,27 @@ let expandedStateEnemyDetails = {};
 let journalFilter = "all";
 let gmCombatBarMode = "actor";
 let expandedPlayerEditorSections = { profile:false, combat:false, weapon:false, stats:false, inventory:false };
+let pdaAudioContext = null;
+let pdaAudioReady = false;
+let pdaLastLowHpKey = "";
+let pdaFeedbackArmed = false;
+
+const DEFAULT_PDA_SETTINGS = {
+  soundEnabled: false,
+  hapticsEnabled: false,
+  atmosphereEnabled: true,
+  animationsEnabled: true
+};
+
+const SCENE_STATES = {
+  calm: { label: "спокій", tone: "Стабільний сигнал" },
+  alert: { label: "тривога", tone: "Легкий пульс" },
+  anomaly: { label: "аномальна активність", tone: "М'яке мерехтіння" },
+  emission: { label: "викид", tone: "Warning-mode" },
+  night: { label: "ніч", tone: "Темніший тон" },
+  underground: { label: "підземелля", tone: "Приглушений інтерфейс" },
+  radio: { label: "радіоперешкоди", tone: "Шум / glitch" }
+};
 
 
 // =============================
@@ -168,6 +189,10 @@ const defaultRoomData = {
     fox: {
       id: "fox",
       name: "Лис",
+      avatarEmoji: "🦊",
+      avatarUrl: "",
+      avatarKey: "fox",
+      avatarStyle: "stalker",
       hp: 8,
       hpMax: 12,
       fatigue: 2,
@@ -189,10 +214,23 @@ const defaultRoomData = {
   },
   scene: {
     name: "Старий блокпост",
+    state: "calm",
     description: "Туман стелиться між бетонними плитами. Біля іржавої вантажівки чути приглушені голоси. З підвалу тягне холодом, мокрим бетоном і металом.",
+    publicDescription: "Туман тримається низько між бетонними плитами. Видно іржаву вантажівку, розбитий шлагбаум і темний вхід у підвал.",
+    gmDescription: "Підвал може приховувати засідку або слід старої схованки. Голоси біля вантажівки належать озброєним бандитам.",
     sounds: "Тріск лічильника Гейгера, далекий гавкіт, металевий стукіт з підвалу.",
     smells: "Мокрий бетон, гар, іржа, стара кров.",
-    objects: ["іржава вантажівка", "бетонні плити", "розбитий шлагбаум", "вхід у підвал", "кущі праворуч"]
+    objects: ["іржава вантажівка", "бетонні плити", "розбитий шлагбаум", "вхід у підвал", "кущі праворуч"],
+    visibleObjects: ["іржава вантажівка", "бетонні плити", "розбитий шлагбаум", "вхід у підвал", "кущі праворуч"],
+    opportunities: ["обійти блокпост через кущі", "перевірити підвал", "відволікти варту шумом"],
+    status: "Сигнал стабільний, видимість середня.",
+    warnings: "Без явних спойлерів: рухатися обережно, є сліди людей.",
+    hiddenDangers: "Бандит біля вантажівки може відкрити чергу, якщо гравці підуть прямо.",
+    anomalies: "Немає активних аномалій поруч.",
+    triggers: "Гучний шум або невдала атака можуть підняти тривогу.",
+    gmNotes: "Можна використати блокпост як першу сцену для перевірки living PDA атмосфери.",
+    hiddenLoot: "У кабіні вантажівки може бути старий КПК або дрібний хабар.",
+    sceneEnemies: ["Автоматник", "Бандит з обрізом", "Боягуз"]
   },
   enemies: [
     { id: "enemy_auto_1", name: "Автоматник", weapon: "aks74u", activeWeapon: "aks74u", inventory: [{ id: "aks74u", type: "weapon", name: "АКС-74У", damage: "d6", range: "far", ammoType: "ammo", equipped: true, note: "активна зброя" }], state: "цілий", color: "green", position: "біля воріт", danger: "дуже висока", action: "готує чергу", visible: true, defense: 9, defenseMax: 9, gm: { hp: 10, hpMax: 10, ammo: 15, morale: "тримається" } },
@@ -209,7 +247,8 @@ const defaultRoomData = {
   },
   journal: [
     { id: makeId("log"), visibility: "public", time: nowTime(), text: "Польовий модуль активовано. Сигнал нестабільний. Дані сцени завантажено." }
-  ]
+  ],
+  pdaSettings: clone(DEFAULT_PDA_SETTINGS)
 };
 
 
@@ -969,11 +1008,25 @@ function loadSceneTemplate(templateId){
   if(!tpl) return;
   data.scene = {
     name: tpl.name,
+    state: tpl.state || "calm",
     description: tpl.description,
+    publicDescription: tpl.publicDescription || tpl.description,
+    gmDescription: tpl.gmDescription || tpl.description,
     sounds: tpl.sounds,
     smells: tpl.smells,
-    objects: clone(tpl.objects)
+    objects: clone(tpl.objects),
+    visibleObjects: clone(tpl.visibleObjects || tpl.objects || []),
+    opportunities: clone(tpl.opportunities || []),
+    status: tpl.status || "",
+    warnings: tpl.warnings || "",
+    hiddenDangers: tpl.hiddenDangers || "",
+    anomalies: tpl.anomalies || "",
+    triggers: tpl.triggers || "",
+    gmNotes: tpl.gmNotes || "",
+    hiddenLoot: tpl.hiddenLoot || "",
+    sceneEnemies: clone(tpl.sceneEnemies || [])
   };
+  normalizeSceneFields(data.scene);
   data.enemies = (tpl.enemies || []).map(makeEnemyFromTemplate);
   if(data.combat?.active) buildTurnOrder();
   addLog(`Майстер завантажив сцену: ${tpl.name}.`, "public");
@@ -1007,6 +1060,7 @@ function rollLoot(type){
 
   addLog(`${p.name || pid}: ${result.text}`, "public");
   showToast("Лут додано.");
+  pdaFeedback("loot_received");
   render();
 }
 
@@ -1042,6 +1096,7 @@ function transferEnemyAmmoLoot(enemyId, playerId=currentPlayerId()){
   enemy.gm.lootTakenAmmoAt = new Date().toISOString();
   addLog(`${p.name || playerId} забрав ${ammo} наб. з ${enemy.name}.`, "public");
   showToast(`Передано набої: ${ammo}`);
+  pdaFeedback("loot_received");
   save();
   render();
 }
@@ -1058,6 +1113,7 @@ function transferEnemyLootNote(enemyId, playerId=currentPlayerId()){
   enemy.gm.lootTakenTextAt = new Date().toISOString();
   addLog(`${p.name || playerId} отримав лут з ${enemy.name}: ${lootText}.`, "public");
   showToast("Лут передано.");
+  pdaFeedback("loot_received");
   save();
   render();
 }
@@ -1132,6 +1188,222 @@ function clone(obj){
   return JSON.parse(JSON.stringify(obj));
 }
 
+function normalizePdaSettings(settings={}){
+  return {
+    ...DEFAULT_PDA_SETTINGS,
+    ...(settings || {}),
+    soundEnabled: !!(settings?.soundEnabled),
+    hapticsEnabled: !!(settings?.hapticsEnabled),
+    atmosphereEnabled: settings?.atmosphereEnabled !== false,
+    animationsEnabled: settings?.animationsEnabled !== false
+  };
+}
+
+function pdaSettingsKey(){
+  return `${STORAGE_PREFIX}:pda_settings:${appSession.room}:${appSession.player || "gm"}`;
+}
+
+function loadLocalPdaSettings(){
+  try{
+    const saved = localStorage.getItem(pdaSettingsKey());
+    return saved ? normalizePdaSettings(JSON.parse(saved)) : null;
+  }catch(err){
+    return null;
+  }
+}
+
+function saveLocalPdaSettings(settings){
+  try{
+    localStorage.setItem(pdaSettingsKey(), JSON.stringify(normalizePdaSettings(settings)));
+  }catch(err){
+    console.warn("PDA settings save failed", err);
+  }
+}
+
+function currentPdaSettings(){
+  return normalizePdaSettings({
+    ...(data?.pdaSettings || {}),
+    ...(loadLocalPdaSettings() || {})
+  });
+}
+
+function ensurePlayerLivingFields(player, playerId=""){
+  if(!player) return player;
+  if(player.avatarEmoji === undefined) player.avatarEmoji = playerId === "fox" ? "🦊" : "";
+  if(player.avatarUrl === undefined) player.avatarUrl = "";
+  if(player.avatarKey === undefined) player.avatarKey = playerId || player.id || "";
+  if(player.avatarStyle === undefined) player.avatarStyle = "stalker";
+  return player;
+}
+
+function normalizeSceneFields(scene={}){
+  const s = scene || {};
+  const objects = Array.isArray(s.objects) ? s.objects : [];
+  s.state = Object.prototype.hasOwnProperty.call(SCENE_STATES, s.state) ? s.state : "calm";
+  s.name = s.name || "Невідома сцена";
+  s.description = s.description || "";
+  s.publicDescription = s.publicDescription || s.description || "";
+  s.gmDescription = s.gmDescription || s.description || "";
+  s.sounds = s.sounds || "";
+  s.smells = s.smells || "";
+  s.objects = objects;
+  s.visibleObjects = Array.isArray(s.visibleObjects) ? s.visibleObjects : clone(objects);
+  s.opportunities = Array.isArray(s.opportunities) ? s.opportunities : [];
+  s.status = s.status || SCENE_STATES[s.state]?.tone || "";
+  s.warnings = s.warnings || "";
+  s.hiddenDangers = s.hiddenDangers || "";
+  s.anomalies = s.anomalies || "";
+  s.triggers = s.triggers || "";
+  s.gmNotes = s.gmNotes || "";
+  s.hiddenLoot = s.hiddenLoot || "";
+  s.sceneEnemies = Array.isArray(s.sceneEnemies) ? s.sceneEnemies : [];
+  return s;
+}
+
+function playerInitials(player){
+  const name = String(player?.name || player?.id || "").trim();
+  if(!name) return "";
+  return name.split(/\s+/).slice(0,2).map(part => part[0] || "").join("").toUpperCase();
+}
+
+function playerAvatarHtml(player, size="large"){
+  const p = player || {};
+  const style = String(p.avatarStyle || "stalker").replace(/[^a-z0-9_-]/gi, "") || "stalker";
+  const classes = `player-avatar player-avatar-${escapeAttr(size)} avatar-style-${escapeAttr(style)}`;
+  const alt = escapeAttr(p.name || p.id || "Персонаж");
+  if(p.avatarUrl){
+    return `<div class="${classes} has-image"><img src="${escapeAttr(p.avatarUrl)}" alt="${alt}"></div>`;
+  }
+  if(p.avatarEmoji){
+    return `<div class="${classes} has-emoji" aria-label="${alt}"><span>${escapeHtml(p.avatarEmoji)}</span></div>`;
+  }
+  const initials = playerInitials(p);
+  if(initials){
+    return `<div class="${classes} has-initials" aria-label="${alt}"><span>${escapeHtml(initials)}</span></div>`;
+  }
+  return `<div class="${classes} has-silhouette" aria-label="${alt}"><span>⌁</span></div>`;
+}
+
+function playerStatusText(player){
+  const hp = Number(player?.hp ?? 0);
+  const max = Math.max(1, Number(player?.hpMax ?? 1));
+  if(hp <= 0) return "критичний стан";
+  if(hp <= Math.ceil(max * 0.25)) return "низький HP";
+  if(Number(player?.fatigue || 0) >= 5) return "виснаження";
+  if(Number(player?.infection ?? player?.radiation ?? 0) >= 4) return "зараження росте";
+  return "зв'язок стабільний";
+}
+
+function canUsePdaAudio(){
+  return typeof window !== "undefined" && !!(window.AudioContext || window.webkitAudioContext);
+}
+
+function schedulePdaTone(ctx, at, freq, duration, gainValue, type="sine", detune=0){
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, at);
+  osc.detune.setValueAtTime(detune, at);
+  gain.gain.setValueAtTime(0.0001, at);
+  gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, gainValue), at + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(at);
+  osc.stop(at + duration + 0.035);
+}
+
+function playPdaSound(eventName){
+  if(!pdaAudioReady || !pdaAudioContext) return false;
+  try{
+    const ctx = pdaAudioContext;
+    const t = ctx.currentTime + 0.015;
+    const sounds = {
+      module_ready: [[110,.18,.055,"sine",0],[262,.16,.035,"triangle",4],[392,.22,.026,"sine",-3],[196,.28,.018,"sine",0]],
+      tap_soft: [[880,.045,.012,"triangle",0],[1760,.025,.005,"sine",-5]],
+      panel_open: [[220,.07,.022,"sine",0],[330,.08,.018,"triangle",0],[440,.09,.014,"sine",0]],
+      panel_close: [[440,.06,.016,"sine",0],[330,.08,.014,"triangle",0],[180,.10,.012,"sine",0]],
+      loot_received: [[196,.08,.028,"sine",0],[330,.10,.024,"triangle",0],[523,.16,.018,"sine",0]],
+      private_message: [[520,.05,.018,"triangle",12],[680,.07,.014,"sine",-8],[410,.16,.014,"sine",0]],
+      combat_hit: [[92,.08,.035,"sine",0],[184,.08,.018,"triangle",-6]],
+      combat_miss: [[360,.05,.016,"triangle",0],[260,.09,.012,"sine",-12]],
+      low_hp_warning: [[96,.12,.040,"sine",0],[96,.12,.034,"sine",0]],
+      anomaly_near: [[240,.18,.018,"sawtooth",-18],[247,.18,.012,"triangle",22],[121,.20,.012,"sine",0]],
+      scene_alert: [[140,.10,.040,"sine",0],[210,.11,.026,"triangle",0],[280,.14,.018,"sine",0]]
+    };
+    (sounds[eventName] || sounds.tap_soft).forEach((tone, index) => {
+      schedulePdaTone(ctx, t + index * 0.085, tone[0], tone[1], tone[2], tone[3], tone[4]);
+    });
+    return true;
+  }catch(err){
+    console.warn("PDA sound failed", err);
+    return false;
+  }
+}
+
+function pdaHaptic(eventName){
+  if(typeof navigator === "undefined" || !navigator.vibrate) return false;
+  const patterns = {
+    loot_received: [18],
+    private_message: [22],
+    low_hp_warning: [26, 36, 26],
+    combat_hit: [16],
+    anomaly_near: [12, 26, 18, 42, 12],
+    scene_alert: [24, 30, 24]
+  };
+  const pattern = patterns[eventName] || [10];
+  try{ return navigator.vibrate(pattern); }catch(err){ return false; }
+}
+
+function pdaFeedback(eventName, options={}){
+  const settings = currentPdaSettings();
+  let soundPlayed = false;
+  if(settings.soundEnabled && pdaAudioReady) soundPlayed = playPdaSound(eventName);
+  if(settings.hapticsEnabled) pdaHaptic(eventName);
+  if(options.toast && !soundPlayed && settings.soundEnabled && !pdaAudioReady){
+    showToast("Звук КПК очікує ручного увімкнення.");
+  }
+  return soundPlayed;
+}
+
+async function enablePdaAudio(){
+  if(!canUsePdaAudio()){
+    showToast("AudioContext недоступний. КПК працює без звуку.");
+    return false;
+  }
+  try{
+    const AudioCtor = window.AudioContext || window.webkitAudioContext;
+    pdaAudioContext = pdaAudioContext || new AudioCtor();
+    if(pdaAudioContext.state === "suspended") await pdaAudioContext.resume();
+    pdaAudioReady = true;
+    data.pdaSettings = normalizePdaSettings({ ...data.pdaSettings, soundEnabled: true });
+    saveLocalPdaSettings(data.pdaSettings);
+    playPdaSound("module_ready");
+    showToast("Звук КПК увімкнено.");
+    render();
+    return true;
+  }catch(err){
+    console.warn("AudioContext init failed", err);
+    pdaAudioReady = false;
+    showToast("Звук недоступний. Інтерфейс працює без нього.");
+    return false;
+  }
+}
+
+function setPdaSetting(field, value){
+  data.pdaSettings = normalizePdaSettings({ ...data.pdaSettings, [field]: !!value });
+  saveLocalPdaSettings(data.pdaSettings);
+  render();
+}
+
+function sceneStateMeta(state){
+  return SCENE_STATES[state] || SCENE_STATES.calm;
+}
+
+function sceneStateClass(state){
+  return `scene-state-${Object.prototype.hasOwnProperty.call(SCENE_STATES, state) ? state : "calm"}`;
+}
+
 function migrateToRoomData(raw){
   if(!raw) return null;
 
@@ -1176,6 +1448,7 @@ function normalizeRoomDataLight(roomData){
   Object.entries(roomData.players).forEach(([pid,p]) => {
     if(!p.id) p.id = pid;
     if(!p.name) p.name = pid;
+    ensurePlayerLivingFields(p, pid);
     p.hp = Number(p.hp ?? 10);
     p.hpMax = Number(p.hpMax ?? p.hp ?? 10);
     p.fatigue = clamp(p.fatigue ?? 0, 0, 6);
@@ -1225,7 +1498,8 @@ function normalizeRoomDataLight(roomData){
     ensureEnemyControlFields(e, idx);
   });
 
-  roomData.scene = roomData.scene || {};
+  roomData.scene = normalizeSceneFields(roomData.scene || {});
+  roomData.pdaSettings = normalizePdaSettings(roomData.pdaSettings || {});
   roomData.journal = Array.isArray(roomData.journal) ? roomData.journal : [];
   roomData.combat = roomData.combat || {};
   roomData.meta = roomData.meta || {};
@@ -1254,6 +1528,10 @@ function ensureRoomData(roomData){
     data.players[appSession.player] = {
       id: appSession.player,
       name: appSession.player,
+      avatarEmoji: "",
+      avatarUrl: "",
+      avatarKey: appSession.player,
+      avatarStyle: "stalker",
       hp: 10,
       hpMax: 10,
       fatigue: 0,
@@ -3843,6 +4121,20 @@ function runStabilityButtonMenuAudit(){
   const openQuickPanels = qsa(".quick-panel.open").filter(panel => !panel.hidden);
   results.push(openQuickPanels.length <= 1 ? auditPass("Button/Menu: quick-panel conflict check", `${openQuickPanels.length} panel open`) : auditFail("Button/Menu: multiple quick-panels open", openQuickPanels.map(panel => panel.id || "no-id").join(", ")));
 
+  const docOverflow = document.documentElement.scrollWidth <= window.innerWidth + 1;
+  results.push(docOverflow ? auditPass("Responsive: document has no horizontal overflow", `${document.documentElement.scrollWidth}/${window.innerWidth}`) : auditFail("Responsive: document horizontal overflow", `${document.documentElement.scrollWidth}/${window.innerWidth}`));
+
+  const quickContainers = qsa(".quick-actions");
+  if(quickContainers.length){
+    const overflowedQuick = quickContainers.filter(container => {
+      const rect = container.getBoundingClientRect();
+      return rect.left < -1 || rect.right > window.innerWidth + 1 || container.scrollWidth > container.clientWidth + 1;
+    });
+    results.push(!overflowedQuick.length ? auditPass("Responsive: quick actions fit mobile width", `${quickContainers.length} containers`) : auditFail("Responsive: quick actions overflow", `${overflowedQuick.length} containers`));
+  } else {
+    results.push(auditWarn("Responsive: quick actions container not found"));
+  }
+
   return results;
 }
 
@@ -3878,6 +4170,11 @@ function runStabilityRolePrivacyAudit(){
       return [gm.lootText, gm.morale, enemy.danger, enemy.gmDescription, enemy.gmNotes].filter(Boolean).some(value => enemyText.includes(String(value)));
     });
     results.push(!gmTextLeak ? auditPass("Privacy: player does not see GM-only enemy notes") : auditFail("Privacy: player sees loot/morale/danger text"));
+
+    const sceneText = qs('[data-screen="environment"]')?.innerText || "";
+    const scene = normalizeSceneFields(data.scene || {});
+    const sceneLeaks = [scene.gmDescription, scene.hiddenDangers, scene.gmNotes, scene.hiddenLoot].filter(Boolean).some(value => sceneText.includes(String(value)));
+    results.push(!sceneLeaks ? auditPass("Privacy: player does not see GM scene spoilers") : auditFail("Privacy: player sees GM scene spoilers"));
   } else {
     const debugPanel = qs("#debugPanel");
     if(!debugPanel){
@@ -3900,6 +4197,7 @@ function runStabilityRolePrivacyAudit(){
 
     results.push(qs("#enemyTemplateDock") ? auditPass("Privacy: enemy templates dock exists") : auditWarn("Privacy: enemy templates dock not found"));
     results.push(qsa("[data-gm-enemy], [data-gm-enemy-gm], [data-gm-enemy-stat], [data-enemy-hp-delta], [data-enemy-ammo-delta]").length || !enemies.length ? auditPass("Privacy: GM enemy control hooks exist") : auditWarn("Privacy: GM enemy control hooks not detected"));
+    results.push(qs("#sceneGmDescription") ? auditPass("Privacy: GM scene details panel exists") : auditWarn("Privacy: GM scene details panel not found"));
   }
 
   return results;
@@ -3922,6 +4220,10 @@ function runStabilityDataSchemaAudit(){
     if(!Array.isArray(player.inventory)) missing.push("inventory array");
     if(!player.stats || typeof player.stats !== "object") missing.push("stats object");
     results.push(!missing.length ? auditPass(`Schema: player ${key}`, "required fields present") : auditWarn(`Schema: player ${key} legacy/missing fields`, missing.join(", ")));
+
+    const avatarFields = ["avatarEmoji", "avatarUrl", "avatarKey", "avatarStyle"].filter(field => player[field] !== undefined);
+    const avatarFallback = !!(player.avatarUrl || player.avatarEmoji || playerInitials(player));
+    results.push(avatarFields.length || avatarFallback ? auditPass(`Schema: player ${key} avatar fallback`, avatarFields.join(", ") || "initials fallback") : auditWarn(`Schema: player ${key} avatar fallback missing`));
 
     if(Array.isArray(player.inventory)){
       player.inventory.forEach((item, index) => {
@@ -3957,6 +4259,14 @@ function runStabilityDataSchemaAudit(){
       });
     }
   });
+
+  const scene = normalizeSceneFields(data.scene || {});
+  const sceneMissing = ["state", "publicDescription", "gmDescription", "sounds", "smells", "visibleObjects", "opportunities", "hiddenDangers"].filter(field => scene[field] === undefined || scene[field] === null);
+  results.push(!sceneMissing.length ? auditPass("Schema: scene living PDA fields exist", scene.state) : auditWarn("Schema: scene living PDA fields missing", sceneMissing.join(", ")));
+
+  const settings = normalizePdaSettings(data.pdaSettings || {});
+  const settingMissing = ["soundEnabled", "hapticsEnabled", "atmosphereEnabled", "animationsEnabled"].filter(field => typeof settings[field] !== "boolean");
+  results.push(!settingMissing.length ? auditPass("Schema: PDA settings defaults exist") : auditWarn("Schema: PDA settings defaults missing", settingMissing.join(", ")));
 
   results.push(journal ? auditPass("Schema: journal array exists", `${journal.length} records`) : auditFail("Schema: journal array missing"));
   const allowedVisibility = new Set(["public", "gm", "private"]);
@@ -4089,12 +4399,35 @@ function runStabilityCombatRulesLockAudit(){
   return results;
 }
 
+function runStabilityLivingPdaAudit(){
+  const results = [];
+  const settings = currentPdaSettings();
+  const scene = normalizeSceneFields(data.scene || {});
+  const players = Object.entries(data.players || {});
+
+  results.push(typeof pdaFeedback === "function" ? auditPass("Living PDA: pdaFeedback helper exists") : auditFail("Living PDA: pdaFeedback helper missing"));
+  results.push(typeof enablePdaAudio === "function" && qs("#enablePdaAudio") ? auditPass("Living PDA: manual audio enable exists") : auditWarn("Living PDA: manual audio enable not visible in current DOM"));
+  results.push(canUsePdaAudio() || typeof window === "undefined" ? auditPass("Living PDA: Web Audio API available or safely optional") : auditPass("Living PDA: Web Audio fallback active", "AudioContext unavailable, app should stay usable."));
+  results.push(!settings.soundEnabled || pdaAudioReady || !canUsePdaAudio() ? auditPass("Living PDA: sound respects user gesture/fallback") : auditPass("Living PDA: sound waits for user gesture", "Sound preference is on, but AudioContext correctly stays locked until the user presses the PDA sound button."));
+  results.push(typeof navigator === "undefined" || navigator.vibrate || !settings.hapticsEnabled ? auditPass("Living PDA: haptic fallback safe") : auditWarn("Living PDA: vibration enabled but API unavailable"));
+  results.push(Object.prototype.hasOwnProperty.call(SCENE_STATES, scene.state) ? auditPass("Living PDA: scene state valid", scene.state) : auditWarn("Living PDA: scene state fallback used", scene.state || ""));
+  results.push(qs(".device") ? auditPass("Living PDA: atmosphere layer does not remove main UI") : auditFail("Living PDA: main device shell missing"));
+
+  players.forEach(([pid, player]) => {
+    const hasFallback = !!(player.avatarUrl || player.avatarEmoji || playerInitials(player));
+    results.push(hasFallback ? auditPass(`Living PDA: avatar fallback for ${pid}`) : auditWarn(`Living PDA: avatar fallback weak for ${pid}`));
+  });
+
+  return results;
+}
+
 function runStabilityAudit(){
   const results = [
     ...runStabilityButtonMenuAudit(),
     ...runStabilityRolePrivacyAudit(),
     ...runStabilityDataSchemaAudit(),
     ...runStabilityEnemyControlAudit(),
+    ...runStabilityLivingPdaAudit(),
     ...runStabilityCombatRulesLockAudit()
   ];
   return {
@@ -4655,6 +4988,7 @@ window.POLOVYI_MODUL_TESTS = {
   runButtonMenuAuditTests,
   runStabilityAudit,
   runStabilityAuditSmokeTests,
+  runStabilityLivingPdaAudit,
   formatStabilityAuditText,
   runUiRegressionTests,
   runReleasePreflight,
@@ -4667,6 +5001,9 @@ window.POLOVYI_MODUL_TESTS = {
   closeOpenDetails,
   setQuickPanelOpen,
   toggleQuickPanel,
+  pdaFeedback,
+  enablePdaAudio,
+  currentPdaSettings,
   fatigueCombatPenalty,
   fatigueOtherStatsPenalty,
   runFullInternalTests,
@@ -4752,9 +5089,102 @@ function renderProfileGmQuickEdit(p){
 }
 
 
+function renderPdaSettingsPanel(){
+  const box = qs("#pdaSettingsPanel");
+  if(!box) return;
+  const settings = currentPdaSettings();
+  const audioState = pdaAudioReady ? "звук готовий" : (canUsePdaAudio() ? "потрібне ручне увімкнення" : "звук недоступний");
+  box.innerHTML = `
+    <div class="pda-settings-head">
+      <strong>КПК</strong>
+      <span>${escapeHtml(audioState)}</span>
+    </div>
+    <div class="pda-settings-grid">
+      <button class="metal-btn mini" id="enablePdaAudio" type="button">Увімкнути звук КПК</button>
+      <label class="pda-toggle"><input type="checkbox" data-pda-setting="soundEnabled" ${settings.soundEnabled ? "checked" : ""}> Звуки</label>
+      <label class="pda-toggle"><input type="checkbox" data-pda-setting="hapticsEnabled" ${settings.hapticsEnabled ? "checked" : ""}> Вібрація</label>
+      <label class="pda-toggle"><input type="checkbox" data-pda-setting="atmosphereEnabled" ${settings.atmosphereEnabled ? "checked" : ""}> Атмосфера КПК</label>
+      <label class="pda-toggle"><input type="checkbox" data-pda-setting="animationsEnabled" ${settings.animationsEnabled ? "checked" : ""}> Анімації</label>
+    </div>`;
+}
+
+function listItemsHtml(items){
+  const list = Array.isArray(items) ? items.filter(Boolean) : [];
+  return list.length ? list.map(item => `<li>${escapeHtml(item)}</li>`).join("") : "<li>—</li>";
+}
+
+function renderScenePanels(){
+  const s = normalizeSceneFields(data.scene || {});
+  const isGm = appSession.role === "gm";
+  const stateMeta = sceneStateMeta(s.state);
+  safeSetText("#sceneStateBadge", stateMeta.label);
+  safeSetText("#sceneDescription", isGm ? (s.description || s.publicDescription || "") : (s.publicDescription || s.description || ""));
+  safeSetText("#scenePublicDescription", s.publicDescription || "");
+  safeSetText("#sceneStatus", s.status || stateMeta.tone);
+  safeSetText("#sceneWarnings", s.warnings || "Без явних спойлерів.");
+  safeSetHTML("#sceneObjects", listItemsHtml(s.visibleObjects || s.objects));
+  safeSetHTML("#sceneOpportunities", listItemsHtml(s.opportunities));
+  safeSetText("#sceneGmDescription", s.gmDescription || s.description || "");
+  safeSetText("#sceneHiddenDangers", s.hiddenDangers || "—");
+  safeSetText("#sceneGmAnomalies", [s.anomalies, s.triggers].filter(Boolean).join("\n") || "—");
+  safeSetText("#sceneGmNotes", s.gmNotes || "—");
+  safeSetText("#sceneHiddenLoot", s.hiddenLoot || "—");
+  safeSetText("#sceneEnemiesGm", (s.sceneEnemies || []).join(", ") || "—");
+}
+
+function applyPdaAtmosphere(){
+  const settings = currentPdaSettings();
+  const state = normalizeSceneFields(data.scene || {}).state;
+  document.body.classList.toggle("pda-atmosphere-off", !settings.atmosphereEnabled);
+  document.body.classList.toggle("pda-animations-off", !settings.animationsEnabled);
+  document.body.classList.toggle("pda-audio-ready", !!pdaAudioReady);
+  Object.keys(SCENE_STATES).forEach(key => document.body.classList.toggle(sceneStateClass(key), key === state));
+  document.body.dataset.sceneState = state;
+}
+
+function maybeLowHpFeedback(player){
+  if(!pdaFeedbackArmed) return;
+  const p = player || currentPlayer();
+  const hp = Number(p?.hp ?? 0);
+  const max = Math.max(1, Number(p?.hpMax ?? 1));
+  const key = `${p?.id || currentPlayerId()}:${hp}/${max}`;
+  if(hp > 0 && hp <= Math.ceil(max * 0.25) && pdaLastLowHpKey !== key){
+    pdaLastLowHpKey = key;
+    pdaFeedback("low_hp_warning");
+  }
+  if(hp > Math.ceil(max * 0.25)) pdaLastLowHpKey = "";
+}
+
+function setSceneFromGmForm(){
+  const s = data.scene = normalizeSceneFields(data.scene || {});
+  const splitList = value => String(value || "").split(",").map(part => part.trim()).filter(Boolean);
+  s.name = qs("#gmSceneName")?.value || s.name;
+  s.state = qs("#gmSceneState")?.value || s.state || "calm";
+  s.description = qs("#gmSceneDescription")?.value || "";
+  s.publicDescription = qs("#gmScenePublicDescription")?.value || s.description || "";
+  s.gmDescription = qs("#gmSceneGmDescription")?.value || s.description || "";
+  s.sounds = qs("#gmSceneSounds")?.value || "";
+  s.smells = qs("#gmSceneSmells")?.value || "";
+  s.objects = splitList(qs("#gmSceneObjects")?.value);
+  s.visibleObjects = clone(s.objects);
+  s.opportunities = splitList(qs("#gmSceneOpportunities")?.value);
+  s.status = qs("#gmSceneStatus")?.value || sceneStateMeta(s.state).tone;
+  s.warnings = s.status;
+  s.hiddenDangers = qs("#gmSceneHiddenDangers")?.value || "";
+  s.anomalies = qs("#gmSceneAnomalies")?.value || "";
+  s.triggers = qs("#gmSceneAnomalies")?.value || "";
+  s.gmNotes = qs("#gmSceneNotes")?.value || "";
+  s.hiddenLoot = qs("#gmSceneHiddenLoot")?.value || "";
+  const sceneEvent = ["anomaly", "radio"].includes(s.state) ? "anomaly_near" : (s.state === "calm" ? "panel_open" : "scene_alert");
+  pdaFeedback(sceneEvent);
+  addLog(`Майстер оновив сцену: ${s.name}.`, "gm");
+  render();
+}
+
 function render(){
   const focusState = captureFocusState();
   const p = normalizeCharacterWeapons(currentPlayer());
+  ensurePlayerLivingFields(p, currentPlayerId());
   (data.enemies || []).forEach(e => normalizeCharacterWeapons(e));
   qs("#characterName").textContent = p.name;
   qs("#hpNow").textContent = p.hp;
@@ -4763,21 +5193,26 @@ function render(){
   qs("#defenseNow").textContent = playerDefenseDisplay(p, true);
   qs("#radiationNow").textContent = p.infection ?? p.radiation ?? 0;
   qs("#ammoNow").textContent = p.ammo;
+  safeSetText("#armorNow", p.armor ?? 0);
+  safeSetText("#activeWeaponNow", activeWeaponLabel(p));
+  safeSetText("#profileStatusNow", playerStatusText(p));
+  safeSetHTML("#playerAvatarFrame", playerAvatarHtml(p, "large"));
   qs("#hpDots").innerHTML = dots(p.hp, p.hpMax);
   qs("#fatigueDots").innerHTML = dots(p.fatigue, 6, "fatigue");
   qs("#radDots").innerHTML = dots(p.infection ?? p.radiation ?? 0, 7, "rad");
   qs("#ammoDots").innerHTML = dots(Math.min(p.ammo, 6), 6);
   renderCharacterDetails(p);
   renderProfileGmQuickEdit(p);
+  renderPdaSettingsPanel();
+  maybeLowHpFeedback(p);
 
-  const s = data.scene;
+  const s = normalizeSceneFields(data.scene || {});
   safeSetText("#sceneNameShort", s.name);
-  safeSetText("#sceneDescShort", shortText(s.description || "", 70));
+  safeSetText("#sceneDescShort", shortText(s.publicDescription || s.description || "", 70));
   qs("#sceneName").textContent = s.name;
-  qs("#sceneDescription").textContent = s.description || "";
   qs("#sceneSounds").textContent = s.sounds || "";
   qs("#sceneSmells").textContent = s.smells || "";
-  qs("#sceneObjects").innerHTML = (s.objects || []).map(o => `<li>${escapeHtml(o)}</li>`).join("");
+  renderScenePanels();
 
   const visible = (data.enemies || []).filter(e => e.visible !== false);
   const enemiesForEnemyTab = appSession.role === "gm" ? (data.enemies || []) : visible;
@@ -4802,6 +5237,7 @@ function render(){
   renderGmQuickPanel();
   renderPlayerSpecificLinks();
   applyRoleMode();
+  applyPdaAtmosphere();
   updateBuildDebug();
   enforcePlayerAccessGuards();
   enforceScreenIsolation();
@@ -4873,6 +5309,7 @@ function submitJournalQuickNote(visibility){
   if(data.journal.length > 120) data.journal = data.journal.slice(-120);
   save();
   render();
+  if(visibility === "private") pdaFeedback("private_message");
   showToast(visibility === "gm" ? "Записано тільки для Майстра." : visibility === "private" ? "Приватне повідомлення додано." : "Публічний запис додано.");
 }
 
@@ -5330,7 +5767,7 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.31</div>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.32</div>
         <h4>Enemy Control Center</h4>
         <p>Шаблони згруповано за роллю сцени: бандити, мутанти й підготовка до живих NPC.</p>
       </div>
@@ -5402,8 +5839,14 @@ function fillMaster(){
   setVal("#gmName", p.name); setVal("#gmHp", p.hp); setVal("#gmHpMax", p.hpMax);
   setVal("#gmFatigue", p.fatigue); setVal("#gmRad", p.infection ?? p.radiation ?? 0); setVal("#gmAmmo", p.ammo);
   setVal("#gmPlayerId", currentPlayerId());
-  setVal("#gmSceneName", s.name); setVal("#gmSceneDescription", s.description || ""); setVal("#gmSceneSounds", s.sounds || "");
-  setVal("#gmSceneSmells", s.smells || ""); setVal("#gmSceneObjects", (s.objects || []).join(", "));
+  normalizeSceneFields(s);
+  setVal("#gmSceneName", s.name); setVal("#gmSceneState", s.state || "calm"); setVal("#gmSceneDescription", s.description || "");
+  setVal("#gmScenePublicDescription", s.publicDescription || ""); setVal("#gmSceneGmDescription", s.gmDescription || "");
+  setVal("#gmSceneSounds", s.sounds || "");
+  setVal("#gmSceneSmells", s.smells || ""); setVal("#gmSceneObjects", (s.visibleObjects || s.objects || []).join(", "));
+  setVal("#gmSceneOpportunities", (s.opportunities || []).join(", ")); setVal("#gmSceneStatus", s.status || "");
+  setVal("#gmSceneHiddenDangers", s.hiddenDangers || ""); setVal("#gmSceneAnomalies", [s.anomalies, s.triggers].filter(Boolean).join("\n"));
+  setVal("#gmSceneNotes", s.gmNotes || ""); setVal("#gmSceneHiddenLoot", s.hiddenLoot || "");
 
   qs("#gmEnemies").innerHTML = (data.enemies || []).map((e, idx) => `
     <div class="gm-row">
@@ -5474,10 +5917,18 @@ function renderGmPlayers(){
 
   container.innerHTML = switcher + playerIds.filter(pid => pid === activeId).map(pid => {
     const p = data.players[pid];
+    ensurePlayerLivingFields(p, pid);
     const playerUrl = playerSpecificUrl(pid);
     const invCount = (p.inventory || []).length;
 
-    const profileBody = `<div class="compact-form-grid profile-grid"><label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label><label>ID <input value="${escapeAttr(pid)}" disabled></label></div>`;
+    const profileBody = `<div class="compact-form-grid profile-grid">
+      <label>Ім’я <input data-player="${escapeAttr(pid)}" data-field="name" value="${escapeAttr(p.name || "")}"></label>
+      <label>ID <input value="${escapeAttr(pid)}" disabled></label>
+      <label>Avatar emoji <input data-player="${escapeAttr(pid)}" data-field="avatarEmoji" value="${escapeAttr(p.avatarEmoji || "")}" placeholder="🦊"></label>
+      <label>Avatar URL <input data-player="${escapeAttr(pid)}" data-field="avatarUrl" value="${escapeAttr(p.avatarUrl || "")}" placeholder="https://..."></label>
+      <label>Avatar style <input data-player="${escapeAttr(pid)}" data-field="avatarStyle" value="${escapeAttr(p.avatarStyle || "stalker")}"></label>
+      <label>Avatar key <input data-player="${escapeAttr(pid)}" data-field="avatarKey" value="${escapeAttr(p.avatarKey || pid)}"></label>
+    </div>`;
     const combatBody = `<div class="compact-form-grid combat-grid">
         <label>HP <input type="number" data-player="${escapeAttr(pid)}" data-field="hp" value="${escapeAttr(String(p.hp ?? 0))}"></label>
         <label>Макс. HP <input type="number" data-player="${escapeAttr(pid)}" data-field="hpMax" value="${escapeAttr(String(p.hpMax ?? 10))}"></label>
@@ -5511,7 +5962,7 @@ function renderGmPlayers(){
     const inventoryBody = gmPlayerInventoryEditor(pid, p);
 
     return `<div class="gm-player-card compact-player-editor collapsible-player-editor ${pid === currentPlayerId() ? "active-selected" : ""}">
-      <h4>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
+      <h4 class="gm-player-card-title">${playerAvatarHtml(p, "small")}<span>${escapeHtml(p.name || pid)} <small>(${escapeHtml(pid)})</small></span>${pid === currentPlayerId() ? `<span class="active-player-chip">активний</span>` : ""}</h4>
       ${section("profile", "Профіль", p.name || pid, profileBody)}
       ${section("combat", "Бойові налаштування", `HP ${p.hp ?? 0}/${p.hpMax ?? 10} · Втома ${p.fatigue ?? 0} · Набої ${p.ammo ?? 0}`, combatBody)}
       ${section("weapon", "Зброя", `${activeWeaponLabel(p)} · ${p.weaponCondition ? (WEAPON_CONDITIONS[p.weaponCondition]?.name || p.weaponCondition) : "стан?"}`, weaponBody)}
@@ -6704,6 +7155,7 @@ function doAction(action){
     });
 
     showCombatBriefToastForCurrentRole();
+    pdaFeedback(hits ? "combat_hit" : "combat_miss");
   } else {
     showRollToast(title, r.dice, r.totals, attrName, attrMod, extra);
     data.combat = data.combat || {};
@@ -7020,6 +7472,7 @@ function closeQuickPanels(){
     closed++;
   });
   syncQuickPanelToggles();
+  if(closed) pdaFeedback("panel_close");
   return closed;
 }
 
@@ -7056,6 +7509,7 @@ function setQuickPanelOpen(panelId, shouldOpen){
     }
   });
   syncQuickPanelToggles();
+  if(changed) pdaFeedback(shouldOpen ? "panel_open" : "panel_close");
   return changed;
 }
 
@@ -7109,6 +7563,8 @@ function closeUiForScreenChange(){
 }
 
 function triggerFlicker(){
+  const settings = currentPdaSettings();
+  if(!settings.atmosphereEnabled || !settings.animationsEnabled || !document.body.animate) return;
   document.body.animate([
     { filter:"brightness(1)" },
     { filter:"brightness(1.16) contrast(1.07)" },
@@ -7140,10 +7596,16 @@ document.addEventListener("keydown", e => {
 });
 
 document.addEventListener("click", e => {
+  pdaFeedbackArmed = true;
+
+  if(e.target.closest("#enablePdaAudio")){
+    enablePdaAudio();
+    return;
+  }
 
   const closePanel = e.target.closest("[data-close-panel]");
   if(closePanel){
-    closePanelById(closePanel.dataset.closePanel);
+    if(closePanelById(closePanel.dataset.closePanel)) pdaFeedback("panel_close");
     return;
   }
 
@@ -7809,6 +8271,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
       const p = playerById(pid);
       inventoryForPlayer(pid).push({item, count, note});
       addLog(`Майстер додав предмет для ${p.name || pid}: ${item} x${count}.`, "public");
+      pdaFeedback("loot_received");
       qs("#customLootName").value = "";
       qs("#customLootCount").value = 1;
       qs("#customLootNote").value = "";
@@ -7822,6 +8285,12 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   const fDelta = e.target.closest("[data-delta-fatigue]");
   if(fDelta){ const p = currentPlayer(); p.fatigue = clamp(p.fatigue + Number(fDelta.dataset.deltaFatigue), 0, 6); addLog(`${p.name}: Втома ${p.fatigue}/6.`, "public"); render(); }
+
+  if(e.target.id === "saveScene"){
+    setSceneFromGmForm();
+    return;
+  }
+
 if(e.target.id === "copyPlayerLink"){
     const pid = appSession.role === "gm" ? currentPlayerId() : appSession.player;
     const url = playerSpecificUrl(pid);
@@ -7852,6 +8321,24 @@ if(e.target.id === "copyPlayerLink"){
 });
 
 document.addEventListener("change", e => {
+  const pdaSetting = e.target.closest("[data-pda-setting]");
+  if(pdaSetting){
+    setPdaSetting(pdaSetting.dataset.pdaSetting, pdaSetting.checked);
+    return;
+  }
+
+  const livingPlayerField = e.target.closest("[data-player]");
+  if(livingPlayerField && ["avatarEmoji","avatarUrl","avatarStyle","avatarKey"].includes(livingPlayerField.dataset.field)){
+    const pid = livingPlayerField.dataset.player;
+    const field = livingPlayerField.dataset.field;
+    if(data.players?.[pid]){
+      data.players[pid][field] = livingPlayerField.value;
+      ensurePlayerLivingFields(data.players[pid], pid);
+      saveAndRenderPreserveScroll();
+    }
+    return;
+  }
+
   const lootTarget = e.target.closest("[data-enemy-loot-target]");
   if(lootTarget){
     const enemy = findEnemyById(lootTarget.dataset.enemyLootTarget);

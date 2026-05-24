@@ -1,4 +1,4 @@
-# AGENTS.md — Polovyi Modul Codex Rules
+# AGENTS.md - Polovyi Modul Codex Rules
 
 Scope: this file applies to the entire repository.
 
@@ -8,15 +8,15 @@ This project is "Polovyi Modul": a lightweight static GitHub Pages web app for a
 
 - Do not change combat math without explicit user approval.
 - Do not change the approved 1 / 2 / 3 bullet shooting rules unless the user explicitly asks for a combat-rules change.
-- Do not change recoil, damage, critical damage, armor, cover, enemy HP privacy, or Firebase schema casually.
+- Do not casually change recoil, damage, critical damage, armor, cover, enemy HP privacy, or Firebase schema.
 - Keep changes scoped to the requested version or patch.
-- Prefer improving existing helpers and UI patterns over inventing unrelated systems.
+- Prefer existing helpers and UI patterns over unrelated new systems.
 
 ## Versioning
 
 Current stable version must be read from `app.js` / `README.md`, not assumed from memory.
 
-For every new release version:
+For every new release:
 
 - Update `BUILD_VERSION` in `app.js`.
 - Update `BUILD_NUMBER` in `app.js`.

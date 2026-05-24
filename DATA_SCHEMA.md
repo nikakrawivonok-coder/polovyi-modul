@@ -1,14 +1,56 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.31
+# DATA_SCHEMA.md — Польовий Модуль V19.32
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.31"
-BUILD_NUMBER = "19690"
-BUILD_NAME = "Enemy Control Center Expansion Pack"
+BUILD_VERSION = "V19.32"
+BUILD_NUMBER = "19700"
+BUILD_NAME = "Living PDA & Sonic Identity Pack"
 ```
+
+## V19.32 schema note
+
+V19.32 додає immersion / living PDA layer і не змінює бойову математику.
+
+Основна Firebase-структура не переписується радикально. Додаються або нормалізуються легкі поля для аватарів, scene public/GM layers і PDA settings.
+
+Нові / підтримані поля:
+
+```js
+player.avatarEmoji: string
+player.avatarUrl: string
+player.avatarKey: string
+player.avatarStyle: string
+
+scene.state: "calm" | "alert" | "anomaly" | "emission" | "night" | "underground" | "radio"
+scene.publicDescription: string
+scene.gmDescription: string
+scene.sounds: string
+scene.smells: string
+scene.visibleObjects: string[]
+scene.opportunities: string[]
+scene.status: string
+scene.warnings: string
+scene.hiddenDangers: string
+scene.anomalies: string
+scene.triggers: string
+scene.gmNotes: string
+scene.hiddenLoot: string
+scene.sceneEnemies: string[]
+
+pdaSettings.soundEnabled: boolean
+pdaSettings.hapticsEnabled: boolean
+pdaSettings.atmosphereEnabled: boolean
+pdaSettings.animationsEnabled: boolean
+```
+
+Privacy:
+- гравець бачить `scene.publicDescription`, `scene.sounds`, `scene.smells`, `scene.visibleObjects`, `scene.opportunities`, `scene.status`, `scene.warnings`;
+- гравець не має бачити `scene.gmDescription`, `scene.hiddenDangers`, `scene.gmNotes`, `scene.hiddenLoot`;
+- Майстер бачить повну scene layer;
+- sound/haptics settings мають fallback і не повинні ламати app, якщо AudioContext або vibration API недоступні.
 
 ## V19.31 schema note
 
@@ -40,6 +82,10 @@ appSession = {
 data.players = {
   fox: {
     name: "Лис",
+    avatarEmoji: string,
+    avatarUrl: string,
+    avatarKey: string,
+    avatarStyle: string,
     hp: number,
     hpMax: number,
     defense: number,
