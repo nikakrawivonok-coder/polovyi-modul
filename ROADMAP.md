@@ -1,3 +1,58 @@
+## V19.30 — Stability Audit Pack
+
+Статус: stability/audit checkpoint без нової gameplay-системи.
+
+Base: `V19.29 — Global Button/Menu Audit`, build/cache `19673`.
+Поточна версія: `V19.30`, build/cache `19680`.
+
+Мета:
+додати повноцінний шар аудиту, тестів, звітності й документації, який допомагає перевіряти стабільність інтерфейсу, ролей, privacy, schema і кнопок без зміни бойової математики та ігрової логіки.
+
+Що реалізовано:
+- додано GM-блок `Stability Audit`;
+- додано кнопки `Запустити аудит`, `Скопіювати звіт`, `Очистити звіт`;
+- audit report містить version, build, cache version from URL, room, role, active screen, timestamp, кількість гравців, кількість ворогів і результати перевірок;
+- кожен audit-пункт має status `pass`, `warn` або `fail`;
+- Button/Menu audit перевіряє nav targets, `data-open`, `data-toggle-panel`, `data-close-panel`, `aria-controls`, `aria-expanded`, quick-panel conflict, active screen і прихованість inactive screens;
+- Role/Privacy audit робить best-effort DOM-перевірку для ролі Майстра або Гравця;
+- Data Schema audit перевіряє `players`, `enemies`, `inventory`, `journal`, `combat`;
+- Combat Rules Lock audit перевіряє наявність ключових helper-функцій і прогресію віддачі `-2 / -4 / -6 / -8`;
+- copy report використовує централізований clipboard helper із fallback;
+- Test Harness отримав smoke-перевірки для побудови Stability Audit report.
+
+Перевірки privacy:
+- гравець не має бачити GM-only блоки, debug panel, hidden enemies, точні HP ворога, GM enemy controls, шаблони ворогів, loot/morale/danger нотатки;
+- Майстер має мати доступ до debug panel, GM-only блоків, усіх ворогів, точних HP/набоїв, шаблонів ворогів і керування ворогами;
+- складні або залежні від поточного екрана перевірки можуть повертати `warn`, а не ламати runtime.
+
+Перевірки schema:
+- `players`: id/key, name, hp, hpMax, defense, ammo, inventory array, stats object;
+- `enemies`: id, name, visible, state, defense, weapon, gm object, gm.hp, gm.hpMax, gm.ammo, inventory;
+- `inventory`: item/name, count, optional note;
+- `journal`: id, visibility, time, text; допустимі visibility: `public`, `gm`, `private`; для private бажаний `targetPlayerId`;
+- `combat`: об'єкт існує і має базові поля.
+
+Locked combat contracts:
+- `burstRecoilInfoForShooter`;
+- `updateEnemyStateByHp`;
+- `formatBriefHtml`;
+- `enemyCardGm`;
+- `enemyCardPublic`;
+- `transferEnemyLootNote`;
+- `transferEnemyAmmoLoot`;
+- `selectedLootPlayerIdForEnemy`;
+- progression `-2 / -4 / -6 / -8`.
+
+Не змінювалось:
+- бойова математика 1/2/3 патрони;
+- віддача, шкода, броня, укриття як gameplay-логіка;
+- activeWeapon / inventory.damage;
+- інвентарі;
+- вороги й лут як бойова модель;
+- вкладка `Стан` як UX-структура;
+- журнал / privacy HP як runtime-логіка;
+- Firebase-схема.
+
 ## V19.29 — Global Button/Menu Audit
 
 Статус: глобальніший UX/QА checkpoint у напрямку Button & Menu Close Audit.

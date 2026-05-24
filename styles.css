@@ -2323,6 +2323,31 @@ body.role-gm .compact-gm-debug strong{
   justify-content:flex-end;
   margin-top:0.55rem;
 }
+.stability-audit-summary{
+  display:flex;
+  gap:0.45rem;
+  flex-wrap:wrap;
+  margin:0.55rem 0;
+}
+.stability-audit-summary span{
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:0.55rem;
+  padding:0.35rem 0.5rem;
+  background:rgba(0,0,0,0.18);
+  font-weight:800;
+}
+.audit-meta{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
+  gap:0.35rem;
+  margin:0.55rem 0;
+}
+.audit-meta div{
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:0.55rem;
+  padding:0.4rem;
+  background:rgba(0,0,0,0.16);
+}
 .test-ok{
   background:rgba(71, 170, 92, 0.08);
 }

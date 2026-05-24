@@ -1,14 +1,20 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.29
+# DATA_SCHEMA.md — Польовий Модуль V19.30
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.29"
-BUILD_NUMBER = "19673"
-BUILD_NAME = "Global Button/Menu Audit"
+BUILD_VERSION = "V19.30"
+BUILD_NUMBER = "19680"
+BUILD_NAME = "Stability Audit Pack"
 ```
+
+## V19.30 schema note
+
+V19.30 додає audit/report layer, який не змінює основну ігрову schema.
+
+Stability Audit читає поточний DOM і `data`, формує локальний звіт у runtime та не додає нових persistent Firebase-полів. Звіт містить version/build/cache/room/role/screen/time, кількість гравців, кількість ворогів і результати audit-перевірок.
 
 ## appSession
 

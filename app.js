@@ -1,5 +1,5 @@
-// Польовий Модуль — V19.29 Global Button/Menu Audit
-// Global button/menu audit. Locked 1/2/3 ammo combat math intentionally unchanged.
+// Польовий Модуль — V19.30 Stability Audit Pack
+// Stability audit layer. Locked 1/2/3 ammo combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
 // 1) Boot / session / Firebase helpers
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.29";
-const BUILD_NUMBER = "19673";
-const BUILD_NAME = "Global Button/Menu Audit";
+const BUILD_VERSION = "V19.30";
+const BUILD_NUMBER = "19680";
+const BUILD_NAME = "Stability Audit Pack";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -3365,6 +3365,416 @@ function runButtonMenuAuditTests(){
   return results;
 }
 
+let lastStabilityAuditReport = null;
+
+function auditResult(status, name, details=""){
+  return { status, name, details };
+}
+
+function auditPass(name, details=""){
+  return auditResult("pass", name, details);
+}
+
+function auditWarn(name, details=""){
+  return auditResult("warn", name, details);
+}
+
+function auditFail(name, details=""){
+  return auditResult("fail", name, details);
+}
+
+function auditStatusIcon(status){
+  if(status === "pass") return "✅";
+  if(status === "warn") return "⚠️";
+  return "❌";
+}
+
+function auditStatusLabel(status){
+  if(status === "pass") return "PASS";
+  if(status === "warn") return "WARN";
+  return "FAIL";
+}
+
+function auditCssStatus(status){
+  if(status === "pass") return "ok";
+  if(status === "warn") return "warn";
+  return "fail";
+}
+
+function auditFromTestResult(r){
+  if(r.status === "ok") return auditPass(r.name, r.details || "");
+  if(r.status === "warn") return auditWarn(r.name, r.details || "");
+  return auditFail(r.name, r.details || "");
+}
+
+function stabilityAuditCounts(results){
+  return results.reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1;
+    return acc;
+  }, { pass:0, warn:0, fail:0 });
+}
+
+function isElementEffectivelyVisible(el){
+  if(!el || el.hidden) return false;
+  let node = el;
+  while(node && node !== document.body){
+    if(node.hidden) return false;
+    node = node.parentElement;
+  }
+  const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+  if(style && (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0)) return false;
+  return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+}
+
+function stabilityAuditMeta(){
+  const players = data.players || {};
+  const enemies = Array.isArray(data.enemies) ? data.enemies : [];
+  return {
+    version: BUILD_VERSION,
+    build: BUILD_NUMBER,
+    cache: URL_CACHE_VERSION || "",
+    room: appSession.room || "",
+    role: appSession.role || "",
+    screen: activeScreenForDebug(),
+    timestamp: new Date().toISOString(),
+    playerCount: Object.keys(players).length,
+    enemyCount: enemies.length
+  };
+}
+
+function runStabilityButtonMenuAudit(){
+  const results = runButtonMenuAuditTests().map(auditFromTestResult);
+  const screens = qsa(".screen[data-screen]");
+
+  if(!screens.length){
+    results.push(auditWarn("Button/Menu: screen sections unavailable", "Static harness may not include the full app shell."));
+  } else {
+    const activeScreens = screens.filter(screen => screen.classList.contains("active") && !screen.hidden && screen.style.display !== "none");
+    results.push(activeScreens.length === 1 ? auditPass("Button/Menu: exactly one active screen", activeScreens[0]?.dataset?.screen || "") : auditFail("Button/Menu: active screen count mismatch", `${activeScreens.length} active screens`));
+
+    const visibleInactive = screens.filter(screen => !screen.classList.contains("active") && isElementEffectivelyVisible(screen));
+    results.push(!visibleInactive.length ? auditPass("Button/Menu: inactive screens are hidden") : auditFail("Button/Menu: inactive screens visible", visibleInactive.map(screen => screen.dataset.screen).join(", ")));
+  }
+
+  const closeButtons = qsa("[data-close-panel]");
+  const brokenClose = closeButtons.filter(btn => !document.getElementById(btn.dataset.closePanel || ""));
+  results.push(!brokenClose.length ? auditPass("Button/Menu: data-close-panel targets exist", `${closeButtons.length} close controls`) : auditFail("Button/Menu: data-close-panel target missing", brokenClose.map(btn => btn.dataset.closePanel).join(", ")));
+
+  const ariaControls = qsa("[aria-controls]");
+  const brokenAriaControls = ariaControls.filter(el => !document.getElementById(el.getAttribute("aria-controls") || ""));
+  results.push(!brokenAriaControls.length ? auditPass("Button/Menu: aria-controls targets exist", `${ariaControls.length} controls`) : auditFail("Button/Menu: aria-controls target missing", brokenAriaControls.map(el => el.getAttribute("aria-controls")).join(", ")));
+
+  const toggleButtons = qsa("[data-toggle-panel]");
+  const unsyncedToggles = toggleButtons.filter(btn => {
+    const panel = document.getElementById(btn.dataset.togglePanel || "");
+    if(!panel) return false;
+    return btn.getAttribute("aria-expanded") !== (quickPanelIsOpen(panel) ? "true" : "false");
+  });
+  results.push(!unsyncedToggles.length ? auditPass("Button/Menu: aria-expanded is synchronized") : auditFail("Button/Menu: aria-expanded mismatch", unsyncedToggles.map(btn => btn.dataset.togglePanel).join(", ")));
+
+  const openQuickPanels = qsa(".quick-panel.open").filter(panel => !panel.hidden);
+  results.push(openQuickPanels.length <= 1 ? auditPass("Button/Menu: quick-panel conflict check", `${openQuickPanels.length} panel open`) : auditFail("Button/Menu: multiple quick-panels open", openQuickPanels.map(panel => panel.id || "no-id").join(", ")));
+
+  return results;
+}
+
+function runStabilityRolePrivacyAudit(){
+  const results = [];
+  const role = appSession.role;
+  const enemies = Array.isArray(data.enemies) ? data.enemies : [];
+  const enemyText = [
+    qs("#enemyCards")?.innerText || "",
+    qs("#gmEnemies")?.innerText || "",
+    qs("#gmCombatPanel")?.innerText || ""
+  ].join("\n");
+  const visibleGmOnly = qsa(".gm-only").filter(isElementEffectivelyVisible);
+
+  if(role === "player"){
+    results.push(!visibleGmOnly.length ? auditPass("Privacy: player has no visible GM-only blocks") : auditFail("Privacy: player sees GM-only blocks", `${visibleGmOnly.length} visible GM-only elements`));
+    results.push(!isElementEffectivelyVisible(qs("#debugPanel")) ? auditPass("Privacy: player cannot see debug panel") : auditFail("Privacy: player sees debug panel"));
+
+    const gmEnemyControls = qsa("[data-gm-enemy], [data-gm-enemy-gm], [data-gm-enemy-stat], [data-gm-add-enemy-weapon], [data-enemy-hp-delta], [data-enemy-ammo-delta], [data-add-enemy-template], [data-transfer-enemy-loot], [data-transfer-enemy-ammo], [data-transfer-enemy-all-loot]").filter(isElementEffectivelyVisible);
+    results.push(!gmEnemyControls.length ? auditPass("Privacy: player cannot see GM enemy controls") : auditFail("Privacy: player sees GM enemy controls", `${gmEnemyControls.length} controls`));
+
+    const hiddenEnemyLeaks = enemies.filter(enemy => enemy.visible === false && enemy.name && enemyText.includes(enemy.name));
+    results.push(!hiddenEnemyLeaks.length ? auditPass("Privacy: hidden enemies are hidden from player") : auditFail("Privacy: hidden enemy names visible", hiddenEnemyLeaks.map(enemy => enemy.name).join(", ")));
+
+    const hpLeak = /HP\s*\d+\s*\/\s*\d+/i.test(enemyText);
+    results.push(!hpLeak ? auditPass("Privacy: player enemy exact HP hidden") : auditFail("Privacy: player sees exact enemy HP"));
+
+    const ammoLeak = enemies.some(enemy => String(enemy.gm?.ammo ?? "") && enemyText.includes(String(enemy.gm?.ammo)) && /набо|ammo/i.test(enemyText));
+    results.push(!ammoLeak ? auditPass("Privacy: player enemy exact ammo hidden") : auditWarn("Privacy: possible enemy ammo leak", "Best-effort text scan found ammo-like text."));
+
+    const gmTextLeak = enemies.some(enemy => {
+      const gm = enemy.gm || {};
+      return [gm.lootText, gm.morale, enemy.danger].filter(Boolean).some(value => enemyText.includes(String(value)));
+    });
+    results.push(!gmTextLeak ? auditPass("Privacy: player does not see GM-only enemy notes") : auditFail("Privacy: player sees loot/morale/danger text"));
+  } else {
+    const debugPanel = qs("#debugPanel");
+    if(!debugPanel){
+      results.push(auditWarn("Privacy: GM debug panel not found"));
+    } else if(isElementEffectivelyVisible(debugPanel)){
+      results.push(auditPass("Privacy: GM debug panel visible"));
+    } else {
+      results.push(auditPass("Privacy: GM debug panel exists", "It may be hidden when the active screen is not State."));
+    }
+    results.push(visibleGmOnly.length ? auditPass("Privacy: GM-only controls visible to GM", `${visibleGmOnly.length} visible GM-only elements`) : auditWarn("Privacy: no visible GM-only controls", "Open the Master or Enemies screen for a fuller DOM audit."));
+
+    const missingEnemyNames = enemies.filter(enemy => enemy.name && !enemyText.includes(enemy.name));
+    results.push(!missingEnemyNames.length ? auditPass("Privacy: GM can inspect all enemies", `${enemies.length} enemies`) : auditWarn("Privacy: some enemies not found in current GM DOM", missingEnemyNames.map(enemy => enemy.name).join(", ")));
+
+    const gmHasHp = enemies.length ? /HP\s*[: ]?\s*\d+\s*\/\s*\d+/i.test(enemyText) : true;
+    results.push(gmHasHp ? auditPass("Privacy: GM exact enemy HP available") : auditWarn("Privacy: GM exact enemy HP not detected", "May require Enemies/Combat panel render."));
+
+    const gmHasAmmo = enemies.length ? /набо|ammo/i.test(enemyText) : true;
+    results.push(gmHasAmmo ? auditPass("Privacy: GM enemy ammo visible") : auditWarn("Privacy: GM enemy ammo not detected", "May require Enemies/Combat panel render."));
+
+    results.push(qs("#enemyTemplateDock") ? auditPass("Privacy: enemy templates dock exists") : auditWarn("Privacy: enemy templates dock not found"));
+    results.push(qsa("[data-gm-enemy], [data-gm-enemy-gm], [data-gm-enemy-stat], [data-enemy-hp-delta], [data-enemy-ammo-delta]").length || !enemies.length ? auditPass("Privacy: GM enemy control hooks exist") : auditWarn("Privacy: GM enemy control hooks not detected"));
+  }
+
+  return results;
+}
+
+function runStabilityDataSchemaAudit(){
+  const results = [];
+  const players = data.players || {};
+  const enemies = Array.isArray(data.enemies) ? data.enemies : null;
+  const journal = Array.isArray(data.journal) ? data.journal : null;
+  const combat = data.combat || null;
+
+  results.push(players && typeof players === "object" ? auditPass("Schema: players object exists", `${Object.keys(players).length} players`) : auditFail("Schema: players object missing"));
+  Object.entries(players || {}).forEach(([key, player]) => {
+    const missing = [];
+    if(!(player.id || key)) missing.push("id/key");
+    ["name", "hp", "hpMax", "defense", "ammo"].forEach(field => {
+      if(player[field] === undefined || player[field] === null) missing.push(field);
+    });
+    if(!Array.isArray(player.inventory)) missing.push("inventory array");
+    if(!player.stats || typeof player.stats !== "object") missing.push("stats object");
+    results.push(!missing.length ? auditPass(`Schema: player ${key}`, "required fields present") : auditWarn(`Schema: player ${key} legacy/missing fields`, missing.join(", ")));
+
+    if(Array.isArray(player.inventory)){
+      player.inventory.forEach((item, index) => {
+        const itemMissing = [];
+        if(item.item === undefined && item.name === undefined) itemMissing.push("item/name");
+        if(item.count === undefined) itemMissing.push("count");
+        if(itemMissing.length) results.push(auditWarn(`Schema: player ${key} inventory[${index}]`, itemMissing.join(", ")));
+      });
+    }
+  });
+
+  results.push(enemies ? auditPass("Schema: enemies array exists", `${enemies.length} enemies`) : auditFail("Schema: enemies array missing"));
+  (enemies || []).forEach((enemy, index) => {
+    const label = enemy?.id || enemy?.name || `enemy[${index}]`;
+    const missing = [];
+    ["id", "name", "visible", "state", "defense", "weapon"].forEach(field => {
+      if(enemy?.[field] === undefined || enemy?.[field] === null) missing.push(field);
+    });
+    if(!enemy?.gm || typeof enemy.gm !== "object") missing.push("gm object");
+    else ["hp", "hpMax", "ammo"].forEach(field => {
+      if(enemy.gm[field] === undefined || enemy.gm[field] === null) missing.push(`gm.${field}`);
+    });
+    if(!Array.isArray(enemy?.inventory)) missing.push("inventory array");
+    results.push(!missing.length ? auditPass(`Schema: enemy ${label}`, "required fields present") : auditWarn(`Schema: enemy ${label} legacy/missing fields`, missing.join(", ")));
+
+    if(Array.isArray(enemy?.inventory)){
+      enemy.inventory.forEach((item, itemIndex) => {
+        const itemMissing = [];
+        if(item.item === undefined && item.name === undefined) itemMissing.push("item/name");
+        if(item.count === undefined) itemMissing.push("count");
+        if(itemMissing.length) results.push(auditWarn(`Schema: enemy ${label} inventory[${itemIndex}]`, itemMissing.join(", ")));
+      });
+    }
+  });
+
+  results.push(journal ? auditPass("Schema: journal array exists", `${journal.length} records`) : auditFail("Schema: journal array missing"));
+  const allowedVisibility = new Set(["public", "gm", "private"]);
+  (journal || []).forEach((entry, index) => {
+    const missing = [];
+    ["id", "visibility", "time", "text"].forEach(field => {
+      if(entry?.[field] === undefined || entry?.[field] === null) missing.push(field);
+    });
+    if(entry?.visibility && !allowedVisibility.has(entry.visibility)) missing.push(`invalid visibility: ${entry.visibility}`);
+    results.push(!missing.length ? auditPass(`Schema: journal[${index}]`, "required fields present") : auditWarn(`Schema: journal[${index}] legacy/missing fields`, missing.join(", ")));
+    if(entry?.visibility === "private" && !entry.targetPlayerId) results.push(auditWarn(`Schema: journal[${index}] private target missing`, "Private records should include targetPlayerId."));
+  });
+
+  if(combat && typeof combat === "object"){
+    const combatFields = ["active", "strictTurns", "round"];
+    const missingCombat = combatFields.filter(field => combat[field] === undefined || combat[field] === null);
+    results.push(!missingCombat.length ? auditPass("Schema: combat object has base fields", combatFields.join(", ")) : auditWarn("Schema: combat object missing base fields", missingCombat.join(", ")));
+  } else {
+    results.push(auditFail("Schema: combat object missing"));
+  }
+
+  return results;
+}
+
+function runStabilityCombatRulesLockAudit(){
+  const results = [];
+  const helperExists = name => {
+    try{
+      return typeof window[name] === "function" || typeof eval(name) === "function";
+    }catch(err){
+      return false;
+    }
+  };
+  const helpers = [
+    "burstRecoilInfoForShooter",
+    "updateEnemyStateByHp",
+    "formatBriefHtml",
+    "enemyCardGm",
+    "enemyCardPublic",
+    "transferEnemyLootNote",
+    "transferEnemyAmmoLoot",
+    "selectedLootPlayerIdForEnemy"
+  ];
+
+  helpers.forEach(name => {
+    results.push(helperExists(name) ? auditPass(`Combat lock: helper ${name} exists`) : auditFail(`Combat lock: helper ${name} missing`));
+  });
+
+  try{
+    const recoil = [0, 1, 2, 3].map(recoilLevel => burstRecoilInfoForShooter({ recoilLevel })?.penalty);
+    const expected = [-2, -4, -6, -8];
+    const ok = recoil.every((value, index) => value === expected[index]);
+    results.push(ok ? auditPass("Combat lock: burst recoil -2/-4/-6/-8", recoil.join("/")) : auditFail("Combat lock: burst recoil drift", recoil.join("/")));
+  }catch(err){
+    results.push(auditWarn("Combat lock: burst recoil check skipped", err.message));
+  }
+
+  runExpandedCombatRuleTests().forEach(test => results.push(auditFromTestResult(test)));
+  runCombatSmokeTest().filter(test => /патрон|черг|відда|exposure|укрит|recoil/i.test(test.name)).forEach(test => results.push(auditFromTestResult(test)));
+
+  return results;
+}
+
+function runStabilityAudit(){
+  const results = [
+    ...runStabilityButtonMenuAudit(),
+    ...runStabilityRolePrivacyAudit(),
+    ...runStabilityDataSchemaAudit(),
+    ...runStabilityCombatRulesLockAudit()
+  ];
+  return {
+    meta: stabilityAuditMeta(),
+    summary: stabilityAuditCounts(results),
+    results
+  };
+}
+
+function renderStabilityAuditReport(report){
+  const meta = report.meta || {};
+  const summary = report.summary || stabilityAuditCounts(report.results || []);
+  const rows = (report.results || []).map(r => {
+    const css = auditCssStatus(r.status);
+    return `<li class="test-result test-${escapeAttr(css)}"><strong>${auditStatusIcon(r.status)} ${auditStatusLabel(r.status)} — ${escapeHtml(r.name)}</strong>${r.details ? `<p>${escapeHtml(r.details)}</p>` : ""}</li>`;
+  }).join("");
+
+  return `<div class="test-report stability-audit-report">
+    <div class="test-report-head">
+      <h4>Stability Audit</h4>
+      <p>Build: <b>${escapeHtml(meta.version)} · ${escapeHtml(meta.build)}</b></p>
+    </div>
+    <div class="stability-audit-summary">
+      <span>✅ Passed: ${summary.pass || 0}</span>
+      <span>⚠️ Warnings: ${summary.warn || 0}</span>
+      <span>❌ Failed: ${summary.fail || 0}</span>
+    </div>
+    <div class="audit-meta">
+      <div><b>Version</b><br>${escapeHtml(meta.version || "")}</div>
+      <div><b>Build</b><br>${escapeHtml(meta.build || "")}</div>
+      <div><b>Cache</b><br>${escapeHtml(meta.cache || "none")}</div>
+      <div><b>Room</b><br>${escapeHtml(meta.room || "")}</div>
+      <div><b>Role</b><br>${escapeHtml(meta.role || "")}</div>
+      <div><b>Screen</b><br>${escapeHtml(meta.screen || "")}</div>
+      <div><b>Time</b><br>${escapeHtml(meta.timestamp || "")}</div>
+      <div><b>Players</b><br>${escapeHtml(String(meta.playerCount ?? 0))}</div>
+      <div><b>Enemies</b><br>${escapeHtml(String(meta.enemyCount ?? 0))}</div>
+    </div>
+    <ul>${rows}</ul>
+    <div class="report-close-row">
+      <button class="metal-btn mini" type="button" data-close-panel="stabilityAuditReport">Закрити звіт</button>
+    </div>
+  </div>`;
+}
+
+function formatStabilityAuditText(report){
+  const meta = report.meta || {};
+  const summary = report.summary || stabilityAuditCounts(report.results || []);
+  const lines = [
+    "Польовий Модуль — Stability Audit Report",
+    `Version: ${meta.version || ""}`,
+    `Build: ${meta.build || ""}`,
+    `Cache: v=${meta.cache || "none"}`,
+    `Room: ${meta.room || ""}`,
+    `Role: ${meta.role || ""}`,
+    `Screen: ${meta.screen || ""}`,
+    `Time: ${meta.timestamp || ""}`,
+    `Players: ${meta.playerCount ?? 0}`,
+    `Enemies: ${meta.enemyCount ?? 0}`,
+    "",
+    "Summary:",
+    `Passed: ${summary.pass || 0}`,
+    `Warnings: ${summary.warn || 0}`,
+    `Failed: ${summary.fail || 0}`,
+    "",
+    "Results:"
+  ];
+  (report.results || []).forEach(r => {
+    lines.push(`${auditStatusIcon(r.status)} ${auditStatusLabel(r.status)} — ${r.name}${r.details ? ` — ${r.details}` : ""}`);
+  });
+  return lines.join("\n");
+}
+
+function showStabilityAuditReport(){
+  if(appSession.role !== "gm"){
+    showToast("Stability Audit доступний тільки Майстру.");
+    return;
+  }
+  lastStabilityAuditReport = runStabilityAudit();
+  const box = qs("#stabilityAuditReport");
+  if(box){
+    box.hidden = false;
+    box.innerHTML = renderStabilityAuditReport(lastStabilityAuditReport);
+  }
+  const summary = lastStabilityAuditReport.summary || {};
+  showToast(`Stability Audit: ${summary.pass || 0} pass, ${summary.warn || 0} warn, ${summary.fail || 0} fail.`);
+}
+
+async function copyStabilityAuditReport(){
+  if(!lastStabilityAuditReport) lastStabilityAuditReport = runStabilityAudit();
+  const text = formatStabilityAuditText(lastStabilityAuditReport);
+  return copyTextToClipboard(text, "Stability Audit Report");
+}
+
+function clearStabilityAuditReport(){
+  lastStabilityAuditReport = null;
+  const box = qs("#stabilityAuditReport");
+  if(box){
+    box.innerHTML = "";
+    box.hidden = true;
+  }
+  showToast("Stability Audit очищено.");
+}
+
+function runStabilityAuditSmokeTests(){
+  const results = [];
+  try{
+    const report = runStabilityAudit();
+    const text = formatStabilityAuditText(report);
+    results.push(report.meta?.version === BUILD_VERSION && report.meta?.build === BUILD_NUMBER ? testOk("Stability audit: metadata builds", `${report.meta.version} · ${report.meta.build}`) : testFail("Stability audit: metadata mismatch", JSON.stringify(report.meta)));
+    results.push(Array.isArray(report.results) && report.results.length >= 8 ? testOk("Stability audit: result list builds", `${report.results.length} checks`) : testFail("Stability audit: result list too short", `${report.results?.length || 0} checks`));
+    results.push(text.includes("Stability Audit Report") && text.includes("Version:") && text.includes("Results:") ? testOk("Stability audit: copy report text builds") : testFail("Stability audit: copy report text invalid", text.slice(0, 120)));
+    results.push(typeof renderStabilityAuditReport(report) === "string" ? testOk("Stability audit: UI report renders") : testFail("Stability audit: UI report render failed"));
+  }catch(err){
+    results.push(testFail("Stability audit: smoke test crashed", err.message));
+  }
+  return results;
+}
+
 function runExpandedCombatRuleTests(){
   const results = [];
 
@@ -3456,6 +3866,7 @@ function runFullInternalTests(){
     ...runJournalPrivacyTests(),
     ...runLightweightCloseTests(),
     ...runButtonMenuAuditTests(),
+    ...runStabilityAuditSmokeTests(),
     ...runUiRegressionTests()
   ];
 }
@@ -3762,6 +4173,9 @@ window.POLOVYI_MODUL_TESTS = {
   runJournalPrivacyTests,
   runLightweightCloseTests,
   runButtonMenuAuditTests,
+  runStabilityAudit,
+  runStabilityAuditSmokeTests,
+  formatStabilityAuditText,
   runUiRegressionTests,
   runReleasePreflight,
   buildDebugSnapshot,
@@ -6077,7 +6491,7 @@ function isTypingTarget(target){
 function closeLightweightUi(source="manual"){
   let closed = 0;
   if(hideToast()) closed++;
-  ["internalTestReport", "devToolkitReport", "debugSnapshotBox"].forEach(id => {
+  ["internalTestReport", "devToolkitReport", "debugSnapshotBox", "stabilityAuditReport"].forEach(id => {
     if(closePanelById(id)) closed++;
   });
   return closed;
@@ -6512,6 +6926,21 @@ const enemyStep = e.target.closest("[data-enemy-step]");
 
   if(e.target.closest("#runSelfCheck")){
     showInternalTestReport();
+    return;
+  }
+
+  if(e.target.closest("#runStabilityAudit")){
+    showStabilityAuditReport();
+    return;
+  }
+
+  if(e.target.closest("#copyStabilityAudit")){
+    copyStabilityAuditReport();
+    return;
+  }
+
+  if(e.target.closest("#clearStabilityAudit")){
+    clearStabilityAuditReport();
     return;
   }
 
@@ -7231,7 +7660,8 @@ window.addEventListener("storage", e => {
 
 setInterval(() => {
   const d = new Date();
-  qs("#clock").textContent = d.toLocaleTimeString("uk-UA", {hour:"2-digit", minute:"2-digit"});
+  const clock = qs("#clock");
+  if(clock) clock.textContent = d.toLocaleTimeString("uk-UA", {hour:"2-digit", minute:"2-digit"});
 }, 10000);
 
 

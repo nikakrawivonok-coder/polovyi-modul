@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#120d09" />
-  <title>Польовий Модуль — V19.29 Global Button/Menu Audit</title>
-  <link rel="stylesheet" href="./styles.css?v=19673">
+  <title>Польовий Модуль — V19.30 Stability Audit Pack</title>
+  <link rel="stylesheet" href="./styles.css?v=19680">
 
 </head>
 <body>
@@ -252,6 +252,17 @@
         <div id="devToolkitReport" hidden></div>
       </div>
 
+      <div class="gm-panel stability-audit-panel">
+        <div class="section-title compact-title"><span>✓</span><h3>Stability Audit</h3></div>
+        <p class="room-model-note">Audit-звіт для кнопок, ролей/privacy, schema і locked combat contracts. Це перевірка стабільності, не геймплейна дія.</p>
+        <div class="button-row">
+          <button class="metal-btn" id="runStabilityAudit">Запустити аудит</button>
+          <button class="metal-btn" id="copyStabilityAudit">Скопіювати звіт</button>
+          <button class="metal-btn danger" id="clearStabilityAudit">Очистити звіт</button>
+        </div>
+        <div id="stabilityAuditReport" hidden></div>
+      </div>
+
       <div class="gm-panel attribute-check-panel">
         <div class="section-title compact-title"><span>🎲</span><h3>Перевірка характеристики</h3></div>
         <p class="room-model-note">Майстер задає перевірку d20. Система враховує характеристику, Умову сцени, Втому, Перевагу/Перешкоду і пише результат у журнал.</p>
@@ -451,6 +462,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   
-  <script src="./app.js?v=19673"></script>
+  <script src="./app.js?v=19680"></script>
 </body>
 </html>

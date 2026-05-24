@@ -1,14 +1,14 @@
-# Польовий Модуль — V19.29 Global Button/Menu Audit
+# Польовий Модуль — V19.30 Stability Audit Pack
 
-Це глобальніший UX/QА checkpoint у напрямку Button & Menu Close Audit.
+Це стабілізаційний checkpoint: додано окремий шар Stability Audit для кнопок, меню, ролей/privacy, data schema і locked combat contracts без зміни бойової математики та основної ігрової логіки.
 
 ## Важливо
 
-У цій версії quick-panels переведено на централізоване керування, а Test Harness отримав аудит кнопок, навігації й toggle-меню.
+У цій версії Майстер отримує новий блок `Stability Audit`. Він запускає перевірки інтерфейсу, ролей, schema і бойових контрактів, показує підсумок `Passed / Warnings / Failed` і дозволяє скопіювати текстовий звіт.
 
 ## Поточна стабільна база перед цим checkpoint
 
-Остання підтверджена стабільна база: `V19.28.4 — Screen Switch Close Polish`, build/cache `19672`.
+Остання підтверджена стабільна база: `V19.29 — Global Button/Menu Audit`, build/cache `19673`.
 
 Не використовувати експериментальні `V19.26.x` як основу для цього напряму, бо там була проблемна гілка з Debug snapshot.
 
@@ -27,12 +27,12 @@
 ## Обов’язковий тест перед подальшим розвитком
 
 1. Відкрити Майстра і Гравця.
-2. Перевірити, що відображається `V19.29 · 19673`.
+2. Перевірити, що відображається `V19.30 · 19680`.
 3. Перевірити 1 патрон: немає розкриття.
 4. Перевірити 2 патрони з 0 влучань: є розкриття `-1`.
 5. Перевірити 2 патрони з 1+ влучанням: розкриття немає.
 6. Перевірити 3 патрони: є розкриття `-2`.
-7. Перевірити прогресію черги: `-2 / -4 / -6`.
+7. Перевірити прогресію черги: `-2 / -4 / -6 / -8`.
 8. Перевірити ціль в укритті: Захист цілі має `+2`, черга по укриттю має ще `-1` до точності.
 9. Перевірити, що гравець не бачить HP ворога в `Останній дії` і `Журналі`.
 10. Перевірити, що Майстер бачить HP ворога.
@@ -43,14 +43,66 @@
 ## Cache-busting
 
 ```html
-<link rel="stylesheet" href="./styles.css?v=19673">
-<script src="./app.js?v=19673"></script>
+<link rel="stylesheet" href="./styles.css?v=19680">
+<script src="./app.js?v=19680"></script>
+```
+
+Актуальні тестові посилання:
+
+Майстер:
+```text
+https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19680&gmKey=zona-master&v=19680
+```
+
+Гравець Лис:
+```text
+https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19680&player=fox&v=19680
+```
+
+Статична тестова сторінка:
+```text
+https://nikakrawivonok-coder.github.io/polovyi-modul/test.html?v=19680&hard=19680
 ```
 
 
 ---
 
 ## Попередні нотатки / archive
+
+## V19.30 — Stability Audit Pack
+
+Stability/audit checkpoint без gameplay expansion.
+
+Що додано:
+
+- build/cache оновлено до `19680`;
+- у Майстра додано блок `Stability Audit`;
+- кнопка `Запустити аудит` формує звіт зі status-пунктами `pass`, `warn`, `fail`;
+- кнопка `Скопіювати звіт` копіює текстовий audit report з version/build/cache/room/role/screen/time;
+- кнопка `Очистити звіт` прибирає звіт із екрана;
+- Button/Menu audit перевіряє nav targets, `data-open`, `data-toggle-panel`, `data-close-panel`, `aria-controls`, `aria-expanded`, quick-panel conflict і active screen;
+- Role/Privacy audit перевіряє видимість GM-only блоків, debug panel, enemy controls, hidden enemies і можливі витоки HP/ammo/GM notes;
+- Data Schema audit перевіряє `players`, `enemies`, `inventory`, `journal`, `combat`;
+- Combat Rules Lock audit перевіряє ключові helper-функції та прогресію віддачі `-2 / -4 / -6 / -8`;
+- Test Harness отримав smoke-тести для побудови Stability Audit report.
+
+Як запустити аудит:
+
+1. Відкрити посилання Майстра.
+2. Перейти у вкладку `МАЙСТЕР`.
+3. Натиснути `Запустити аудит`.
+4. За потреби натиснути `Скопіювати звіт`.
+
+Що не змінювалось:
+
+- бойова математика 1/2/3 патрони;
+- віддача черги як gameplay-логіка;
+- шкода, броня, укриття;
+- activeWeapon / inventory.damage;
+- лут, вороги та редактор ворогів як ігрова модель;
+- вкладка `Стан` як UX-структура;
+- журнал / privacy HP як runtime-логіка;
+- Firebase-схема.
 
 ## V19.29 — Global Button/Menu Audit
 
