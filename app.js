@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.30 Stability Audit Pack
+// Польовий Модуль — V19.31 Enemy Control Center Expansion Pack
 // Stability audit layer. Locked 1/2/3 ammo combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.30";
-const BUILD_NUMBER = "19680";
-const BUILD_NAME = "Stability Audit Pack";
+const BUILD_VERSION = "V19.31";
+const BUILD_NUMBER = "19690";
+const BUILD_NAME = "Enemy Control Center Expansion Pack";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -375,6 +375,338 @@ const enemyTemplates = {
   npc: { name: "Озброєний NPC", state: "насторожений", color: "yellow", position: "тримає дистанцію", danger: "залежить від розмови", action: "вимагає пояснень", visible: true, defense: 12, gm: { hp: 10, hpMax: 10, ammo: 6, morale: "обережний" }, tags:["npc","людина"] }
 };
 
+const ENEMY_STAT_KEYS = ["endurance","accuracy","agility","perception","intuition","charisma"];
+const ENEMY_TEMPLATE_CATEGORIES = [
+  { id: "bandits", label: "Бандити" },
+  { id: "mutants", label: "Мутанти" },
+  { id: "npc", label: "NPC" }
+];
+const ENEMY_TEMPLATE_DOCK = [
+  { category: "Бандити", templateIds: ["auto", "shotgun", "pm", "coward"] },
+  { category: "Мутанти", templateIds: ["blinddog", "pseudodog"] },
+  { category: "NPC", templateIds: ["npc"] }
+];
+const ENEMY_WEAPON_LABELS = {
+  pm: "ПМ",
+  obrez: "Обріз",
+  aks74u: "АКС-74У",
+  ak74: "АК-74",
+  doublebarrel: "Двостволка"
+};
+const enemyTemplateExpansion = {
+  auto: {
+    id: "auto",
+    category: "Бандити",
+    combatRole: "контроль простору і тиск вогнем",
+    hp: 10,
+    hpMax: 10,
+    armor: 0,
+    ammo: 9,
+    visibleDescription: "Бандит з коротким автоматом тримає сектор і шукає момент для черги.",
+    gmDescription: "Небезпечний, якщо має час накопичити позиційну перевагу. Після поранення може перейти на одиночні постріли.",
+    gmNotes: "Добре працює як якір групи: поки інші флангують, він змушує гравців ховатися.",
+    morale: "середня",
+    lootText: "залишок набоїв; 1d4 додаткові набої; ніж або саморобний клинок; дріб’язок 10-40",
+    feature: "чергами притискає ціль і створює темп для інших бандитів",
+    weakness: "погано контролює довгі черги; після черги розкривається",
+    recommendedBehavior: "тримається за укриттям, стріляє чергою тільки коли має перевагу, відступає після важкого поранення"
+  },
+  shotgun: {
+    id: "shotgun",
+    category: "Бандити",
+    combatRole: "небезпечний зблизька",
+    hp: 10,
+    hpMax: 10,
+    armor: 0,
+    ammo: 3,
+    visibleDescription: "Бандит з обрізом ховається поруч із проходом і підпускає ближче.",
+    gmDescription: "Сильний перший постріл на близькій дистанції, але на відкритому просторі швидко втрачає тиск.",
+    gmNotes: "Може панікувати після промаху або якщо гравці не йдуть у вузький прохід.",
+    morale: "агресивний, але нервовий",
+    lootText: "1-2 набої; обріз у поганому стані; саморобний ніж; дріб’язок",
+    feature: "сильний перший постріл на близькій дистанції",
+    weakness: "слабкий на дальній дистанції",
+    recommendedBehavior: "ховається, підпускає ближче, панікує після поранення"
+  },
+  pm: {
+    id: "pm",
+    category: "Бандити",
+    name: "Бандит з ПМ",
+    role: "легкий стрілець, прикриття і нервовий тиск",
+    combatRole: "слабший стрілець із пістолетом",
+    weapon: "pm",
+    activeWeapon: "pm",
+    inventory: [
+      { id: "pm", type: "weapon", name: "ПМ", damage: "d4", range: "far", ammoType: "ammo", equipped: true, note: "легка зброя шаблону" }
+    ],
+    hp: 9,
+    hpMax: 9,
+    defense: 12,
+    armor: 0,
+    fatigue: 0,
+    infection: 0,
+    ammo: 6,
+    position: "за легким укриттям",
+    danger: "середня",
+    state: "цілий",
+    color: "green",
+    visible: true,
+    visibleDescription: "Бандит з пістолетом нервово визирає з-за укриття.",
+    gmDescription: "Добрий для другорядного тиску, погроз і стрільби з поганої позиції.",
+    gmNotes: "Може здатися, якщо лишиться сам або якщо побачить мутантів.",
+    morale: "нервує",
+    lootText: "ПМ у середньому стані; 1d4 набої; пачка цигарок; дріб’язок 5-20",
+    feature: "дешевий, швидкий, добре заповнює сцену без великої загрози",
+    weakness: "слабкий у відкритому обміні вогнем",
+    recommendedBehavior: "стріляє з укриття, кричить погрози, відступає після першого серйозного поранення",
+    stats: { endurance: 0, accuracy: 1, agility: 1, perception: 0, intuition: 0, charisma: -1 },
+    attacks: [
+      { id: "precise", name: "Прицільний постріл", ammo: 1, dice: "1d20 +2", note: "економить набої" },
+      { id: "combat", name: "Бойовий постріл", ammo: 2, dice: "2d20 -1", note: "при 0 влучань розкривається" }
+    ],
+    tags: ["бандит", "пістолет", "шаблон"]
+  },
+  coward: {
+    id: "coward",
+    category: "Бандити",
+    name: "Боягуз / мародер",
+    role: "моральний тиск, слабка ланка, джерело інформації",
+    combatRole: "слабкий ворог або живий свідок",
+    hp: 8,
+    hpMax: 8,
+    defense: 12,
+    armor: 0,
+    ammo: 3,
+    visibleDescription: "Переляканий мародер тримається позаду і постійно озирається.",
+    gmDescription: "Найкращий для допиту, втечі, помилок і живої реакції сцени.",
+    gmNotes: "Може знати про схованку під мостом або здати інших після першого провалу.",
+    morale: "ламається",
+    lootText: "1-3 набої; консерви; дешевий ніж; чужий жетон або записка",
+    feature: "може здатися, втекти або видати важливу підказку",
+    weakness: "погана мораль і слабка дисципліна",
+    recommendedBehavior: "тримається позаду, шукає шлях втечі, першим реагує на страх або мутантів"
+  },
+  blinddog: {
+    id: "blinddog",
+    category: "Мутанти",
+    name: "Сліпий пес",
+    role: "швидкий мутант зграї",
+    combatRole: "фланг і тиск кількістю",
+    attackType: "укус / ривок",
+    weapon: "",
+    activeWeapon: "",
+    inventory: [],
+    hp: 6,
+    hpMax: 6,
+    defense: 11,
+    armor: 0,
+    fatigue: 0,
+    infection: 0,
+    ammo: 0,
+    position: "нишпорить зграєю",
+    danger: "середня",
+    state: "цілий",
+    color: "green",
+    visible: true,
+    visibleDescription: "Сліпий пес низько тримає голову, нюхає повітря і заходить збоку.",
+    gmDescription: "Стає небезпечним у парі або зграї; добре змушує гравців рухатись.",
+    gmNotes: "Реагує на шум, кров і страх. Може відступити, якщо втратить ватажка.",
+    morale: "інстинкт зграї",
+    lootText: "мутантська тканина; зуб; сліди для мисливця або медика",
+    feature: "швидко заходить збоку і збиває позицію",
+    weakness: "боїться гучних різких звуків і втрачає темп без зграї",
+    recommendedBehavior: "не стоїть на місці, заходить флангом, переслідує поранену ціль",
+    stats: { endurance: 1, accuracy: 0, agility: 2, perception: 2, intuition: 1, charisma: -3 },
+    tags: ["мутант", "зграя", "шаблон"]
+  },
+  pseudodog: {
+    id: "pseudodog",
+    category: "Мутанти",
+    name: "Псевдособака / слабкий мутант",
+    role: "сильніший мутант, лідер малої зграї",
+    combatRole: "ривок, страх, контроль ближньої дистанції",
+    attackType: "стрибок / укус",
+    weapon: "",
+    activeWeapon: "",
+    inventory: [],
+    hp: 12,
+    hpMax: 12,
+    defense: 12,
+    armor: 0,
+    fatigue: 0,
+    infection: 0,
+    ammo: 0,
+    position: "попереду зграї",
+    danger: "висока",
+    state: "цілий",
+    color: "green",
+    visible: true,
+    visibleDescription: "Більший мутант веде зграю і завмирає перед різким стрибком.",
+    gmDescription: "Підходить як малий бос або загроза, що змушує групу тримати дистанцію.",
+    gmNotes: "Може не добивати ціль, якщо чує сильніший подразник або відчуває пастку.",
+    morale: "хижа впевненість",
+    lootText: "рідкісніша мутантська тканина; зуби; зразок для бариг або медика",
+    feature: "ривком скорочує дистанцію і карає ізольованих персонажів",
+    weakness: "погано переносить вогонь по площі і втрату темпу",
+    recommendedBehavior: "лякає, вибирає слабку ціль, відступає перед організованим вогнем",
+    stats: { endurance: 2, accuracy: 0, agility: 2, perception: 2, intuition: 2, charisma: -3 },
+    tags: ["мутант", "ривок", "шаблон"]
+  },
+  npc: {
+    id: "npc",
+    category: "NPC",
+    name: "Озброєний NPC",
+    role: "нейтральний персонаж або майбутній живий ворог",
+    combatRole: "соціальна сцена, охоронець або тимчасовий союзник",
+    hp: 10,
+    hpMax: 10,
+    defense: 12,
+    armor: 0,
+    ammo: 6,
+    visibleDescription: "Озброєний сталкер тримає дистанцію і не опускає зброю.",
+    gmDescription: "Плейсхолдер для живих NPC: може торгувати, брехати, охороняти або перейти у бій.",
+    gmNotes: "Заповни мотив, страх, борг або секрет перед сценою.",
+    morale: "обережний",
+    lootText: "особисті речі; 1d4 набої; записка або жетон за рішенням Майстра",
+    feature: "готовий до майбутньої системи живих NPC",
+    weakness: "залежить від мотивації і реакції на слова гравців",
+    recommendedBehavior: "спочатку говорить, потім погрожує, у бій переходить тільки після зриву переговорів"
+  }
+};
+
+function enemyTemplateCategoryFromSource(source = {}){
+  const text = `${source.category || ""} ${(source.tags || []).join(" ")} ${source.faction || ""}`.toLowerCase();
+  if(text.includes("мутант")) return "Мутанти";
+  if(text.includes("npc")) return "NPC";
+  return "Бандити";
+}
+
+function enemyTemplateCategoryId(category){
+  const found = ENEMY_TEMPLATE_CATEGORIES.find(c => c.label === category || c.id === category);
+  return found?.id || "bandits";
+}
+
+function normalizeEnemyStats(stats = {}){
+  const normalized = {};
+  ENEMY_STAT_KEYS.forEach(key => {
+    normalized[key] = Number(stats?.[key] ?? 0);
+  });
+  return normalized;
+}
+
+function allEnemyTemplateIds(){
+  return [...new Set([...Object.keys(enemyTemplates), ...Object.keys(enemyTemplateExpansion)])];
+}
+
+function normalizeEnemyTemplate(templateId){
+  const raw = clone(enemyTemplates[templateId] || {});
+  const extra = clone(enemyTemplateExpansion[templateId] || {});
+  const gmRaw = raw.gm || {};
+  const merged = { ...raw, ...extra };
+  const hp = Number(extra.hp ?? raw.hp ?? gmRaw.hp ?? gmRaw.hpMax ?? 8);
+  const hpMax = Number(extra.hpMax ?? raw.hpMax ?? gmRaw.hpMax ?? hp);
+  const ammo = Number(extra.ammo ?? raw.ammo ?? gmRaw.ammo ?? 0);
+
+  merged.id = extra.id || raw.id || raw.templateId || templateId;
+  merged.templateId = raw.templateId || extra.id || templateId;
+  merged.category = extra.category || raw.category || enemyTemplateCategoryFromSource(raw);
+  merged.name = extra.name || raw.name || "Ворог";
+  merged.role = extra.role || raw.role || "бойовий ворог";
+  merged.combatRole = extra.combatRole || raw.combatRole || merged.role;
+  merged.hp = hp;
+  merged.hpMax = hpMax;
+  merged.defense = Number(extra.defense ?? raw.defense ?? 12);
+  merged.defenseMax = Number(extra.defenseMax ?? raw.defenseMax ?? merged.defense);
+  merged.armor = Number(extra.armor ?? raw.armor ?? 0);
+  merged.fatigue = Number(extra.fatigue ?? raw.fatigue ?? 0);
+  merged.infection = Number(extra.infection ?? raw.infection ?? 0);
+  merged.weapon = extra.weapon !== undefined ? extra.weapon : (raw.weapon || "");
+  merged.activeWeapon = extra.activeWeapon !== undefined ? extra.activeWeapon : (raw.activeWeapon || merged.weapon || "");
+  merged.attackType = extra.attackType || raw.attackType || "";
+  if(!merged.weapon && !merged.attackType && merged.category !== "Мутанти"){
+    merged.weapon = "pm";
+    merged.activeWeapon = merged.activeWeapon || "pm";
+  }
+  if(!merged.weapon && !merged.attackType && merged.category === "Мутанти"){
+    merged.attackType = "атака мутанта";
+  }
+  merged.ammo = ammo;
+  merged.position = extra.position || raw.position || "позиція не задана";
+  merged.danger = extra.danger || raw.danger || "середня";
+  merged.action = extra.action || raw.action || "очікує рішення Майстра";
+  merged.state = extra.state || raw.state || "цілий";
+  merged.color = extra.color || raw.color || "green";
+  merged.visible = raw.visible !== false;
+  merged.visibleDescription = extra.visibleDescription || raw.visibleDescription || `${merged.name}: ${merged.state}.`;
+  merged.gmDescription = extra.gmDescription || raw.gmDescription || gmRaw.behavior || "Прихований опис ще не заповнений.";
+  merged.gmNotes = extra.gmNotes || raw.gmNotes || "GM-нотатка готова до заповнення.";
+  merged.morale = extra.morale || raw.morale || gmRaw.morale || "невідомо";
+  merged.lootText = extra.lootText || raw.lootText || gmRaw.lootText || "трофеї ворога за рішенням Майстра";
+  merged.feature = extra.feature || raw.feature || raw.special || "стандартний ворог сцени";
+  merged.weakness = extra.weakness || raw.weakness || "слабкість не задана";
+  merged.recommendedBehavior = extra.recommendedBehavior || raw.recommendedBehavior || gmRaw.behavior || "керувати за контекстом сцени";
+  merged.stats = normalizeEnemyStats({ ...(raw.stats || {}), ...(extra.stats || {}) });
+  merged.inventory = Array.isArray(merged.inventory) ? merged.inventory : [];
+  merged.gm = {
+    ...gmRaw,
+    ...(extra.gm || {}),
+    hp,
+    hpMax,
+    ammo,
+    morale: merged.morale,
+    behavior: merged.recommendedBehavior,
+    lootText: merged.lootText,
+    imageKey: gmRaw.imageKey || `${merged.id}_placeholder`,
+    lastAttackType: gmRaw.lastAttackType || "",
+    recoilLevel: Number(gmRaw.recoilLevel || 0),
+    exposedUntilNextTurn: !!gmRaw.exposedUntilNextTurn,
+    exposurePenalty: Number(gmRaw.exposurePenalty || 0)
+  };
+  return merged;
+}
+
+function enemyTemplateWeaponOrAttackLabel(tpl){
+  if(tpl?.attackType && !tpl?.weapon) return tpl.attackType;
+  const key = tpl?.weapon || tpl?.activeWeapon || "";
+  return ENEMY_WEAPON_LABELS[key] || key || "атака";
+}
+
+function enemyTemplateByEnemyName(name){
+  const text = String(name || "").toLowerCase();
+  return allEnemyTemplateIds().map(normalizeEnemyTemplate).find(tpl => {
+    const tplName = String(tpl.name || "").toLowerCase();
+    return text === tplName || text.includes(tplName) || tplName.includes(text);
+  });
+}
+
+function ensureEnemyControlFields(enemy, index = 0){
+  if(!enemy) return enemy;
+  const source = enemy.templateId ? normalizeEnemyTemplate(enemy.templateId) : (enemyTemplateByEnemyName(enemy.name) || null);
+  enemy.category = enemy.category || source?.category || enemyTemplateCategoryFromSource(enemy);
+  enemy.role = enemy.role || source?.role || "бойовий ворог";
+  enemy.combatRole = enemy.combatRole || source?.combatRole || enemy.role;
+  enemy.feature = enemy.feature || source?.feature || "стандартний ворог сцени";
+  enemy.weakness = enemy.weakness || source?.weakness || "слабкість не задана";
+  enemy.recommendedBehavior = enemy.recommendedBehavior || source?.recommendedBehavior || "керувати за контекстом сцени";
+  enemy.visibleDescription = enemy.visibleDescription || source?.visibleDescription || `${enemy.name || `Ворог ${index + 1}`}: ${enemy.state || "стан невідомий"}.`;
+  enemy.gmDescription = enemy.gmDescription || source?.gmDescription || "Прихований опис ще не заповнений.";
+  enemy.gmNotes = enemy.gmNotes || source?.gmNotes || "GM-нотатка готова до заповнення.";
+  if(!enemy.weapon && source?.weapon) enemy.weapon = source.weapon;
+  if(!enemy.activeWeapon && source?.activeWeapon) enemy.activeWeapon = source.activeWeapon;
+  if(!enemy.attackType && source?.attackType) enemy.attackType = source.attackType;
+  enemy.inventory = Array.isArray(enemy.inventory) ? enemy.inventory : clone(source?.inventory || []);
+  enemy.gm = enemy.gm || {};
+  enemy.gm.morale = enemy.gm.morale || source?.morale || "невідомо";
+  enemy.gm.lootText = enemy.gm.lootText || source?.lootText || "трофеї ворога за рішенням Майстра";
+  if(enemy.gm.lootTakenText === undefined) enemy.gm.lootTakenText = false;
+  if(enemy.gm.lootTakenTextBy === undefined) enemy.gm.lootTakenTextBy = "";
+  if(enemy.gm.lootTakenTextAt === undefined) enemy.gm.lootTakenTextAt = "";
+  if(enemy.gm.lootTakenAmmo === undefined) enemy.gm.lootTakenAmmo = false;
+  if(enemy.gm.lootTakenAmmoBy === undefined) enemy.gm.lootTakenAmmoBy = "";
+  if(enemy.gm.lootTakenAmmoAt === undefined) enemy.gm.lootTakenAmmoAt = "";
+  return enemy;
+}
+
 const lootTables = {
   ammo: [
     { text: "Знайдено коробку старих набоїв: +6 набоїв поточному гравцю.", item: "Набої", count: 6, note: "знайдено у схроні" },
@@ -550,17 +882,26 @@ function enemyInventoryLine(enemy){
 }
 
 function makeEnemyFromTemplate(templateId){
-  const base = enemyTemplates[templateId] || enemyTemplates.bandit;
+  const base = normalizeEnemyTemplate(templateId);
   const enemy = clone(base);
   enemy.id = makeId(`enemy_${templateId}`);
   enemy.templateId = enemy.templateId || templateId;
+  enemy.category = enemy.category || base.category || "Бандити";
+  enemy.role = enemy.role || base.role || "бойовий ворог";
+  enemy.combatRole = enemy.combatRole || base.combatRole || enemy.role;
+  enemy.feature = enemy.feature || base.feature || "";
+  enemy.weakness = enemy.weakness || base.weakness || "";
+  enemy.recommendedBehavior = enemy.recommendedBehavior || base.recommendedBehavior || "";
+  enemy.visibleDescription = enemy.visibleDescription || base.visibleDescription || "";
+  enemy.gmDescription = enemy.gmDescription || base.gmDescription || "";
+  enemy.gmNotes = enemy.gmNotes || base.gmNotes || "";
   enemy.defense = Number(enemy.defense ?? 12);
   enemy.defenseMax = Number(enemy.defenseMax ?? enemy.defense ?? 12);
   enemy.fatigue = Number(enemy.fatigue ?? 0);
   enemy.infection = Number(enemy.infection ?? 0);
   enemy.armor = Number(enemy.armor ?? 0);
   enemy.stats = enemy.stats || {};
-  ["endurance","accuracy","agility","perception","intuition","charisma"].forEach(k => {
+  ENEMY_STAT_KEYS.forEach(k => {
     enemy.stats[k] = Number(enemy.stats[k] ?? 0);
   });
   if(typeof enemy.weaponJammed !== "boolean") enemy.weaponJammed = false;
@@ -580,13 +921,15 @@ function makeEnemyFromTemplate(templateId){
   enemy.gm.hp = Number(enemy.gm.hp ?? enemy.gm.hpMax ?? 8);
   enemy.gm.hpMax = Number(enemy.gm.hpMax ?? enemy.gm.hp ?? 8);
   enemy.gm.ammo = Number(enemy.gm.ammo ?? 0);
-  enemy.gm.lootText = enemy.gm.lootText || "залишок набоїв";
+  enemy.gm.morale = enemy.gm.morale || enemy.morale || "невідомо";
+  enemy.gm.lootText = enemy.gm.lootText || enemy.lootText || "залишок набоїв";
   enemy.gm.imageKey = enemy.gm.imageKey || `${templateId}_placeholder`;
   enemy.gm.lastAttackType = enemy.gm.lastAttackType || "";
   enemy.gm.recoilLevel = Number(enemy.gm.recoilLevel || 0);
   enemy.gm.exposedUntilNextTurn = !!enemy.gm.exposedUntilNextTurn;
   enemy.gm.exposurePenalty = Number(enemy.gm.exposurePenalty || 0);
-  return enemy;
+  if(enemy.weapon) normalizeCharacterWeapons(enemy);
+  return ensureEnemyControlFields(enemy);
 }
 
 
@@ -727,6 +1070,30 @@ function transferEnemyAllLoot(enemyId, playerId=currentPlayerId()){
   if(beforeAmmo > 0) transferEnemyAmmoLoot(enemyId, playerId);
 }
 
+function resetEnemyLootStatus(enemyId){
+  const enemy = findEnemyById(enemyId);
+  if(!enemy) return;
+  enemy.gm = enemy.gm || {};
+  enemy.gm.lootTakenText = false;
+  enemy.gm.lootTakenTextBy = "";
+  enemy.gm.lootTakenTextAt = "";
+  save();
+  render();
+  showToast("Статус луту скинуто.");
+}
+
+function resetEnemyAmmoLootStatus(enemyId){
+  const enemy = findEnemyById(enemyId);
+  if(!enemy) return;
+  enemy.gm = enemy.gm || {};
+  enemy.gm.lootTakenAmmo = false;
+  enemy.gm.lootTakenAmmoBy = "";
+  enemy.gm.lootTakenAmmoAt = "";
+  save();
+  render();
+  showToast("Статус набоїв скинуто.");
+}
+
 function selectedLootPlayerIdForEnemy(enemy){
   const selected = enemy?.gm?.lootTargetPlayer;
   if(selected && data.players?.[selected]) return selected;
@@ -825,7 +1192,7 @@ function normalizeRoomDataLight(roomData){
     p.defenseMax = Number(p.defenseMax ?? p.defense ?? 12);
     p.armor = Number(p.armor ?? 0);
     p.stats = p.stats || {};
-    ["endurance","accuracy","agility","perception","intuition","charisma"].forEach(k => {
+    ENEMY_STAT_KEYS.forEach(k => {
       p.stats[k] = Number(p.stats[k] ?? 0);
     });
     p.activeEffects = Array.isArray(p.activeEffects) ? p.activeEffects : [];
@@ -844,7 +1211,7 @@ function normalizeRoomDataLight(roomData){
     e.infection = Number(e.infection ?? 0);
     e.armor = Number(e.armor ?? 0);
     e.stats = e.stats || {};
-    ["endurance","accuracy","agility","perception","intuition","charisma"].forEach(k => {
+    ENEMY_STAT_KEYS.forEach(k => {
       e.stats[k] = Number(e.stats[k] ?? 0);
     });
     if(typeof e.weaponJammed !== "boolean") e.weaponJammed = false;
@@ -855,6 +1222,7 @@ function normalizeRoomDataLight(roomData){
     e.gm.ammo = Number(e.gm.ammo ?? 0);
     if(!e.gm.morale) e.gm.morale = "невідомо";
     e.effects = Array.isArray(e.effects) ? e.effects : [];
+    ensureEnemyControlFields(e, idx);
   });
 
   roomData.scene = roomData.scene || {};
@@ -3493,7 +3861,7 @@ function runStabilityRolePrivacyAudit(){
     results.push(!visibleGmOnly.length ? auditPass("Privacy: player has no visible GM-only blocks") : auditFail("Privacy: player sees GM-only blocks", `${visibleGmOnly.length} visible GM-only elements`));
     results.push(!isElementEffectivelyVisible(qs("#debugPanel")) ? auditPass("Privacy: player cannot see debug panel") : auditFail("Privacy: player sees debug panel"));
 
-    const gmEnemyControls = qsa("[data-gm-enemy], [data-gm-enemy-gm], [data-gm-enemy-stat], [data-gm-add-enemy-weapon], [data-enemy-hp-delta], [data-enemy-ammo-delta], [data-add-enemy-template], [data-transfer-enemy-loot], [data-transfer-enemy-ammo], [data-transfer-enemy-all-loot]").filter(isElementEffectivelyVisible);
+    const gmEnemyControls = qsa("[data-gm-enemy], [data-gm-enemy-gm], [data-gm-enemy-stat], [data-gm-add-enemy-weapon], [data-enemy-hp-delta], [data-enemy-ammo-delta], [data-add-enemy-template], [data-transfer-enemy-loot], [data-transfer-enemy-ammo], [data-transfer-enemy-all-loot], [data-reset-enemy-loot], [data-reset-enemy-ammo-loot]").filter(isElementEffectivelyVisible);
     results.push(!gmEnemyControls.length ? auditPass("Privacy: player cannot see GM enemy controls") : auditFail("Privacy: player sees GM enemy controls", `${gmEnemyControls.length} controls`));
 
     const hiddenEnemyLeaks = enemies.filter(enemy => enemy.visible === false && enemy.name && enemyText.includes(enemy.name));
@@ -3507,7 +3875,7 @@ function runStabilityRolePrivacyAudit(){
 
     const gmTextLeak = enemies.some(enemy => {
       const gm = enemy.gm || {};
-      return [gm.lootText, gm.morale, enemy.danger].filter(Boolean).some(value => enemyText.includes(String(value)));
+      return [gm.lootText, gm.morale, enemy.danger, enemy.gmDescription, enemy.gmNotes].filter(Boolean).some(value => enemyText.includes(String(value)));
     });
     results.push(!gmTextLeak ? auditPass("Privacy: player does not see GM-only enemy notes") : auditFail("Privacy: player sees loot/morale/danger text"));
   } else {
@@ -3569,9 +3937,10 @@ function runStabilityDataSchemaAudit(){
   (enemies || []).forEach((enemy, index) => {
     const label = enemy?.id || enemy?.name || `enemy[${index}]`;
     const missing = [];
-    ["id", "name", "visible", "state", "defense", "weapon"].forEach(field => {
+    ["id", "name", "visible", "state", "defense", "visibleDescription"].forEach(field => {
       if(enemy?.[field] === undefined || enemy?.[field] === null) missing.push(field);
     });
+    if(!enemy?.weapon && !enemy?.attackType) missing.push("weapon/attackType");
     if(!enemy?.gm || typeof enemy.gm !== "object") missing.push("gm object");
     else ["hp", "hpMax", "ammo"].forEach(field => {
       if(enemy.gm[field] === undefined || enemy.gm[field] === null) missing.push(`gm.${field}`);
@@ -3607,6 +3976,75 @@ function runStabilityDataSchemaAudit(){
     results.push(!missingCombat.length ? auditPass("Schema: combat object has base fields", combatFields.join(", ")) : auditWarn("Schema: combat object missing base fields", missingCombat.join(", ")));
   } else {
     results.push(auditFail("Schema: combat object missing"));
+  }
+
+  return results;
+}
+
+function runStabilityEnemyControlAudit(){
+  const results = [];
+  const requiredTemplates = [
+    { id: "auto", name: "Автоматник", category: "Бандити" },
+    { id: "shotgun", name: "Бандит з обрізом", category: "Бандити" },
+    { id: "pm", name: "Бандит з ПМ", category: "Бандити" },
+    { id: "coward", name: "Боягуз / мародер", category: "Бандити" },
+    { id: "blinddog", name: "Сліпий пес", category: "Мутанти" },
+    { id: "pseudodog", name: "Псевдособака / слабкий мутант", category: "Мутанти" }
+  ];
+  const templateIds = allEnemyTemplateIds();
+
+  results.push(templateIds.length >= requiredTemplates.length ? auditPass("Enemy Center: template catalog exists", `${templateIds.length} templates`) : auditFail("Enemy Center: template catalog too small", `${templateIds.length} templates`));
+  requiredTemplates.forEach(required => {
+    const tpl = normalizeEnemyTemplate(required.id);
+    const ok = tpl?.name === required.name && tpl?.category === required.category;
+    results.push(ok ? auditPass(`Enemy Center: template ${required.name}`, required.category) : auditFail(`Enemy Center: template ${required.id} mismatch`, JSON.stringify({ name: tpl?.name, category: tpl?.category })));
+  });
+
+  templateIds.forEach(templateId => {
+    const tpl = normalizeEnemyTemplate(templateId);
+    const missing = [];
+    ["id", "category", "name", "role", "combatRole", "visibleDescription", "gmDescription", "gmNotes", "feature", "weakness", "recommendedBehavior"].forEach(field => {
+      if(!tpl?.[field]) missing.push(field);
+    });
+    if(!tpl?.gm?.lootText && !tpl?.lootText) missing.push("gm.lootText/lootText");
+    if(!tpl?.weapon && !tpl?.attackType) missing.push("weapon/attackType");
+    ENEMY_STAT_KEYS.forEach(key => {
+      if(tpl?.stats?.[key] === undefined || tpl?.stats?.[key] === null) missing.push(`stats.${key}`);
+    });
+    results.push(!missing.length ? auditPass(`Enemy Center: template schema ${templateId}`, tpl.name) : auditWarn(`Enemy Center: template schema ${templateId}`, missing.join(", ")));
+  });
+
+  (data.enemies || []).forEach((enemy, index) => {
+    ensureEnemyControlFields(enemy, index);
+    const label = enemy.id || enemy.name || `enemy[${index}]`;
+    const missing = [];
+    ["id", "name", "visible", "state", "defense", "visibleDescription", "category", "combatRole", "gmDescription", "gmNotes"].forEach(field => {
+      if(enemy?.[field] === undefined || enemy?.[field] === null || enemy?.[field] === "") missing.push(field);
+    });
+    if(!enemy?.weapon && !enemy?.attackType) missing.push("weapon/attackType");
+    if(!enemy?.gm || typeof enemy.gm !== "object") missing.push("gm");
+    else ["hp", "hpMax", "ammo", "lootText", "lootTakenText", "lootTakenAmmo"].forEach(field => {
+      if(enemy.gm[field] === undefined || enemy.gm[field] === null) missing.push(`gm.${field}`);
+    });
+    results.push(!missing.length ? auditPass(`Enemy Center: enemy schema ${label}`, enemy.name) : auditWarn(`Enemy Center: enemy schema ${label}`, missing.join(", ")));
+  });
+
+  const enemyText = [
+    qs("#enemyCards")?.innerText || "",
+    qs("#targetSelector")?.innerText || ""
+  ].join("\n");
+  if(appSession.role === "player"){
+    const leak = (data.enemies || []).some(enemy => [enemy.gmNotes, enemy.gmDescription, enemy.gm?.lootText].filter(Boolean).some(value => enemyText.includes(String(value))));
+    results.push(!leak ? auditPass("Enemy Center privacy: player cannot see GM notes/descriptions/loot") : auditFail("Enemy Center privacy: player sees GM-only enemy text"));
+  }
+  if(appSession.role === "gm"){
+    const hiddenEnemies = (data.enemies || []).filter(enemy => enemy.visible === false);
+    const gmText = [
+      qs("#enemyCards")?.innerText || "",
+      qs("#gmEnemies")?.innerText || ""
+    ].join("\n");
+    const missingHidden = hiddenEnemies.filter(enemy => enemy.name && !gmText.includes(enemy.name));
+    results.push(!missingHidden.length ? auditPass("Enemy Center privacy: GM sees hidden enemies", `${hiddenEnemies.length} hidden`) : auditWarn("Enemy Center privacy: hidden enemies missing in current GM DOM", missingHidden.map(enemy => enemy.name).join(", ")));
   }
 
   return results;
@@ -3656,6 +4094,7 @@ function runStabilityAudit(){
     ...runStabilityButtonMenuAudit(),
     ...runStabilityRolePrivacyAudit(),
     ...runStabilityDataSchemaAudit(),
+    ...runStabilityEnemyControlAudit(),
     ...runStabilityCombatRulesLockAudit()
   ];
   return {
@@ -3855,12 +4294,51 @@ function runAttributeCheckTests(){
   return results;
 }
 
+function runEnemyControlCenterTests(){
+  const results = [];
+  const required = ["auto", "shotgun", "pm", "coward", "blinddog", "pseudodog"];
+  const categoryMap = {
+    auto: "Бандити",
+    shotgun: "Бандити",
+    pm: "Бандити",
+    coward: "Бандити",
+    blinddog: "Мутанти",
+    pseudodog: "Мутанти"
+  };
+
+  required.forEach(templateId => {
+    const tpl = normalizeEnemyTemplate(templateId);
+    const ok = tpl.id && tpl.category === categoryMap[templateId] && tpl.name && tpl.visibleDescription && tpl.gmDescription && tpl.gmNotes && tpl.gm?.lootText && (tpl.weapon || tpl.attackType);
+    results.push(ok ? testOk(`Enemy Center: шаблон ${tpl.name}`, tpl.category) : testFail(`Enemy Center: шаблон ${templateId} неповний`, JSON.stringify(tpl)));
+  });
+
+  const created = required.map(makeEnemyFromTemplate);
+  created.forEach(enemy => {
+    const ok = enemy.id && enemy.name && enemy.visibleDescription && enemy.gmDescription && enemy.gmNotes && enemy.gm?.hpMax >= 1 && enemy.gm?.lootText && (enemy.weapon || enemy.attackType);
+    results.push(ok ? testOk(`Enemy Center: створення ${enemy.name}`, enemy.id) : testFail(`Enemy Center: створення ${enemy.name || enemy.templateId} неповне`, JSON.stringify(enemy)));
+  });
+
+  const sample = makeEnemyFromTemplate("shotgun");
+  sample.gmNotes = "SECRET_GM_NOTE";
+  sample.gmDescription = "SECRET_GM_DESCRIPTION";
+  sample.gm.lootText = "SECRET_LOOT_TEXT";
+  const publicHtml = enemyCardPublic(sample);
+  const gmHtml = enemyCardGm(sample);
+  const publicSafe = !publicHtml.includes("SECRET_GM_NOTE") && !publicHtml.includes("SECRET_GM_DESCRIPTION") && !publicHtml.includes("SECRET_LOOT_TEXT");
+  results.push(publicSafe ? testOk("Enemy Center privacy: public card hides GM-only text") : testFail("Enemy Center privacy: public card leaked GM-only text", publicHtml));
+  results.push(gmHtml.includes("SECRET_GM_NOTE") && gmHtml.includes("SECRET_GM_DESCRIPTION") && gmHtml.includes("SECRET_LOOT_TEXT") ? testOk("Enemy Center: GM card shows notes/descriptions/loot") : testFail("Enemy Center: GM card misses GM details", gmHtml.slice(0, 240)));
+  results.push(gmHtml.includes("data-reset-enemy-loot") && gmHtml.includes("data-reset-enemy-ammo-loot") ? testOk("Enemy Center: loot reset controls render") : testFail("Enemy Center: loot reset controls missing"));
+
+  return results;
+}
+
 function runFullInternalTests(){
   return [
     ...runInternalSelfCheck(),
     ...runCombatSmokeTest(),
     ...runExpandedCombatRuleTests(),
     ...runAttributeCheckTests(),
+    ...runEnemyControlCenterTests(),
     ...runInventoryDamageTests(),
     ...runRoleAuthorityTests(),
     ...runJournalPrivacyTests(),
@@ -4105,6 +4583,7 @@ function makeTestScenarioData(){
     { id: uid(), time: nowTime(), text: "Dev test-room reset: стандартна тестова сцена завантажена.", visibility: "gm" }
   ];
 
+  room.enemies.forEach((enemy, index) => ensureEnemyControlFields(enemy, index));
   room.updatedAt = Date.now();
   return room;
 }
@@ -4168,6 +4647,7 @@ window.POLOVYI_MODUL_TESTS = {
   runCombatSmokeTest,
   runExpandedCombatRuleTests,
   runAttributeCheckTests,
+  runEnemyControlCenterTests,
   runInventoryDamageTests,
   runRoleAuthorityTests,
   runJournalPrivacyTests,
@@ -4408,6 +4888,7 @@ function enemyStatusIcon(e){
 
 
 function enemyCardPublic(e){
+  ensureEnemyControlFields(e);
   const icon = enemyStatusIcon(e);
   const colorClass = enemyColorClass(e.color);
   return `<article class="enemy-card enemy-card-public">
@@ -4482,7 +4963,12 @@ function gmEnemyFullEditor(enemy){
       <label>Позиція <input data-gm-enemy="${escapeAttr(enemy.id)}" data-field="position" value="${escapeAttr(enemy.position || "")}"></label>
       <label>Небезпека <input data-gm-enemy="${escapeAttr(enemy.id)}" data-field="danger" value="${escapeAttr(enemy.danger || "")}"></label>
       <label>Дія <input data-gm-enemy="${escapeAttr(enemy.id)}" data-field="action" value="${escapeAttr(enemy.action || "")}"></label>
-      <label>Лут <input data-gm-enemy-gm="${escapeAttr(enemy.id)}" data-field="lootText" value="${escapeAttr(enemy.gm.lootText || "")}"></label>
+      <label>Зброя <input data-gm-enemy="${escapeAttr(enemy.id)}" data-field="weapon" value="${escapeAttr(enemy.weapon || "")}" placeholder="pm / obrez / aks74u"></label>
+      <label>Тип атаки <input data-gm-enemy="${escapeAttr(enemy.id)}" data-field="attackType" value="${escapeAttr(enemy.attackType || "")}" placeholder="укус / ривок"></label>
+      <label class="enemy-editor-wide">Видимий опис <textarea rows="2" data-gm-enemy="${escapeAttr(enemy.id)}" data-field="visibleDescription">${escapeHtml(enemy.visibleDescription || "")}</textarea></label>
+      <label class="enemy-editor-wide">GM-опис <textarea rows="2" data-gm-enemy="${escapeAttr(enemy.id)}" data-field="gmDescription">${escapeHtml(enemy.gmDescription || "")}</textarea></label>
+      <label class="enemy-editor-wide">GM-нотатка <textarea rows="2" data-gm-enemy="${escapeAttr(enemy.id)}" data-field="gmNotes">${escapeHtml(enemy.gmNotes || "")}</textarea></label>
+      <label class="enemy-editor-wide">Лут <textarea rows="2" data-gm-enemy-gm="${escapeAttr(enemy.id)}" data-field="lootText">${escapeHtml(enemy.gm.lootText || "")}</textarea></label>
       <label>Колір <select data-gm-enemy="${escapeAttr(enemy.id)}" data-field="color">${["green","orange","yellow","red"].map(c => `<option value="${c}" ${enemy.color===c?"selected":""}>${c}</option>`).join("")}</select></label>
       <label>Видимість <select data-gm-enemy="${escapeAttr(enemy.id)}" data-field="visible"><option value="true" ${enemy.visible !== false ? "selected" : ""}>видимий</option><option value="false" ${enemy.visible === false ? "selected" : ""}>прихований</option></select></label>
     </div>
@@ -4496,17 +4982,20 @@ function gmEnemyFullEditor(enemy){
 
 
 function enemyCardGm(e){
+  ensureEnemyControlFields(e);
   const icon = enemyStatusIcon(e);
   const colorClass = enemyColorClass(e.color);
   const gm = e.gm || {};
   const hp = `${escapeHtml(String(gm.hp ?? "?"))}/${escapeHtml(String(gm.hpMax ?? "?"))}`;
   const ammo = escapeHtml(String(gm.ammo ?? 0));
-  const weapon = escapeHtml(weaponInfo({weapon: e.weapon}).name);
+  const weapon = escapeHtml(enemyTemplateWeaponOrAttackLabel(e));
   const stats = e.stats || {};
   const loot = gm.lootText || "залишок набоїв";
   const effects = enemyEffectsText(e) || "немає";
   const visibleText = e.visible === false ? "Прихований" : "Видимий";
   const visibleClass = e.visible === false ? "red" : "green";
+  const lootTakenBy = gm.lootTakenTextBy ? ` · ${escapeHtml(gm.lootTakenTextBy)}` : "";
+  const ammoTakenBy = gm.lootTakenAmmoBy ? ` · ${escapeHtml(gm.lootTakenAmmoBy)}` : "";
 
   return `<article class="enemy-card enemy-card-gm enemy-card-polished ${e.visible === false ? "enemy-hidden-gm" : ""}">
     <div class="enemy-card-head">
@@ -4541,12 +5030,22 @@ function enemyCardGm(e){
     </div>
 
     <div class="enemy-card-info-grid">
+      <p><strong>Категорія:</strong> ${escapeHtml(e.category || "—")}</p>
+      <p><strong>Роль:</strong> ${escapeHtml(e.combatRole || e.role || "невідомо")}</p>
+      <p><strong>Фішка:</strong> ${escapeHtml(e.feature || "не задано")}</p>
+      <p><strong>Слабкість:</strong> ${escapeHtml(e.weakness || "не задано")}</p>
       <p><strong>Позиція:</strong> ${escapeHtml(e.position || "невідомо")}</p>
       <p><strong>Небезпека:</strong> ${escapeHtml(e.danger || "невідомо")}</p>
       <p><strong>Що робить:</strong> ${escapeHtml(e.action || "невідомо")}</p>
       <p><strong>Мораль:</strong> ${escapeHtml(gm.morale || "невідомо")}</p>
       <p><strong>Ефекти:</strong> ${escapeHtml(effects)}</p>
       <p><strong>Лут після бою:</strong> ${escapeHtml(loot)}</p>
+    </div>
+    <div class="enemy-description-stack">
+      <p><strong>Видимий опис:</strong> ${escapeHtml(e.visibleDescription || "не задано")}</p>
+      <p><strong>Прихований опис:</strong> ${escapeHtml(e.gmDescription || "не задано")}</p>
+      <p><strong>GM-нотатка:</strong> ${escapeHtml(e.gmNotes || "не задано")}</p>
+      <p><strong>Поведінка:</strong> ${escapeHtml(e.recommendedBehavior || "за рішенням Майстра")}</p>
     </div>
 
     <div class="enemy-loot-actions">
@@ -4558,12 +5057,14 @@ function enemyCardGm(e){
         </select>
       </label>
       <div class="enemy-loot-status-row">
-        <span class="${gm.lootTakenText ? "green" : "muted"}">${gm.lootTakenText ? "Лут передано" : "Лут ще не передано"}</span>
-        <span class="${gm.lootTakenAmmo ? "green" : "muted"}">${gm.lootTakenAmmo ? "Набої передано" : "Набої ще не передано"}</span>
+        <span class="${gm.lootTakenText ? "green" : "muted"}">${gm.lootTakenText ? `Лут передано${lootTakenBy}` : "Лут ще не передано"}</span>
+        <span class="${gm.lootTakenAmmo ? "green" : "muted"}">${gm.lootTakenAmmo ? `Набої передано${ammoTakenBy}` : "Набої ще не передано"}</span>
       </div>
       <button class="metal-btn" data-transfer-enemy-loot="${escapeAttr(e.id)}">Передати лут</button>
       <button class="metal-btn" data-transfer-enemy-ammo="${escapeAttr(e.id)}" ${Number(gm.ammo || 0) <= 0 ? "disabled" : ""}>Передати набої (${escapeHtml(String(gm.ammo || 0))})</button>
       <button class="metal-btn success" data-transfer-enemy-all-loot="${escapeAttr(e.id)}">Передати все</button>
+      <button class="metal-btn mini" data-reset-enemy-loot="${escapeAttr(e.id)}">Скинути статус луту</button>
+      <button class="metal-btn mini" data-reset-enemy-ammo-loot="${escapeAttr(e.id)}">Скинути статус набоїв</button>
     </div>
 
     <p class="enemy-gm-attrs"><strong>Характеристики:</strong> Вит ${fmtMod(stats.endurance ?? 0)} · Точ ${fmtMod(stats.accuracy ?? 0)} · Впр ${fmtMod(stats.agility ?? 0)} · Спр ${fmtMod(stats.perception ?? 0)} · Інт ${fmtMod(stats.intuition ?? 0)} · Хар ${fmtMod(stats.charisma ?? 0)}</p>
@@ -4781,28 +5282,31 @@ function logItem(j){
 
 
 function renderEnemyTemplateCard(templateId, avatar){
-  const tpl = enemyTemplates[templateId];
+  const tpl = normalizeEnemyTemplate(templateId);
   if(!tpl) return "";
-  const loot = tpl.gm?.lootText || "залишок набоїв";
+  const loot = tpl.gm?.lootText || tpl.lootText || "залишок набоїв";
   const stats = tpl.stats || {};
   const attackNotes = Array.isArray(tpl.attacks)
     ? tpl.attacks.map(a => `${a.name}: ${a.dice}`).join(" · ")
-    : "Бойова математика стандартна для поточної зброї.";
+    : (tpl.attackType ? `Тип атаки: ${tpl.attackType}` : "Бойова математика стандартна для поточної зброї.");
+  const weapon = enemyTemplateWeaponOrAttackLabel(tpl);
 
   return `
     <div class="enemy-template-dock-card">
       <div class="enemy-template-avatar" aria-hidden="true">${escapeHtml(avatar)}</div>
       <div class="enemy-template-body">
-        <div class="enemy-template-kicker">Шаблон ворога · ${escapeHtml(tpl.faction || "бандити")}</div>
+        <div class="enemy-template-kicker">Шаблон ворога · ${escapeHtml(tpl.category || "Бандити")}</div>
         <h4>${escapeHtml(tpl.name)}</h4>
-        <p>${escapeHtml(tpl.role || "бойовий ворог")}</p>
+        <p>${escapeHtml(tpl.combatRole || tpl.role || "бойовий ворог")}</p>
         <div class="enemy-template-stats">
-          <span>HP ${escapeHtml(String(tpl.gm?.hpMax ?? tpl.gm?.hp ?? "?"))}</span>
+          <span>HP ${escapeHtml(String(tpl.hpMax ?? tpl.gm?.hpMax ?? tpl.gm?.hp ?? "?"))}</span>
           <span>Захист ${escapeHtml(String(tpl.defense ?? 12))}</span>
           <span>Броня ${escapeHtml(String(tpl.armor ?? 0))}</span>
-          <span>${escapeHtml(weaponInfo({weapon: tpl.weapon}).name)}</span>
-          <span>${escapeHtml(String(tpl.gm?.ammo ?? 0))} наб.</span>
+          <span>${escapeHtml(weapon)}</span>
+          <span>${escapeHtml(String(tpl.ammo ?? tpl.gm?.ammo ?? 0))} наб.</span>
         </div>
+        <div class="enemy-template-note"><strong>Фішка:</strong> ${escapeHtml(tpl.feature || "не задано")}</div>
+        <div class="enemy-template-note"><strong>Поведінка:</strong> ${escapeHtml(tpl.recommendedBehavior || "за рішенням Майстра")}</div>
         <div class="enemy-template-loot">Лут: ${escapeHtml(loot)}</div>
         <div class="enemy-template-note">Характеристики: Вит ${fmtMod(stats.endurance ?? 0)} · Точ ${fmtMod(stats.accuracy ?? 0)} · Впр ${fmtMod(stats.agility ?? 0)} · Спр ${fmtMod(stats.perception ?? 0)} · Інт ${fmtMod(stats.intuition ?? 0)} · Хар ${fmtMod(stats.charisma ?? 0)}. Втома ${escapeHtml(String(tpl.fatigue ?? 0))} · Зараження ${escapeHtml(String(tpl.infection ?? 0))} · Броня ${escapeHtml(String(tpl.armor ?? 0))}.</div>
         <div class="enemy-template-note">Атаки: ${escapeHtml(attackNotes)}</div>
@@ -4826,17 +5330,24 @@ function renderEnemyTemplateDock(){
   box.innerHTML = `
     <div class="enemy-tools-head">
       <div>
-        <div class="enemy-template-kicker">Інструменти Майстра · V19.18.4</div>
-        <h4>Шаблони ворогів</h4>
-        <p>Додавай ворогів прямо з вкладки “Вороги”, без скролу до панелі Майстра.</p>
+        <div class="enemy-template-kicker">Інструменти Майстра · V19.31</div>
+        <h4>Enemy Control Center</h4>
+        <p>Шаблони згруповано за роллю сцени: бандити, мутанти й підготовка до живих NPC.</p>
       </div>
       <button class="metal-btn danger" id="clearEnemies" type="button">Очистити ворогів</button>
     </div>
 
-    <div class="enemy-template-grid">
-      ${renderEnemyTemplateCard("auto", "☠️")}
-      ${renderEnemyTemplateCard("shotgun", "💥")}
-    </div>
+    ${ENEMY_TEMPLATE_DOCK.map(group => `
+      <section class="enemy-template-category" data-template-category="${escapeAttr(enemyTemplateCategoryId(group.category))}">
+        <div class="enemy-template-category-head">
+          <h5>${escapeHtml(group.category)}</h5>
+          <span>${escapeHtml(String(group.templateIds.length))} шабл.</span>
+        </div>
+        <div class="enemy-template-grid">
+          ${group.templateIds.map((id, index) => renderEnemyTemplateCard(id, ["☠️","💥","◇","?","◌","◆"][index] || "☠")).join("")}
+        </div>
+      </section>
+    `).join("")}
   `;
 }
 function renderEnemyTemplateButtons(){
@@ -5080,7 +5591,8 @@ function weaponCatalogKeyFromName(name){
 
 function normalizeInventoryItem(item){
   const rawName = item.name || item.item || item.id || "Предмет";
-  const guessedWeapon = item.type === "weapon" ? (item.id || weaponCatalogKeyFromName(rawName)) : weaponCatalogKeyFromName(rawName);
+  const isLootNote = String(rawName || "").trim().toLowerCase().startsWith("лут:");
+  const guessedWeapon = item.type === "weapon" ? (item.id || weaponCatalogKeyFromName(rawName)) : (isLootNote ? "" : weaponCatalogKeyFromName(rawName));
   const isWeapon = item.type === "weapon" || !!guessedWeapon;
   const id = String(item.id || (isWeapon ? guessedWeapon : rawName));
   return {
@@ -5100,6 +5612,9 @@ function normalizeInventoryItem(item){
 function normalizeCharacterWeapons(character){
   if(!character) return character;
   character.inventory = Array.isArray(character.inventory) ? character.inventory.map(normalizeInventoryItem) : [];
+  if(character.attackType && !character.weapon && !character.activeWeapon && !character.inventory.length){
+    return character;
+  }
   const weapons = character.inventory.filter(i => i.type === "weapon");
   const fallbackWeapon = character.weapon || character.activeWeapon || (weapons[0]?.id) || "pm";
   character.activeWeapon = character.activeWeapon || fallbackWeapon;
@@ -7241,6 +7756,22 @@ const enemyStep = e.target.closest("[data-enemy-step]");
     return;
   }
 
+  const resetEnemyLootBtn = e.target.closest("[data-reset-enemy-loot]");
+  if(resetEnemyLootBtn){
+    e.preventDefault();
+    e.stopPropagation();
+    resetEnemyLootStatus(resetEnemyLootBtn.dataset.resetEnemyLoot);
+    return;
+  }
+
+  const resetEnemyAmmoLootBtn = e.target.closest("[data-reset-enemy-ammo-loot]");
+  if(resetEnemyAmmoLootBtn){
+    e.preventDefault();
+    e.stopPropagation();
+    resetEnemyAmmoLootStatus(resetEnemyAmmoLootBtn.dataset.resetEnemyAmmoLoot);
+    return;
+  }
+
 
   const sceneButton = e.target.closest("[data-load-scene]");
   if(sceneButton){
@@ -7394,6 +7925,13 @@ document.addEventListener("input", e => {
       if(numeric && gmEnemyInput.value === "") return;
       if(field === "visible") enemy.visible = gmEnemyInput.value !== "false";
       else enemy[field] = numeric ? Number(gmEnemyInput.value) : gmEnemyInput.value;
+      if(field === "weapon" && gmEnemyInput.value){
+        enemy.activeWeapon = gmEnemyInput.value;
+        normalizeCharacterWeapons(enemy);
+      }
+      if(field === "attackType" && gmEnemyInput.value && !enemy.weapon){
+        enemy.activeWeapon = "";
+      }
       if(field === "defenseMax") enemy.defense = Math.min(Number(enemy.defense ?? 12), Number(enemy.defenseMax ?? 12));
       if(field === "defense") enemy.defenseMax = Math.max(Number(enemy.defenseMax ?? enemy.defense ?? 12), Number(enemy.defense ?? 12));
       quietSaveFieldEdit();
@@ -7534,6 +8072,13 @@ document.addEventListener("change", e => {
       } else {
         if(field === "visible") enemy.visible = gmEnemySelect.value !== "false";
         else enemy[field] = ["defense","defenseMax","armor","fatigue","infection"].includes(field) ? Number(gmEnemySelect.value || 0) : gmEnemySelect.value;
+        if(field === "weapon" && gmEnemySelect.value){
+          enemy.activeWeapon = gmEnemySelect.value;
+          normalizeCharacterWeapons(enemy);
+        }
+        if(field === "attackType" && gmEnemySelect.value && !enemy.weapon){
+          enemy.activeWeapon = "";
+        }
       }
       quietSaveFieldEdit();
       if(field === "visible" || field === "color" || field === "hp" || field === "hpMax") renderPreserveScroll();

@@ -1,14 +1,20 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.30
+# DATA_SCHEMA.md — Польовий Модуль V19.31
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.30"
-BUILD_NUMBER = "19680"
-BUILD_NAME = "Stability Audit Pack"
+BUILD_VERSION = "V19.31"
+BUILD_NUMBER = "19690"
+BUILD_NAME = "Enemy Control Center Expansion Pack"
 ```
+
+## V19.31 schema note
+
+V19.31 розширює систему ворогів і шаблонів ворогів, але не змінює бойову математику.
+
+Основна Firebase-структура не переписується радикально. Додаються або нормалізуються поля ворога для Enemy Control Center: категорія, бойова роль, фішка, слабкість, рекомендована поведінка, видимий опис, прихований опис, GM-нотатка і статуси луту.
 
 ## V19.30 schema note
 
@@ -55,19 +61,30 @@ data.players = {
 data.enemies = [
   {
     id: string,
+    templateId: string,
+    category: "Бандити" | "Мутанти" | "NPC" | string,
     name: string,
+    role: string,
+    combatRole: string,
     visible: boolean,
     state: string,
     color: "green" | "orange" | "red" | "yellow",
     defense: number,
+    defenseMax: number,
     armor: number,
     fatigue: number,
     infection: number,
     weapon: string,
+    attackType: string,
     position: string,
     danger: string,
     action: string,
+    feature: string,
+    weakness: string,
+    recommendedBehavior: string,
     visibleDescription: string,
+    gmDescription: string,
+    gmNotes: string,
     stats: {
       endurance: number,
       accuracy: number,
@@ -96,9 +113,61 @@ data.enemies = [
 ]
 ```
 
+## enemyTemplates / Enemy Control Center
+
+Шаблони ворогів нормалізуються до спільної структури:
+
+```js
+enemyTemplate = {
+  id: string,
+  category: "Бандити" | "Мутанти" | "NPC" | string,
+  name: string,
+  role: string,
+  combatRole: string,
+  hp: number,
+  hpMax: number,
+  defense: number,
+  armor: number,
+  fatigue: number,
+  infection: number,
+  weapon: string,
+  attackType: string,
+  ammo: number,
+  position: string,
+  danger: string,
+  state: string,
+  color: string,
+  visibleDescription: string,
+  gmDescription: string,
+  gmNotes: string,
+  morale: string,
+  lootText: string,
+  feature: string,
+  weakness: string,
+  recommendedBehavior: string,
+  stats: {
+    endurance: number,
+    accuracy: number,
+    agility: number,
+    perception: number,
+    intuition: number,
+    charisma: number
+  }
+}
+```
+
+Обов’язкові V19.31 шаблони:
+
+- `Автоматник`;
+- `Бандит з обрізом`;
+- `Бандит з ПМ`;
+- `Боягуз / мародер`;
+- `Сліпий пес`;
+- `Псевдособака / слабкий мутант`.
+
 ## Важливі правила видимості
 
-Гравець не має бачити точні HP, набої, мораль, лут і небезпеку ворога.  
+Гравець не має бачити точні HP, набої, мораль, лут, небезпеку ворога, `gmDescription` і `gmNotes`.  
 Майстер бачить усіх ворогів, включно з прихованими.
 
 ## data.combat.attributeCheck
