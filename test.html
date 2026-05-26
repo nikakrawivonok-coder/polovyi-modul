@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Польовий Модуль — Test Harness V19.32</title>
-  <link rel="stylesheet" href="./styles.css?v=19700">
+  <title>Польовий Модуль — Test Harness V19.33</title>
+  <link rel="stylesheet" href="./styles.css?v=19710">
   <style>
     body{padding:1rem;max-width:900px;margin:0 auto;}
     .test-page-box{border:1px solid var(--line);border-radius:1rem;padding:1rem;background:rgba(0,0,0,.22);}
@@ -17,33 +17,33 @@
     <p>Ця сторінка завантажує той самий <code>app.js</code> і запускає розширені внутрішні тести без ручного проходження всіх функцій.</p>
     <div class="test-page-actions">
       <button class="metal-btn" id="runTestPage">Запустити тести</button>
-        <a class="metal-btn" href="./?role=gm&room=test19700&gmKey=zona-master&v=19700&hard=19700">Відкрити Майстра</a>
+        <a class="metal-btn" href="./?role=gm&room=test19710&gmKey=zona-master&v=19710&hard=19710">Відкрити Майстра</a>
     </div>
     <div id="testPageReport">Натисни “Запустити тести”.</div>
   </div>
 
   <main hidden>
     <span id="characterName"></span><span id="hpNow"></span><span id="hpMax"></span><span id="fatigueNow"></span><span id="defenseNow"></span><span id="radiationNow"></span><span id="ammoNow"></span><span id="armorNow"></span><span id="activeWeaponNow"></span><span id="profileStatusNow"></span>
-    <div id="playerAvatarFrame"></div><div id="pdaSettingsPanel"></div>
+    <div id="playerAvatarFrame"></div><div id="pdaSettingsPanel"></div><div id="avatarPickerPanel"></div>
     <div id="hpDots"></div><div id="fatigueDots"></div><div id="radDots"></div><div id="ammoDots"></div>
     <div id="characterDetails"></div>
     <span id="sceneNameShort"></span><span id="sceneDescShort"></span>
     <div id="sceneName"></div><div id="sceneStateBadge"></div><div id="sceneDescription"></div><div id="scenePublicDescription"></div><div id="sceneSounds"></div><div id="sceneSmells"></div><div id="sceneStatus"></div><div id="sceneWarnings"></div><ul id="sceneObjects"></ul><ul id="sceneOpportunities"></ul><div id="sceneGmDescription"></div><div id="sceneHiddenDangers"></div><div id="sceneGmAnomalies"></div><div id="sceneGmNotes"></div><div id="sceneHiddenLoot"></div><div id="sceneEnemiesGm"></div>
     <div id="enemyTemplateDock"></div><div id="enemyCards"></div>
-    <div id="inventoryList"></div><div id="inventoryInlineList"></div>
+    <div id="inventoryHero"></div><div id="inventoryControls"></div><div id="inventoryList"></div><div id="inventoryDetail"></div><div id="inventoryInlineList"></div>
     <div id="targetSelector"></div>
     <div id="attributeCheckPlayerPanel"></div>
     <div id="journalList"></div><div id="journalPrivateTargets"></div>
     <div id="gmQuickPanel"></div><div id="gmCombatPanel"></div><div id="gmPlayers"></div><div id="gmEnemies"></div>
     <select id="lootTargetPlayer"></select><select id="enemyAttackTarget"></select>
     <button id="runSelfCheck" type="button"></button>
-    <div id="playerSpecificLinks"></div><div id="gmCombatStickyBar"></div><div id="toast" hidden></div>
+    <div id="playerSpecificLinks"></div><div id="gmCommandDock"></div><div id="gmCombatStickyBar"></div><div id="toast" hidden></div>
   </main>
 
   <script>
     window.POLOVYI_MODUL_TEST_PAGE = true;
   </script>
-  <script src="./app.js?v=19700"></script>
+  <script src="./app.js?v=19710"></script>
   <script>
     document.querySelector("#runTestPage").addEventListener("click", () => {
       const box = document.querySelector("#testPageReport");

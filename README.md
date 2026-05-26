@@ -1,4 +1,69 @@
-# Польовий Модуль — V19.32 Living PDA & Sonic Identity Pack
+# Польовий Модуль — V19.33 Living Inventory & Role Navigation Pack
+
+V19.33 робить інвентар окремою живою вкладкою гравця, додає рольову навігацію, GM Command Dock, згортання бойової панелі Майстра, картки предметів із типами/рідкістю/походженням/історією, polish sonic identity для вкладок та інвентаря, sound test panel, master volume, mobile boost і покращений верхній профіль персонажа з аватаром.
+
+## Важливо для V19.33
+
+V19.33 не змінює бойову математику, стрільбу 1/2/3 патрони, віддачу `-2 / -4 / -6 / -8`, шкоду, критичну шкоду, броню, укриття, Enemy Control Center як бойову модель або основні privacy-правила.
+
+Поточна стабільна версія читається з `app.js` / `README.md`, а не з пам'яті.
+
+## Що додано у V19.33
+
+- build/cache оновлено до `19710`;
+- гравець отримує нижню навігацію `Стан / Оточення / Інвентар / Журнал`;
+- окрема вкладка `Вороги` прихована для гравця, але видимі цілі лишаються у `Стані`;
+- Майстер зберігає `Вороги` і отримує `GM Command Dock` з активним переходом в `Інвентар`;
+- бойову панель Майстра можна згорнути до компактної кнопки `Бій`;
+- інвентар став екраном із пошуком, фільтрами, картками предметів і detail view;
+- старі предмети `item/count/note` підтримуються через safe fallback;
+- нові предмети підтримують `id`, `name`, `type`, `rarity`, `description`, `origin`, `source`, `location`, `acquiredAt`, `acquiredFrom`, `addedBy`, `gmOnlyNote`, `history`;
+- лут з ворога створює інформативний item package із походженням;
+- гравець може додати предмет, а Майстер бачить, що він доданий гравцем;
+- гравець не бачить `gmOnlyNote` і службові GM-поля;
+- Майстер може переглядати інвентарі гравців, додавати, редагувати, списувати предмети та позначати їх важливими/сюжетними;
+- верх вкладки `Стан` отримав великий аватар-портрет і чистішу картку характеристик;
+- гравець може обрати аватар із локальної бібліотеки, а Майстер підтверджує або відхиляє вибір;
+- звуки КПК стали гучнішими і краще чутними на мобільному;
+- додано `master volume`, `mobile boost`, AudioContext status і sound test panel;
+- додано tab events `tab_state`, `tab_environment`, `tab_inventory`, `tab_journal`, `tab_enemies`, `tab_master`;
+- додано inventory events `item_open`, `item_received`, `item_marked_important`, `inventory_filter`;
+- Stability Audit розширено role navigation, inventory schema/UI/privacy, sonic і horizontal overflow checks.
+
+## Тестові посилання V19.33
+
+Майстер:
+
+```text
+https://nikakrawivonok-coder.github.io/polovyi-modul/?role=gm&room=test19710&gmKey=zona-master&v=19710&hard=19710
+```
+
+Гравець Лис:
+
+```text
+https://nikakrawivonok-coder.github.io/polovyi-modul/?role=player&room=test19710&player=fox&v=19710&hard=19710
+```
+
+Тестова сторінка:
+
+```text
+https://nikakrawivonok-coder.github.io/polovyi-modul/test.html?v=19710&hard=19710
+```
+
+## Як перевірити V19.33
+
+1. Відкрити Майстра і Гравця з `v=19710&hard=19710`.
+2. Перевірити, що показується `V19.33 · 19710`.
+3. У гравця переконатися, що нижня вкладка `Вороги` замінена на `Інвентар`.
+4. Відкрити `Інвентар`, перевірити пошук, фільтри, картки й detail view.
+5. У Майстра відкрити `GM Command Dock` і перейти до інвентаря гравця.
+6. Додати предмет, відкрити detail, перевірити походження, історію, тип і рідкість.
+7. Додати `gmOnlyNote` і переконатися, що гравець її не бачить.
+8. Натиснути `Увімкнути звук КПК`, перевірити `Тест звуку КПК`, master volume і mobile boost.
+9. На 360/375/390/430px перевірити, що немає horizontal overflow.
+10. У Майстра запустити Stability Audit.
+
+## Попередній checkpoint V19.32
 
 V19.32 додає перший цілісний шар Living PDA: аватари гравців, живий атмосферний профіль, розширене `Оточення`, scene states, оригінальну sonic identity через Web Audio API, haptic fallback, налаштування звуку/вібрації/атмосфери та audit-перевірки responsive overflow.
 

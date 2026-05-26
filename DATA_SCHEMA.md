@@ -1,14 +1,194 @@
-# DATA_SCHEMA.md — Польовий Модуль V19.32
+# DATA_SCHEMA.md — Польовий Модуль V19.33
 
 Цей файл описує поточну робочу структуру даних, щоб під час подальшої розробки не губити логіку.
 
 ## Build
 
 ```js
-BUILD_VERSION = "V19.32"
-BUILD_NUMBER = "19700"
-BUILD_NAME = "Living PDA & Sonic Identity Pack"
+BUILD_VERSION = "V19.33"
+BUILD_NUMBER = "19710"
+BUILD_NAME = "Living Inventory & Role Navigation Pack"
 ```
+
+## V19.33 schema note
+
+V19.33 розширює інвентар, role-aware navigation, avatar approval і sonic settings, але не змінює бойову математику.
+
+Firebase-структура не переписується радикально. Нові поля мають safe fallback, а старі предмети `item/count/note` лишаються валідними.
+
+### Role-aware navigation / local UI state
+
+```js
+// Runtime UI state, not required as persistent Firebase schema.
+inventoryFilter: string
+inventorySearch: string
+selectedInventoryItemId: string
+inventoryGmPlayerId: string
+gmCommandDockOpen: boolean
+gmCombatDockCollapsed: boolean
+avatarPickerOpen: boolean
+```
+
+Гравець бачить bottom nav:
+
+```text
+Стан / Оточення / Інвентар / Журнал
+```
+
+Майстер бачить:
+
+```text
+Стан / Оточення / Вороги / Журнал / Майстер
+```
+
+Майстер отримує доступ до інвентаря через `GM Command Dock`.
+
+### player avatar fields
+
+```js
+player.avatarEmoji: string
+player.avatarId: string
+player.avatarUrl: string
+player.avatarKey: string
+player.avatarStyle: string
+player.avatarStatus: "approved" | "pending" | "rejected" | ""
+player.avatarPendingId: string
+player.avatarPendingUrl: string
+player.avatarRequestedAt: string
+player.avatarApprovedBy: string
+```
+
+Fallback:
+- `avatarUrl` -> image portrait;
+- `avatarEmoji` -> emoji fallback;
+- initials -> text fallback;
+- empty -> PDA silhouette fallback.
+
+Гравець може запросити аватар, Майстер підтверджує або відхиляє.
+
+### inventory item schema
+
+```js
+player.inventory[] = {
+  id: string,
+  name: string,
+  item: string,
+  type: "weapon" | "ammo" | "med" | "food" | "consumable" | "tool" | "artifact" | "trophy" | "document" | "key" | "anomalous" | "junk" | "unique" | "other",
+  count: number,
+  description: string,
+  note: string,
+  origin: string,
+  source: string,
+  location: string,
+  acquiredAt: string,
+  acquiredFrom: string,
+  addedBy: "gm" | "player" | "system" | string,
+  condition: string,
+  rarity: "common" | "useful" | "valuable" | "rare" | "anomalous" | "unique" | "story",
+  tags: string[],
+  isEquipped: boolean,
+  isActive: boolean,
+  isImportant: boolean,
+  isStoryItem: boolean,
+  pendingReview: boolean,
+  confirmedByGM: boolean,
+  gmOnlyNote: string,
+  history: [
+    {
+      time: string,
+      text: string,
+      by: string
+    }
+  ]
+}
+```
+
+Legacy support:
+
+```js
+{ item: string, count: number, note: string }
+```
+
+Такі записи нормалізуються в runtime і не мають ламати додаток.
+
+### Enemy loot to inventory
+
+При передачі луту ворога бажані поля:
+
+```js
+source: "enemy loot" | "enemy ammo"
+origin: "Лут з <ворог>" | "Набої з <ворог>"
+acquiredFrom: enemy.name
+acquiredAt: ISO timestamp
+location: scene.name || "невідома локація"
+addedBy: "gm"
+```
+
+### Inventory privacy
+
+Гравець бачить:
+- власні предмети;
+- назву, тип, кількість, рідкість, стан, опис, примітку;
+- походження, дату, локацію, джерело, історію.
+
+Гравець не бачить:
+- `gmOnlyNote`;
+- службові GM-поля, якщо вони не потрібні в player-facing UI;
+- інвентарі інших гравців.
+
+Майстер бачить:
+- інвентарі всіх гравців;
+- `gmOnlyNote`;
+- `addedBy`, `source`, `pendingReview`, `confirmedByGM`;
+- історію предметів і службові поля.
+
+### pdaSettings V19.33
+
+```js
+pdaSettings.soundEnabled: boolean
+pdaSettings.hapticsEnabled: boolean
+pdaSettings.atmosphereEnabled: boolean
+pdaSettings.animationsEnabled: boolean
+pdaSettings.masterVolume: number // 0..1
+pdaSettings.mobileBoost: boolean
+```
+
+Sound events:
+
+```js
+module_ready
+tap_soft
+panel_open
+panel_close
+tab_state
+tab_environment
+tab_inventory
+tab_journal
+tab_enemies
+tab_master
+item_open
+item_received
+item_marked_important
+inventory_filter
+private_message
+combat_hit
+combat_miss
+low_hp_warning
+anomaly_near
+scene_alert
+```
+
+AudioContext має стартувати тільки після user gesture. Якщо AudioContext недоступний або suspended, app не має падати.
+
+### Audit additions
+
+Stability Audit у V19.33 перевіряє:
+- role-aware navigation;
+- inventory screen / controls / detail panel;
+- inventory schema fallbacks;
+- `gmOnlyNote` privacy;
+- sonic settings and feedback hooks;
+- horizontal overflow для document, quick actions, inventory, GM dock і combat dock.
 
 ## V19.32 schema note
 

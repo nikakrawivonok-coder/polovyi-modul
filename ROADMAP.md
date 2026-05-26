@@ -1,3 +1,50 @@
+## V19.33 — Living Inventory & Role Navigation Pack
+
+Статус: player-facing inventory / role navigation / sonic polish checkpoint без зміни бойової математики.
+
+Base: `V19.32 — Living PDA & Sonic Identity Pack`, build/cache `19700`.
+Поточна версія: `V19.33`, build/cache `19710`.
+
+Реалізовано:
+- role-aware navigation: гравець має `Стан / Оточення / Інвентар / Журнал`, окрема вкладка `Вороги` лишається Майстру;
+- Майстер отримав `GM Command Dock` з активним переходом до інвентарів гравців і заготовками для майбутніх команд;
+- бойову панель Майстра можна згорнути до компактної кнопки `Бій` без зміни бойової логіки;
+- додано living inventory screen: пошук, фільтри, картки предметів, detail view, empty state;
+- предмети отримали типи, міні-іконки, рідкість, опис, походження, джерело, локацію, дату отримання, історію і GM-only нотатку;
+- старі `item/count/note` предмети підтримуються через safe fallback;
+- лут з ворога створює item package з `origin`, `source`, `acquiredFrom`, `acquiredAt`, `location`;
+- гравець може додати предмет, а Майстер бачить його як доданий гравцем;
+- Майстер може переглядати інвентарі гравців, додавати/редагувати/списувати предмети, позначати важливими та сюжетними;
+- privacy: гравець не бачить `gmOnlyNote` і не бачить інвентарі інших гравців;
+- вкладка `Стан` отримала помітніший портретний блок і clean character card;
+- додано avatar picker: гравець обирає аватар, Майстер підтверджує або відхиляє;
+- sonic identity polished: master volume, mobile boost, AudioContext status, sound test panel;
+- додано tab sound events і inventory sound events;
+- Stability Audit розширено inventory/schema/privacy/role-nav/sonic/horizontal-overflow checks;
+- README і DATA_SCHEMA оновлено.
+
+Не змінювали:
+- бойову математику 1/2/3 патрони;
+- віддачу `-2 / -4 / -6 / -8`;
+- шкоду, критичну шкоду, броню, укриття;
+- Enemy Control Center як бойову систему;
+- основну логіку журналу;
+- Firebase-схему радикально.
+
+Наступний рекомендований крок:
+
+## V19.34 — Consumables & Item Use Pack
+
+Мета майбутнього кроку:
+додати контрольоване використання предметів без переписування інвентаря: аптечки, антирад, їжа, розхідники, підтвердження Майстра для важливих предметів, записи в історію item та журнал.
+
+Альтернатива, якщо після тестування потрібен polish:
+
+## V19.33.1 — Inventory Polish / Mobile UX Fixes
+
+Мета:
+підчистити дрібні mobile overflow, тексти карток, звучання подій і avatar approval UX після реального тесту на телефоні.
+
 ## V19.32 — Living PDA & Sonic Identity Pack
 
 Статус: immersion / living interface checkpoint без зміни бойової математики.

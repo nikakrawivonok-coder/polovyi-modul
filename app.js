@@ -1,4 +1,4 @@
-// Польовий Модуль — V19.32 Living PDA & Sonic Identity Pack
+// Польовий Модуль — V19.33 Living Inventory & Role Navigation Pack
 // Stability audit layer. Locked 1/2/3 ammo combat math intentionally unchanged.
 
 // CODE MAP — active maintenance guide
@@ -80,9 +80,9 @@ const appSession = {
 
 window.POLOVYI_MODUL_SESSION = appSession;
 
-const BUILD_VERSION = "V19.32";
-const BUILD_NUMBER = "19700";
-const BUILD_NAME = "Living PDA & Sonic Identity Pack";
+const BUILD_VERSION = "V19.33";
+const BUILD_NUMBER = "19710";
+const BUILD_NAME = "Living Inventory & Role Navigation Pack";
 const URL_CACHE_VERSION = String(params.get("v") || "");
 window.POLOVYI_MODUL_BUILD = { version: BUILD_VERSION, build: BUILD_NUMBER, name: BUILD_NAME, cache: URL_CACHE_VERSION };
 
@@ -152,12 +152,21 @@ let pdaAudioContext = null;
 let pdaAudioReady = false;
 let pdaLastLowHpKey = "";
 let pdaFeedbackArmed = false;
+let inventoryFilter = "all";
+let inventorySearch = "";
+let selectedInventoryItemId = "";
+let inventoryGmPlayerId = "";
+let gmCommandDockOpen = false;
+let gmCombatDockCollapsed = false;
+let avatarPickerOpen = false;
 
 const DEFAULT_PDA_SETTINGS = {
   soundEnabled: false,
   hapticsEnabled: false,
   atmosphereEnabled: true,
-  animationsEnabled: true
+  animationsEnabled: true,
+  masterVolume: 0.82,
+  mobileBoost: true
 };
 
 const SCENE_STATES = {
@@ -169,6 +178,61 @@ const SCENE_STATES = {
   underground: { label: "підземелля", tone: "Приглушений інтерфейс" },
   radio: { label: "радіоперешкоди", tone: "Шум / glitch" }
 };
+
+const AVATAR_LIBRARY = [
+  { id: "dark_respirator", label: "Темний респіратор", url: "assets/avatars/avatar_dark_respirator.jpg" },
+  { id: "glowing_mask", label: "Маска з теплим світлом", url: "assets/avatars/avatar_glowing_mask.jpg" },
+  { id: "lone_stalker", label: "Одинокий сталкер", url: "assets/avatars/avatar_lone_stalker.jpg" },
+  { id: "anomaly_scanner", label: "Сканер аномалій", url: "assets/avatars/avatar_anomaly_scanner.jpg" },
+  { id: "field_medic", label: "Польовий медик", url: "assets/avatars/avatar_field_medic.jpg" },
+  { id: "masked_sniper", label: "Маскований стрілець", url: "assets/avatars/avatar_masked_sniper.jpg" },
+  { id: "heavy_mask", label: "Важкий костюм", url: "assets/avatars/avatar_heavy_mask.jpg" },
+  { id: "hood_goggles", label: "Капюшон і окуляри", url: "assets/avatars/avatar_hood_goggles.jpg" },
+  { id: "urban_gasmask", label: "Міський протигаз", url: "assets/avatars/avatar_urban_gasmask.jpg" },
+  { id: "battle_worn", label: "Після бою", url: "assets/avatars/avatar_battle_worn.jpg" }
+];
+
+const ITEM_TYPE_META = {
+  weapon: { label: "Зброя", icon: "⌖" },
+  ammo: { label: "Набої", icon: "▮" },
+  med: { label: "Ліки", icon: "+" },
+  food: { label: "Їжа", icon: "◒" },
+  consumable: { label: "Розхідник", icon: "◇" },
+  tool: { label: "Інструмент", icon: "⚙" },
+  artifact: { label: "Артефакт", icon: "✦" },
+  trophy: { label: "Трофей", icon: "◈" },
+  document: { label: "Документ", icon: "▤" },
+  key: { label: "Ключове", icon: "◆" },
+  anomalous: { label: "Аномальне", icon: "≈" },
+  junk: { label: "Мотлох", icon: "○" },
+  unique: { label: "Унікальне", icon: "✶" },
+  other: { label: "Інше", icon: "•" },
+  item: { label: "Інше", icon: "•" }
+};
+
+const ITEM_RARITY_META = {
+  common: { label: "звичайний" },
+  useful: { label: "корисний" },
+  valuable: { label: "цінний" },
+  rare: { label: "рідкісний" },
+  anomalous: { label: "аномальний" },
+  unique: { label: "унікальний" },
+  story: { label: "сюжетний" }
+};
+
+const INVENTORY_FILTERS = [
+  { key: "all", label: "Усе" },
+  { key: "weapon", label: "Зброя" },
+  { key: "ammo", label: "Набої" },
+  { key: "med", label: "Ліки" },
+  { key: "food", label: "Їжа" },
+  { key: "consumable", label: "Розхідники" },
+  { key: "trophy", label: "Трофеї" },
+  { key: "artifact", label: "Артефакти" },
+  { key: "document", label: "Документи" },
+  { key: "key", label: "Ключове" },
+  { key: "other", label: "Інше" }
+];
 
 
 // =============================
@@ -189,10 +253,14 @@ const defaultRoomData = {
     fox: {
       id: "fox",
       name: "Лис",
-      avatarEmoji: "🦊",
-      avatarUrl: "",
-      avatarKey: "fox",
-      avatarStyle: "stalker",
+      avatarEmoji: "",
+      avatarId: "dark_respirator",
+      avatarUrl: "assets/avatars/avatar_dark_respirator.jpg",
+      avatarKey: "dark_respirator",
+      avatarStyle: "portrait",
+      avatarStatus: "approved",
+      avatarRequestedAt: "",
+      avatarApprovedBy: "system",
       hp: 8,
       hpMax: 12,
       fatigue: 2,
@@ -1048,33 +1116,77 @@ function rollLoot(type){
   const result = clone(table[Math.floor(Math.random() * table.length)]);
   const pid = targetPlayerId();
   const p = playerById(pid);
-  const inv = inventoryForPlayer(pid);
 
   if(result.item === "Набої"){
     p.ammo = Number(p.ammo || 0) + Number(result.count || 0);
+    addInventoryItemForPlayer(pid, {
+      name: `Набої: ${type}`,
+      item: `Набої: ${type}`,
+      type: "ammo",
+      count: Number(result.count || 0),
+      note: result.note || "",
+      description: "Пакет набоїв, зафіксований КПК під час видачі луту.",
+      source: "loot table",
+      origin: "Лут Майстра",
+      location: currentSceneLocation(),
+      acquiredAt: new Date().toISOString(),
+      acquiredFrom: "Майстер",
+      addedBy: "gm",
+      rarity: "useful"
+    }, Number(result.count || 0));
   } else {
-    const existing = inv.find(i => i.item === result.item && i.note === result.note);
-    if(existing) existing.count = Number(existing.count || 0) + Number(result.count || 1);
-    else inv.push({ item: result.item, count: result.count || 1, note: result.note || "" });
+    addInventoryItemForPlayer(pid, {
+      name: result.item,
+      item: result.item,
+      type: inferInventoryType(result.item, result),
+      count: result.count || 1,
+      note: result.note || "",
+      description: result.note || "Предмет з польової видачі Майстра.",
+      source: "loot table",
+      origin: "Лут Майстра",
+      location: currentSceneLocation(),
+      acquiredAt: new Date().toISOString(),
+      acquiredFrom: "Майстер",
+      addedBy: "gm",
+      rarity: "common"
+    }, result.count || 1);
   }
 
   addLog(`${p.name || pid}: ${result.text}`, "public");
   showToast("Лут додано.");
-  pdaFeedback("loot_received");
+  pdaFeedback("item_received");
   render();
 }
 
-function addInventoryItemForPlayer(playerId, item, count=1, note=""){
+function createInventoryHistoryEntry(text, by="system"){
+  return { time: new Date().toISOString(), text, by };
+}
+
+function addInventoryItemForPlayer(playerId, item, count=1, note="", options={}){
   const inv = inventoryForPlayer(playerId);
-  const cleanItem = String(item || "").trim();
+  const raw = typeof item === "object" && item ? item : { item, name: item, count, note };
+  const cleanItem = String(raw.name || raw.item || "").trim();
   if(!cleanItem) return null;
-  const cleanNote = String(note || "").trim();
-  const existing = inv.find(i => i.item === cleanItem && String(i.note || "") === cleanNote);
-  if(existing){
-    existing.count = Number(existing.count || 0) + Number(count || 1);
-    return existing;
-  }
-  const entry = { item: cleanItem, count: Number(count || 1), note: cleanNote };
+  const cleanNote = String(raw.note ?? note ?? "").trim();
+  const entry = normalizeInventoryItem({
+    ...raw,
+    id: raw.id || makeId("item"),
+    name: cleanItem,
+    item: raw.item || cleanItem,
+    count: Number(raw.count ?? count ?? 1),
+    note: cleanNote,
+    type: inferInventoryType(cleanItem, raw),
+    acquiredAt: raw.acquiredAt || new Date().toISOString(),
+    location: raw.location || currentSceneLocation(),
+    source: raw.source || options.source || "manual",
+    origin: raw.origin || options.origin || "додано до інвентаря",
+    acquiredFrom: raw.acquiredFrom || options.acquiredFrom || "",
+    addedBy: raw.addedBy || options.addedBy || (appSession.role === "gm" ? "gm" : "player"),
+    history: [
+      ...(Array.isArray(raw.history) ? raw.history : []),
+      createInventoryHistoryEntry(options.historyText || `додано: ${cleanItem}`, raw.addedBy || options.addedBy || (appSession.role === "gm" ? "gm" : "player"))
+    ]
+  });
   inv.push(entry);
   return entry;
 }
@@ -1090,13 +1202,28 @@ function transferEnemyAmmoLoot(enemyId, playerId=currentPlayerId()){
     return;
   }
   p.ammo = Number(p.ammo || 0) + ammo;
+  addInventoryItemForPlayer(playerId, {
+    name: `Набої: ${enemy.name}`,
+    item: `Набої: ${enemy.name}`,
+    type: "ammo",
+    count: ammo,
+    description: "Набої, зняті з ворога після сутички.",
+    note: `${ammo} наб. з ${enemy.name}`,
+    source: "enemy ammo",
+    origin: `Набої з ${enemy.name}`,
+    location: currentSceneLocation(),
+    acquiredAt: new Date().toISOString(),
+    acquiredFrom: enemy.name,
+    addedBy: "gm",
+    rarity: "useful"
+  }, ammo, "", { historyText: `передано набої з ${enemy.name}`, addedBy: "gm" });
   enemy.gm.ammo = 0;
   enemy.gm.lootTakenAmmo = true;
   enemy.gm.lootTakenAmmoBy = playerId;
   enemy.gm.lootTakenAmmoAt = new Date().toISOString();
   addLog(`${p.name || playerId} забрав ${ammo} наб. з ${enemy.name}.`, "public");
   showToast(`Передано набої: ${ammo}`);
-  pdaFeedback("loot_received");
+  pdaFeedback("item_received");
   save();
   render();
 }
@@ -1107,13 +1234,27 @@ function transferEnemyLootNote(enemyId, playerId=currentPlayerId()){
   enemy.gm = enemy.gm || {};
   const p = playerById(playerId);
   const lootText = enemy.gm.lootText || "трофеї ворога";
-  addInventoryItemForPlayer(playerId, `Лут: ${enemy.name}`, 1, lootText);
+  addInventoryItemForPlayer(playerId, {
+    name: `Лут: ${enemy.name}`,
+    item: `Лут: ${enemy.name}`,
+    type: "trophy",
+    count: 1,
+    description: lootText,
+    note: lootText,
+    source: "enemy loot",
+    origin: `Лут з ${enemy.name}`,
+    location: currentSceneLocation(),
+    acquiredAt: new Date().toISOString(),
+    acquiredFrom: enemy.name,
+    addedBy: "gm",
+    rarity: "useful"
+  }, 1, lootText, { historyText: `передано лут з ${enemy.name}`, addedBy: "gm" });
   enemy.gm.lootTakenText = true;
   enemy.gm.lootTakenTextBy = playerId;
   enemy.gm.lootTakenTextAt = new Date().toISOString();
   addLog(`${p.name || playerId} отримав лут з ${enemy.name}: ${lootText}.`, "public");
   showToast("Лут передано.");
-  pdaFeedback("loot_received");
+  pdaFeedback("item_received");
   save();
   render();
 }
@@ -1189,13 +1330,16 @@ function clone(obj){
 }
 
 function normalizePdaSettings(settings={}){
+  const volume = settings?.masterVolume ?? DEFAULT_PDA_SETTINGS.masterVolume;
   return {
     ...DEFAULT_PDA_SETTINGS,
     ...(settings || {}),
     soundEnabled: !!(settings?.soundEnabled),
     hapticsEnabled: !!(settings?.hapticsEnabled),
     atmosphereEnabled: settings?.atmosphereEnabled !== false,
-    animationsEnabled: settings?.animationsEnabled !== false
+    animationsEnabled: settings?.animationsEnabled !== false,
+    masterVolume: clamp(Number(volume), 0, 1),
+    mobileBoost: settings?.mobileBoost !== false
   };
 }
 
@@ -1229,10 +1373,25 @@ function currentPdaSettings(){
 
 function ensurePlayerLivingFields(player, playerId=""){
   if(!player) return player;
-  if(player.avatarEmoji === undefined) player.avatarEmoji = playerId === "fox" ? "🦊" : "";
+  if(player.avatarEmoji === undefined) player.avatarEmoji = "";
+  if(player.avatarId === undefined) player.avatarId = player.avatarKey || "";
   if(player.avatarUrl === undefined) player.avatarUrl = "";
   if(player.avatarKey === undefined) player.avatarKey = playerId || player.id || "";
-  if(player.avatarStyle === undefined) player.avatarStyle = "stalker";
+  if(player.avatarStyle === undefined) player.avatarStyle = "portrait";
+  if(player.avatarStatus === undefined) player.avatarStatus = player.avatarUrl ? "approved" : "";
+  if(player.avatarPendingId === undefined) player.avatarPendingId = "";
+  if(player.avatarPendingUrl === undefined) player.avatarPendingUrl = "";
+  if(player.avatarRequestedAt === undefined) player.avatarRequestedAt = "";
+  if(player.avatarApprovedBy === undefined) player.avatarApprovedBy = "";
+  if((playerId === "fox" || player.id === "fox") && !player.avatarUrl && (!player.avatarId || player.avatarKey === "fox")){
+    player.avatarEmoji = "";
+    player.avatarId = "dark_respirator";
+    player.avatarUrl = "assets/avatars/avatar_dark_respirator.jpg";
+    player.avatarKey = "dark_respirator";
+    player.avatarStyle = "portrait";
+    player.avatarStatus = "approved";
+    player.avatarApprovedBy = player.avatarApprovedBy || "system";
+  }
   return player;
 }
 
@@ -1268,14 +1427,17 @@ function playerInitials(player){
 
 function playerAvatarHtml(player, size="large"){
   const p = player || {};
-  const style = String(p.avatarStyle || "stalker").replace(/[^a-z0-9_-]/gi, "") || "stalker";
+  const style = String(p.avatarStyle || "portrait").replace(/[^a-z0-9_-]/gi, "") || "portrait";
   const classes = `player-avatar player-avatar-${escapeAttr(size)} avatar-style-${escapeAttr(style)}`;
   const alt = escapeAttr(p.name || p.id || "Персонаж");
+  const approved = String(p.avatarStatus || "").toLowerCase() === "approved";
+  const pending = String(p.avatarStatus || "").toLowerCase() === "pending";
+  const pendingMeta = pending ? `<small class="avatar-status pending">очікує Майстра</small>` : "";
   if(p.avatarUrl){
-    return `<div class="${classes} has-image"><img src="${escapeAttr(p.avatarUrl)}" alt="${alt}"></div>`;
+    return `<div class="${classes} has-image ${approved ? "approved" : ""} ${pending ? "pending" : ""}"><img src="${escapeAttr(p.avatarUrl)}" alt="${alt}">${pendingMeta}</div>`;
   }
   if(p.avatarEmoji){
-    return `<div class="${classes} has-emoji" aria-label="${alt}"><span>${escapeHtml(p.avatarEmoji)}</span></div>`;
+    return `<div class="${classes} has-emoji" aria-label="${alt}"><span>${escapeHtml(p.avatarEmoji)}</span>${pendingMeta}</div>`;
   }
   const initials = playerInitials(p);
   if(initials){
@@ -1294,8 +1456,121 @@ function playerStatusText(player){
   return "зв'язок стабільний";
 }
 
+function avatarById(avatarId){
+  return AVATAR_LIBRARY.find(a => a.id === avatarId) || null;
+}
+
+function requestPlayerAvatar(avatarId){
+  if(appSession.role === "gm") return;
+  const avatar = avatarById(avatarId);
+  if(!avatar) return;
+  const p = currentPlayer();
+  p.avatarPendingId = avatar.id;
+  p.avatarPendingUrl = avatar.url;
+  p.avatarStatus = "pending";
+  p.avatarRequestedAt = new Date().toISOString();
+  addLog(`${p.name || currentPlayerId()} просить підтвердити новий аватар: ${avatar.label}.`, "gm");
+  avatarPickerOpen = false;
+  showToast("Аватар відправлено Майстру на підтвердження.");
+  render();
+}
+
+function approvePlayerAvatar(playerId, approved=true){
+  if(appSession.role !== "gm") return;
+  const p = data.players?.[playerId];
+  if(!p) return;
+  ensurePlayerLivingFields(p, playerId);
+  if(approved && p.avatarPendingId){
+    const avatar = avatarById(p.avatarPendingId);
+    p.avatarId = p.avatarPendingId;
+    p.avatarKey = p.avatarPendingId;
+    p.avatarUrl = p.avatarPendingUrl || avatar?.url || p.avatarUrl || "";
+    p.avatarEmoji = "";
+    p.avatarStyle = "portrait";
+    p.avatarStatus = "approved";
+    p.avatarApprovedBy = "gm";
+    p.avatarPendingId = "";
+    p.avatarPendingUrl = "";
+    addLog(`Майстер підтвердив аватар для ${p.name || playerId}.`, "gm");
+    showToast("Аватар підтверджено.");
+  } else {
+    p.avatarStatus = "rejected";
+    p.avatarPendingId = "";
+    p.avatarPendingUrl = "";
+    addLog(`Майстер відхилив аватар для ${p.name || playerId}.`, "gm");
+    showToast("Аватар відхилено.");
+  }
+  render();
+}
+
+function avatarPickerHtml(){
+  const p = currentPlayer();
+  ensurePlayerLivingFields(p, currentPlayerId());
+  if(appSession.role === "gm"){
+    const pending = Object.entries(data.players || {}).filter(([,player]) => {
+      ensurePlayerLivingFields(player);
+      return player.avatarStatus === "pending" && player.avatarPendingId;
+    });
+    if(!pending.length && !avatarPickerOpen) return "";
+    return `<div class="avatar-picker-card gm-avatar-approvals">
+      <div class="avatar-picker-head"><strong>Аватари на підтвердження</strong><button class="metal-btn mini" id="closeAvatarPicker" type="button">Закрити</button></div>
+      ${pending.length ? pending.map(([pid, player]) => {
+        const avatar = avatarById(player.avatarPendingId);
+        return `<div class="avatar-approval-row">
+          <div class="avatar-approval-preview">${playerAvatarHtml({ ...player, avatarUrl: player.avatarPendingUrl || avatar?.url, avatarStatus: "pending" }, "small")}</div>
+          <div><strong>${escapeHtml(player.name || pid)}</strong><small>${escapeHtml(avatar?.label || player.avatarPendingId)}</small></div>
+          <button class="metal-btn mini" data-approve-avatar="${escapeAttr(pid)}">Підтвердити</button>
+          <button class="metal-btn mini danger" data-reject-avatar="${escapeAttr(pid)}">Відхилити</button>
+        </div>`;
+      }).join("") : `<p class="muted-text">Немає запитів на аватар.</p>`}
+    </div>`;
+  }
+
+  if(!avatarPickerOpen) return "";
+  return `<div class="avatar-picker-card">
+    <div class="avatar-picker-head"><strong>Обрати аватар КПК</strong><button class="metal-btn mini" id="closeAvatarPicker" type="button">Закрити</button></div>
+    <p class="muted-text">Вибір піде Майстру на підтвердження. До підтвердження активний аватар не зміниться.</p>
+    <div class="avatar-grid">
+      ${AVATAR_LIBRARY.map(avatar => {
+        const active = p.avatarId === avatar.id || p.avatarKey === avatar.id;
+        const pending = p.avatarPendingId === avatar.id && p.avatarStatus === "pending";
+        return `<button type="button" class="avatar-choice ${active ? "active" : ""} ${pending ? "pending" : ""}" data-request-avatar="${escapeAttr(avatar.id)}">
+          <img src="${escapeAttr(avatar.url)}" alt="${escapeAttr(avatar.label)}">
+          <span>${escapeHtml(avatar.label)}</span>
+          ${pending ? `<small>очікує</small>` : ""}
+        </button>`;
+      }).join("")}
+    </div>
+  </div>`;
+}
+
+function renderAvatarPickerPanel(){
+  const panel = qs("#avatarPickerPanel");
+  if(!panel) return;
+  const html = avatarPickerHtml();
+  panel.innerHTML = html;
+  panel.hidden = !html;
+}
+
 function canUsePdaAudio(){
   return typeof window !== "undefined" && !!(window.AudioContext || window.webkitAudioContext);
+}
+
+function pdaAudioStatus(){
+  if(!canUsePdaAudio()) return "unavailable";
+  if(!pdaAudioContext) return "suspended";
+  return pdaAudioContext.state || (pdaAudioReady ? "running" : "suspended");
+}
+
+function isMobileAudioTarget(){
+  if(typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|Mobile|Telegram/i.test(navigator.userAgent || "");
+}
+
+function effectivePdaGain(){
+  const settings = currentPdaSettings();
+  const boost = settings.mobileBoost && isMobileAudioTarget() ? 1.45 : (settings.mobileBoost ? 1.18 : 1);
+  return Math.min(0.72, Math.max(0, Number(settings.masterVolume || 0) * boost));
 }
 
 function schedulePdaTone(ctx, at, freq, duration, gainValue, type="sine", detune=0){
@@ -1313,27 +1588,68 @@ function schedulePdaTone(ctx, at, freq, duration, gainValue, type="sine", detune
   osc.stop(at + duration + 0.035);
 }
 
+function schedulePdaNoise(ctx, at, duration, gainValue, filterFreq=950){
+  const length = Math.max(1, Math.floor(ctx.sampleRate * duration));
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const channel = buffer.getChannelData(0);
+  for(let i=0;i<length;i++){
+    channel[i] = (Math.random() * 2 - 1) * (1 - i / length);
+  }
+  const source = ctx.createBufferSource();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+  filter.type = "bandpass";
+  filter.frequency.setValueAtTime(filterFreq, at);
+  filter.Q.setValueAtTime(0.9, at);
+  gain.gain.setValueAtTime(0.0001, at);
+  gain.gain.linearRampToValueAtTime(Math.max(0.0002, gainValue), at + 0.018);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+  source.buffer = buffer;
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+  source.start(at);
+  source.stop(at + duration + 0.04);
+}
+
 function playPdaSound(eventName){
   if(!pdaAudioReady || !pdaAudioContext) return false;
   try{
     const ctx = pdaAudioContext;
     const t = ctx.currentTime + 0.015;
+    const master = effectivePdaGain();
+    const make = (tones, noise=null) => ({ tones, noise });
     const sounds = {
-      module_ready: [[110,.18,.055,"sine",0],[262,.16,.035,"triangle",4],[392,.22,.026,"sine",-3],[196,.28,.018,"sine",0]],
-      tap_soft: [[880,.045,.012,"triangle",0],[1760,.025,.005,"sine",-5]],
-      panel_open: [[220,.07,.022,"sine",0],[330,.08,.018,"triangle",0],[440,.09,.014,"sine",0]],
-      panel_close: [[440,.06,.016,"sine",0],[330,.08,.014,"triangle",0],[180,.10,.012,"sine",0]],
-      loot_received: [[196,.08,.028,"sine",0],[330,.10,.024,"triangle",0],[523,.16,.018,"sine",0]],
-      private_message: [[520,.05,.018,"triangle",12],[680,.07,.014,"sine",-8],[410,.16,.014,"sine",0]],
-      combat_hit: [[92,.08,.035,"sine",0],[184,.08,.018,"triangle",-6]],
-      combat_miss: [[360,.05,.016,"triangle",0],[260,.09,.012,"sine",-12]],
-      low_hp_warning: [[96,.12,.040,"sine",0],[96,.12,.034,"sine",0]],
-      anomaly_near: [[240,.18,.018,"sawtooth",-18],[247,.18,.012,"triangle",22],[121,.20,.012,"sine",0]],
-      scene_alert: [[140,.10,.040,"sine",0],[210,.11,.026,"triangle",0],[280,.14,.018,"sine",0]]
+      module_ready: make([[96,.24,.34,"sine",0],[192,.20,.17,"triangle",-3],[286,.18,.12,"sine",4],[214,.34,.09,"sine",0]], [.42,.045,760]),
+      tap_soft: make([[420,.075,.13,"triangle",0],[210,.09,.07,"sine",0]], [.055,.018,1200]),
+      panel_open: make([[160,.11,.18,"sine",0],[246,.13,.13,"triangle",2],[338,.15,.10,"sine",0]], [.10,.022,820]),
+      panel_close: make([[338,.09,.12,"sine",0],[246,.12,.10,"triangle",-2],[144,.16,.11,"sine",0]], [.09,.018,720]),
+      loot_received: make([[132,.12,.21,"sine",0],[226,.16,.15,"triangle",0],[348,.22,.11,"sine",2]], [.13,.018,900]),
+      item_received: make([[118,.10,.22,"sine",0],[196,.14,.16,"triangle",0],[318,.20,.12,"sine",3]], [.13,.02,880]),
+      item_open: make([[104,.08,.19,"sine",0],[172,.10,.12,"square",-8],[258,.18,.10,"triangle",0]], [.08,.026,620]),
+      item_marked_important: make([[130,.10,.18,"sine",0],[260,.12,.13,"triangle",0],[390,.16,.10,"sine",-4]], [.09,.018,880]),
+      inventory_filter: make([[180,.065,.12,"triangle",0],[240,.08,.08,"sine",0]], [.055,.014,780]),
+      private_message: make([[310,.09,.16,"triangle",9],[430,.12,.12,"sine",-6],[205,.22,.10,"sine",0]], [.16,.025,1050]),
+      combat_hit: make([[74,.12,.30,"sine",0],[148,.12,.15,"triangle",-6],[226,.09,.08,"sine",0]], [.075,.028,560]),
+      combat_miss: make([[286,.085,.12,"triangle",0],[214,.12,.10,"sine",-10],[154,.12,.07,"sine",0]], [.07,.018,700]),
+      low_hp_warning: make([[84,.16,.32,"sine",0],[84,.16,.30,"sine",0]], [.12,.02,520]),
+      anomaly_near: make([[178,.24,.16,"sawtooth",-16],[184,.24,.12,"triangle",18],[92,.28,.10,"sine",0]], [.28,.034,980]),
+      scene_alert: make([[112,.12,.28,"sine",0],[178,.14,.18,"triangle",0],[244,.18,.12,"sine",0]], [.16,.026,740]),
+      tab_state: make([[112,.12,.20,"sine",0],[224,.16,.12,"triangle",0]], [.08,.016,720]),
+      tab_environment: make([[128,.12,.17,"sine",0],[256,.20,.10,"triangle",-8]], [.22,.032,1000]),
+      tab_inventory: make([[92,.08,.23,"sine",0],[148,.09,.16,"square",-12],[246,.18,.12,"triangle",0],[330,.16,.08,"sine",0]], [.12,.028,680]),
+      tab_journal: make([[168,.07,.12,"triangle",0],[214,.09,.10,"sine",0],[268,.11,.08,"triangle",0]], [.16,.022,1120]),
+      tab_enemies: make([[106,.09,.22,"sine",0],[212,.10,.14,"triangle",0],[318,.10,.08,"sine",-4]], [.09,.02,760]),
+      tab_master: make([[86,.13,.26,"sine",0],[172,.15,.15,"triangle",0],[258,.18,.10,"sine",0]], [.08,.018,640])
     };
-    (sounds[eventName] || sounds.tap_soft).forEach((tone, index) => {
-      schedulePdaTone(ctx, t + index * 0.085, tone[0], tone[1], tone[2], tone[3], tone[4]);
+    const patch = sounds[eventName] || sounds.tap_soft;
+    (patch.tones || []).forEach((tone, index) => {
+      const gain = Math.min(0.24, tone[2] * master);
+      schedulePdaTone(ctx, t + index * 0.092, tone[0], tone[1], gain, tone[3], tone[4]);
     });
+    if(patch.noise){
+      schedulePdaNoise(ctx, t + 0.01, patch.noise[0], Math.min(0.08, patch.noise[1] * master), patch.noise[2]);
+    }
     return true;
   }catch(err){
     console.warn("PDA sound failed", err);
@@ -1345,11 +1661,18 @@ function pdaHaptic(eventName){
   if(typeof navigator === "undefined" || !navigator.vibrate) return false;
   const patterns = {
     loot_received: [18],
+    item_received: [18],
+    item_open: [8],
+    item_marked_important: [10, 20, 10],
+    inventory_filter: [6],
     private_message: [22],
     low_hp_warning: [26, 36, 26],
     combat_hit: [16],
     anomaly_near: [12, 26, 18, 42, 12],
-    scene_alert: [24, 30, 24]
+    scene_alert: [24, 30, 24],
+    tab_inventory: [8],
+    tab_enemies: [8],
+    tab_master: [10]
   };
   const pattern = patterns[eventName] || [10];
   try{ return navigator.vibrate(pattern); }catch(err){ return false; }
@@ -1392,6 +1715,12 @@ async function enablePdaAudio(){
 
 function setPdaSetting(field, value){
   data.pdaSettings = normalizePdaSettings({ ...data.pdaSettings, [field]: !!value });
+  saveLocalPdaSettings(data.pdaSettings);
+  render();
+}
+
+function setPdaVolume(value){
+  data.pdaSettings = normalizePdaSettings({ ...data.pdaSettings, masterVolume: clamp(Number(value) / 100, 0, 1) });
   saveLocalPdaSettings(data.pdaSettings);
   render();
 }
@@ -1695,11 +2024,31 @@ function inventoryForPlayer(playerId){
   return p.inventory;
 }
 
+function activeInventoryPlayerId(){
+  if(appSession.role === "gm"){
+    if(inventoryGmPlayerId && data.players?.[inventoryGmPlayerId]) return inventoryGmPlayerId;
+    const current = currentPlayerId();
+    inventoryGmPlayerId = data.players?.[current] ? current : (Object.keys(data.players || {})[0] || current);
+    return inventoryGmPlayerId;
+  }
+  return currentPlayerId();
+}
+
 function currentPlayer(){
   if(!data.players[currentPlayerId()]){
     data.players[currentPlayerId()] = {
       id: currentPlayerId(),
       name: currentPlayerId(),
+      avatarEmoji: "",
+      avatarId: "",
+      avatarUrl: "",
+      avatarKey: currentPlayerId(),
+      avatarStyle: "portrait",
+      avatarStatus: "",
+      avatarPendingId: "",
+      avatarPendingUrl: "",
+      avatarRequestedAt: "",
+      avatarApprovedBy: "",
       hp: 10,
       hpMax: 10,
       fatigue: 0,
@@ -1720,6 +2069,14 @@ function currentInventory(){
   return inventoryForPlayer(currentPlayerId());
 }
 
+function activeInventory(){
+  return inventoryForPlayer(activeInventoryPlayerId());
+}
+
+function currentSceneLocation(){
+  return normalizeSceneFields(data.scene || {}).name || "невідома локація";
+}
+
 
 function activeScreenName(){
   return qs(".nav-btn.active")?.dataset?.target || qs(".screen.active")?.dataset?.screen || "state";
@@ -1728,6 +2085,7 @@ function activeScreenName(){
 function enforceScreenIsolation(){
   let target = activeScreenName();
   if(target === "master" && appSession.role !== "gm") target = "state";
+  if(target === "enemies" && appSession.role !== "gm") target = "state";
 
   qsa(".screen").forEach(s => {
     const isActive = s.dataset.screen === target;
@@ -1753,6 +2111,17 @@ function enforcePlayerAccessGuards(){
     }
   });
 
+  document.querySelectorAll(".player-only").forEach(el => {
+    if(isGm){
+      el.hidden = true;
+      el.style.display = "none";
+      el.classList.remove("active");
+    } else {
+      el.hidden = false;
+      el.style.removeProperty("display");
+    }
+  });
+
   if(!isGm){
     const masterScreen = document.querySelector('[data-screen="master"]');
     if(masterScreen){
@@ -1768,8 +2137,24 @@ function enforcePlayerAccessGuards(){
       masterBtn.style.display = "none";
     }
 
+    const enemiesScreen = document.querySelector('[data-screen="enemies"]');
+    if(enemiesScreen){
+      enemiesScreen.hidden = true;
+      enemiesScreen.classList.remove("active");
+      enemiesScreen.style.display = "none";
+    }
+
+    const enemiesBtn = document.querySelector('.nav-btn[data-target="enemies"]');
+    if(enemiesBtn){
+      enemiesBtn.hidden = true;
+      enemiesBtn.classList.remove("active");
+      enemiesBtn.style.display = "none";
+    }
+
     const activeMasterScreen = document.querySelector('.screen.active[data-screen="master"]');
     if(activeMasterScreen) switchScreen("state");
+    const activeEnemiesScreen = document.querySelector('.screen.active[data-screen="enemies"]');
+    if(activeEnemiesScreen) switchScreen("state");
   }
 }
 
@@ -2875,6 +3260,34 @@ function combatPanelActionLabel(){
   return "Далі";
 }
 
+function renderGmCommandDock(){
+  const dock = qs("#gmCommandDock");
+  if(!dock) return;
+  if(appSession.role !== "gm"){
+    dock.hidden = true;
+    dock.innerHTML = "";
+    return;
+  }
+  dock.hidden = false;
+  const open = !!gmCommandDockOpen;
+  dock.classList.toggle("collapsed", !open);
+  dock.innerHTML = `
+    <div class="gm-command-dock-head">
+      <button class="metal-btn mini" type="button" data-toggle-gm-command-dock>${open ? "Сховати команди" : "Команди Майстра"}</button>
+      <span>V19.33 · швидкий доступ</span>
+    </div>
+    ${open ? `<div class="gm-command-grid">
+      <button class="metal-btn mini" type="button" data-gm-dock-open="inventory">Інвентар</button>
+      <button class="metal-btn mini" type="button" data-gm-dock-open="enemies">Вороги</button>
+      <button class="metal-btn mini" type="button" data-gm-dock-open="environment">Сцени</button>
+      <button class="metal-btn mini" type="button" data-gm-dock-open="master">Audit</button>
+      <button class="metal-btn mini disabled" type="button" disabled>Квести</button>
+      <button class="metal-btn mini disabled" type="button" disabled>Аномалії</button>
+      <button class="metal-btn mini disabled" type="button" disabled>Артефакти</button>
+    </div>` : ""}
+  `;
+}
+
 function renderGmCombatStickyBar(){
   const bar = ensureGmCombatFixedBar();
   if(!bar) return;
@@ -2898,8 +3311,18 @@ function renderGmCombatStickyBar(){
   const targetInfo = target ? combatantMiniInfo(target) : "";
 
   bar.hidden = false;
+  if(gmCombatDockCollapsed){
+    bar.classList.add("collapsed");
+    bar.innerHTML = `<button class="gm-combat-collapsed-btn ${combat.active ? "active" : ""}" type="button" data-toggle-combat-dock>
+      <span>Бій</span>
+      <strong>${combat.active ? `Раунд ${escapeHtml(String(round))}` : "панель згорнута"}</strong>
+    </button>`;
+    return;
+  }
+  bar.classList.remove("collapsed");
   bar.innerHTML = `
     <div class="gm-dock-main two-row v19-12">
+      <button class="gm-dock-collapse" type="button" data-toggle-combat-dock title="Згорнути бойову панель">×</button>
       <button class="gm-dock-next" id="gmStickyNextTurn" type="button" title="${combat.active ? "Наступний хід" : "Почати бій"}">
         <span class="gm-dock-next-icon">▶</span>
         <span class="gm-dock-next-text">${combatPanelActionLabel()}</span>
@@ -4121,8 +4544,10 @@ function runStabilityButtonMenuAudit(){
   const openQuickPanels = qsa(".quick-panel.open").filter(panel => !panel.hidden);
   results.push(openQuickPanels.length <= 1 ? auditPass("Button/Menu: quick-panel conflict check", `${openQuickPanels.length} panel open`) : auditFail("Button/Menu: multiple quick-panels open", openQuickPanels.map(panel => panel.id || "no-id").join(", ")));
 
-  const docOverflow = document.documentElement.scrollWidth <= window.innerWidth + 1;
-  results.push(docOverflow ? auditPass("Responsive: document has no horizontal overflow", `${document.documentElement.scrollWidth}/${window.innerWidth}`) : auditFail("Responsive: document horizontal overflow", `${document.documentElement.scrollWidth}/${window.innerWidth}`));
+  const responsiveWidth = Math.max(document.documentElement.scrollWidth || 0, document.body?.scrollWidth || 0);
+  const responsiveClient = document.documentElement.clientWidth || window.innerWidth || responsiveWidth;
+  const docOverflow = responsiveWidth <= responsiveClient + 1;
+  results.push(docOverflow ? auditPass("Responsive: document/body has no horizontal overflow", `${responsiveWidth}/${responsiveClient}`) : auditFail("Responsive: document/body horizontal overflow", `${responsiveWidth}/${responsiveClient}`));
 
   const quickContainers = qsa(".quick-actions");
   if(quickContainers.length){
@@ -4407,6 +4832,12 @@ function runStabilityLivingPdaAudit(){
 
   results.push(typeof pdaFeedback === "function" ? auditPass("Living PDA: pdaFeedback helper exists") : auditFail("Living PDA: pdaFeedback helper missing"));
   results.push(typeof enablePdaAudio === "function" && qs("#enablePdaAudio") ? auditPass("Living PDA: manual audio enable exists") : auditWarn("Living PDA: manual audio enable not visible in current DOM"));
+  results.push(qs("[data-pda-volume]") ? auditPass("Sonic: master volume control exists", `${Math.round(settings.masterVolume * 100)}%`) : auditWarn("Sonic: master volume control not visible"));
+  results.push(typeof settings.mobileBoost === "boolean" ? auditPass("Sonic: mobile boost setting exists", String(settings.mobileBoost)) : auditWarn("Sonic: mobile boost setting missing"));
+  results.push(["running","suspended","unavailable"].includes(pdaAudioStatus()) ? auditPass("Sonic: AudioContext status visible", pdaAudioStatus()) : auditWarn("Sonic: AudioContext status unknown", pdaAudioStatus()));
+  ["tab_state","tab_environment","tab_inventory","tab_journal","tab_enemies","tab_master","item_open","item_received","item_marked_important","inventory_filter"].forEach(eventName => {
+    results.push(typeof pdaFeedback === "function" ? auditPass(`Sonic: feedback hook ${eventName}`) : auditFail(`Sonic: feedback hook ${eventName} missing`));
+  });
   results.push(canUsePdaAudio() || typeof window === "undefined" ? auditPass("Living PDA: Web Audio API available or safely optional") : auditPass("Living PDA: Web Audio fallback active", "AudioContext unavailable, app should stay usable."));
   results.push(!settings.soundEnabled || pdaAudioReady || !canUsePdaAudio() ? auditPass("Living PDA: sound respects user gesture/fallback") : auditPass("Living PDA: sound waits for user gesture", "Sound preference is on, but AudioContext correctly stays locked until the user presses the PDA sound button."));
   results.push(typeof navigator === "undefined" || navigator.vibrate || !settings.hapticsEnabled ? auditPass("Living PDA: haptic fallback safe") : auditWarn("Living PDA: vibration enabled but API unavailable"));
@@ -4421,6 +4852,60 @@ function runStabilityLivingPdaAudit(){
   return results;
 }
 
+function runStabilityInventoryAudit(){
+  const results = [];
+  const isGm = appSession.role === "gm";
+  const navInventory = qs('.nav-btn[data-target="inventory"]');
+  const navEnemies = qs('.nav-btn[data-target="enemies"]');
+  results.push(qs('[data-screen="inventory"]') ? auditPass("Inventory: screen exists") : auditFail("Inventory: screen missing"));
+  if(isGm){
+    results.push(navEnemies ? auditPass("Role navigation: GM keeps Enemies tab") : auditFail("Role navigation: GM Enemies tab missing"));
+    results.push(qs("#gmCommandDock") ? auditPass("Role navigation: GM Command Dock exists") : auditWarn("Role navigation: GM Command Dock missing"));
+  } else {
+    results.push(navInventory && isElementEffectivelyVisible(navInventory) ? auditPass("Role navigation: player has Inventory tab") : auditFail("Role navigation: player Inventory tab not visible"));
+    results.push(!navEnemies || !isElementEffectivelyVisible(navEnemies) ? auditPass("Role navigation: player Enemies tab hidden") : auditFail("Role navigation: player still sees Enemies tab"));
+  }
+
+  results.push(qs("#inventoryControls") ? auditPass("Inventory UI: controls exist") : auditFail("Inventory UI: controls missing"));
+  results.push(qs(".inventory-filter-row") ? auditPass("Inventory UI: filters exist") : auditWarn("Inventory UI: filters not rendered"));
+  results.push(qs("#inventoryDetail") ? auditPass("Inventory UI: detail panel exists") : auditFail("Inventory UI: detail panel missing"));
+
+  Object.entries(data.players || {}).forEach(([pid, player]) => {
+    const inv = Array.isArray(player.inventory) ? player.inventory : [];
+    inv.forEach((raw, index) => {
+      const item = normalizeInventoryItem(raw);
+      const missing = [];
+      if(!item.id) missing.push("id");
+      if(!item.name && !item.item) missing.push("name/item");
+      if(!Number.isFinite(Number(item.count))) missing.push("count number");
+      if(!item.type) missing.push("type");
+      if(!Array.isArray(item.history)) missing.push("history");
+      if(!item.acquiredAt) missing.push("acquiredAt");
+      results.push(!missing.length ? auditPass(`Inventory schema: ${pid}[${index}]`, item.name || item.item) : auditWarn(`Inventory schema: ${pid}[${index}] fallback needed`, missing.join(", ")));
+    });
+  });
+
+  const inventoryText = qs('[data-screen="inventory"]')?.innerText || "";
+  if(!isGm){
+    const leaks = Object.values(data.players || {}).some(player => (player.inventory || []).some(raw => {
+      const item = normalizeInventoryItem(raw);
+      return item.gmOnlyNote && inventoryText.includes(item.gmOnlyNote);
+    }));
+    results.push(!leaks ? auditPass("Inventory privacy: player cannot see gmOnlyNote") : auditFail("Inventory privacy: player sees gmOnlyNote"));
+  } else {
+    results.push(qs("#inventoryGmPlayer") || Object.keys(data.players || {}).length <= 1 ? auditPass("Inventory GM: player selector available") : auditWarn("Inventory GM: player selector not visible"));
+  }
+
+  const responsiveWidth = Math.max(document.documentElement.scrollWidth || 0, document.body?.scrollWidth || 0);
+  const responsiveClient = document.documentElement.clientWidth || window.innerWidth || responsiveWidth;
+  const docOverflow = responsiveWidth <= responsiveClient + 2;
+  results.push(docOverflow ? auditPass("Responsive: no document/body horizontal overflow", `${responsiveWidth}/${responsiveClient}`) : auditFail("Responsive: document/body horizontal overflow", `${responsiveWidth}/${responsiveClient}`));
+  const inventoryContainers = qsa(".inventory-filter-row, .living-inventory-list, .inventory-detail-panel, .gm-command-dock, .gm-combat-sticky");
+  const overflowed = inventoryContainers.filter(el => el.scrollWidth > el.clientWidth + 2 && window.getComputedStyle(el).overflowX !== "auto");
+  results.push(!overflowed.length ? auditPass("Responsive: inventory/dock containers fit width") : auditWarn("Responsive: possible inventory/dock overflow", `${overflowed.length} containers`));
+  return results;
+}
+
 function runStabilityAudit(){
   const results = [
     ...runStabilityButtonMenuAudit(),
@@ -4428,6 +4913,7 @@ function runStabilityAudit(){
     ...runStabilityDataSchemaAudit(),
     ...runStabilityEnemyControlAudit(),
     ...runStabilityLivingPdaAudit(),
+    ...runStabilityInventoryAudit(),
     ...runStabilityCombatRulesLockAudit()
   ];
   return {
@@ -5093,19 +5579,30 @@ function renderPdaSettingsPanel(){
   const box = qs("#pdaSettingsPanel");
   if(!box) return;
   const settings = currentPdaSettings();
-  const audioState = pdaAudioReady ? "звук готовий" : (canUsePdaAudio() ? "потрібне ручне увімкнення" : "звук недоступний");
+  const status = pdaAudioStatus();
+  const audioState = status === "running" ? "active" : (status === "suspended" ? "suspended" : status);
+  const volume = Math.round(Number(settings.masterVolume || 0) * 100);
+  const soundEvents = ["module_ready","tab_state","tab_environment","tab_inventory","tab_journal","combat_hit","combat_miss","item_received","private_message"];
   box.innerHTML = `
     <div class="pda-settings-head">
       <strong>КПК</strong>
-      <span>${escapeHtml(audioState)}</span>
+      <span>AudioContext: ${escapeHtml(audioState)}</span>
     </div>
     <div class="pda-settings-grid">
-      <button class="metal-btn mini" id="enablePdaAudio" type="button">Увімкнути звук КПК</button>
+      <button class="metal-btn mini" id="enablePdaAudio" type="button">${status === "suspended" ? "Активувати звук КПК" : "Увімкнути звук КПК"}</button>
       <label class="pda-toggle"><input type="checkbox" data-pda-setting="soundEnabled" ${settings.soundEnabled ? "checked" : ""}> Звуки</label>
       <label class="pda-toggle"><input type="checkbox" data-pda-setting="hapticsEnabled" ${settings.hapticsEnabled ? "checked" : ""}> Вібрація</label>
+      <label class="pda-toggle"><input type="checkbox" data-pda-setting="mobileBoost" ${settings.mobileBoost ? "checked" : ""}> Mobile boost</label>
       <label class="pda-toggle"><input type="checkbox" data-pda-setting="atmosphereEnabled" ${settings.atmosphereEnabled ? "checked" : ""}> Атмосфера КПК</label>
       <label class="pda-toggle"><input type="checkbox" data-pda-setting="animationsEnabled" ${settings.animationsEnabled ? "checked" : ""}> Анімації</label>
-    </div>`;
+      <label class="pda-volume">Гучність <strong>${volume}%</strong><input type="range" min="0" max="100" step="1" data-pda-volume value="${escapeAttr(String(volume))}"></label>
+    </div>
+    <details class="pda-sound-test">
+      <summary>Тест звуку КПК</summary>
+      <div class="pda-sound-grid">
+        ${soundEvents.map(name => `<button class="metal-btn mini" type="button" data-sound-test="${escapeAttr(name)}">${escapeHtml(name)}</button>`).join("")}
+      </div>
+    </details>`;
 }
 
 function listItemsHtml(items){
@@ -5196,7 +5693,7 @@ function render(){
   safeSetText("#armorNow", p.armor ?? 0);
   safeSetText("#activeWeaponNow", activeWeaponLabel(p));
   safeSetText("#profileStatusNow", playerStatusText(p));
-  safeSetHTML("#playerAvatarFrame", playerAvatarHtml(p, "large"));
+  safeSetHTML("#playerAvatarFrame", `<button type="button" class="avatar-profile-button" data-open-avatar-picker title="Обрати аватар">${playerAvatarHtml(p, "large")}<span class="avatar-edit-hint">${appSession.role === "gm" ? "заявки" : "обрати"}</span></button>`);
   qs("#hpDots").innerHTML = dots(p.hp, p.hpMax);
   qs("#fatigueDots").innerHTML = dots(p.fatigue, 6, "fatigue");
   qs("#radDots").innerHTML = dots(p.infection ?? p.radiation ?? 0, 7, "rad");
@@ -5204,6 +5701,7 @@ function render(){
   renderCharacterDetails(p);
   renderProfileGmQuickEdit(p);
   renderPdaSettingsPanel();
+  renderAvatarPickerPanel();
   maybeLowHpFeedback(p);
 
   const s = normalizeSceneFields(data.scene || {});
@@ -5218,7 +5716,7 @@ function render(){
   const enemiesForEnemyTab = appSession.role === "gm" ? (data.enemies || []) : visible;
   renderEnemyTemplateDock();
   safeSetHTML("#enemyCards", enemiesForEnemyTab.map(enemyCard).join(""));
-  qs("#inventoryList").innerHTML = currentInventory().map((item, idx) => invItem(item, idx)).join("");
+  renderInventoryScreen();
   const inlineInv = qs("#inventoryInlineList");
   if(inlineInv) inlineInv.innerHTML = currentInventory().map((item, idx) => invItem(item, idx)).join("");
   renderTargetSelector();
@@ -5230,6 +5728,7 @@ function render(){
   qsa("[data-journal-filter]").forEach(btn => btn.classList.toggle("active-filter", btn.dataset.journalFilter === journalFilter));
 
   renderCombatSummary();
+  renderGmCommandDock();
   renderGmCombatStickyBar();
   renderGmCombatPanel();
   fillMaster();
@@ -5536,6 +6035,256 @@ function invItem(i, idx){
     : "";
   const action = isWeapon && !active ? `<button class="metal-btn mini" data-set-active-weapon="${escapeAttr(item.id)}">Зробити активною</button>` : "";
   return `<div class="inventory-item ${active ? "active-weapon-item" : ""}"><div><h4>${escapeHtml(item.name || item.item)}</h4><p>${escapeHtml(item.note || "")}</p>${weaponLine}</div><div class="inventory-count">${escapeHtml(String(item.count ?? 1))}</div>${action}</div>`;
+}
+
+function itemTypeMeta(type){
+  return ITEM_TYPE_META[type] || ITEM_TYPE_META.other;
+}
+
+function itemRarityMeta(rarity){
+  return ITEM_RARITY_META[rarity] || ITEM_RARITY_META.common;
+}
+
+function itemMatchesInventoryFilter(item){
+  if(inventoryFilter === "all") return true;
+  if(inventoryFilter === "other") return !INVENTORY_FILTERS.some(f => f.key === item.type && f.key !== "other" && f.key !== "all");
+  return item.type === inventoryFilter;
+}
+
+function itemMatchesInventorySearch(item){
+  const q = String(inventorySearch || "").trim().toLowerCase();
+  if(!q) return true;
+  const haystack = [
+    item.name,
+    item.item,
+    item.description,
+    item.note,
+    item.origin,
+    item.source,
+    item.location,
+    item.acquiredFrom,
+    ...(Array.isArray(item.tags) ? item.tags : [])
+  ].join(" ").toLowerCase();
+  return haystack.includes(q);
+}
+
+function inventoryItemsForDisplay(){
+  const inv = activeInventory().map(normalizeInventoryItem);
+  return inv
+    .filter(item => itemMatchesInventoryFilter(item) && itemMatchesInventorySearch(item))
+    .sort((a,b) => String(b.acquiredAt || "").localeCompare(String(a.acquiredAt || "")));
+}
+
+function inventoryPlayerOptions(){
+  return Object.entries(data.players || {}).map(([pid, player]) => {
+    const selected = activeInventoryPlayerId() === pid ? "selected" : "";
+    return `<option value="${escapeAttr(pid)}" ${selected}>${escapeHtml(player.name || pid)}</option>`;
+  }).join("");
+}
+
+function inventoryFilterChips(){
+  return `<div class="inventory-filter-row" role="list">${INVENTORY_FILTERS.map(filter => {
+    const active = inventoryFilter === filter.key ? "active" : "";
+    return `<button type="button" class="inventory-chip ${active}" data-inventory-filter="${escapeAttr(filter.key)}">${escapeHtml(filter.label)}</button>`;
+  }).join("")}</div>`;
+}
+
+function inventoryHeroHtml(player){
+  const count = activeInventory().length;
+  const owner = player?.name || activeInventoryPlayerId();
+  const gmLine = appSession.role === "gm" ? `Майстер переглядає інвентар: ${owner}` : "Особиста пам'ять походів, знахідок і трофеїв.";
+  return `<article class="inventory-hero-card">
+    <div>
+      <span class="inventory-kicker">Польовий КПК · Сховище</span>
+      <h4>${appSession.role === "gm" ? "Інвентар гравця" : "Інвентар"}</h4>
+      <p>${escapeHtml(gmLine)}</p>
+    </div>
+    <div class="inventory-hero-count"><strong>${count}</strong><span>предм.</span></div>
+  </article>`;
+}
+
+function inventoryControlsHtml(){
+  const search = escapeAttr(inventorySearch || "");
+  const gmSelect = appSession.role === "gm" ? `<label class="inventory-gm-player">Гравець<select id="inventoryGmPlayer">${inventoryPlayerOptions()}</select></label>` : "";
+  const addTitle = appSession.role === "gm" ? "Додати предмет гравцю" : "Додати предмет";
+  const addButtonId = appSession.role === "gm" ? "gmAddInventoryItem" : "playerAddInventoryItem";
+  const reviewHint = appSession.role === "gm" ? "GM-поля доступні в детальній картці." : "Предмет буде позначено як доданий гравцем.";
+  return `
+    <div class="inventory-toolbar">
+      ${gmSelect}
+      <label class="inventory-search">Пошук<input id="inventorySearch" value="${search}" placeholder="назва, опис, тег, походження"></label>
+      ${inventoryFilterChips()}
+    </div>
+    <details class="inventory-add-box">
+      <summary>${escapeHtml(addTitle)}</summary>
+      <div class="compact-form-grid">
+        <label>Назва<input id="inventoryNewName" placeholder="Ікло сліпого пса"></label>
+        <label>Тип<select id="inventoryNewType">${Object.entries(ITEM_TYPE_META).filter(([key]) => key !== "item").map(([key, meta]) => `<option value="${escapeAttr(key)}">${escapeHtml(meta.label)}</option>`).join("")}</select></label>
+        <label>Кількість<input id="inventoryNewCount" type="number" min="1" value="1"></label>
+        <label>Рідкість<select id="inventoryNewRarity">${Object.entries(ITEM_RARITY_META).map(([key, meta]) => `<option value="${escapeAttr(key)}">${escapeHtml(meta.label)}</option>`).join("")}</select></label>
+      </div>
+      <label>Опис<textarea id="inventoryNewDescription" rows="2" placeholder="Короткий атмосферний опис"></textarea></label>
+      <label>Примітка<textarea id="inventoryNewNote" rows="2" placeholder="${escapeAttr(reviewHint)}"></textarea></label>
+      <button class="metal-btn" id="${addButtonId}" type="button">Додати</button>
+    </details>
+  `;
+}
+
+function inventoryItemCard(item){
+  const type = itemTypeMeta(item.type);
+  const rarity = itemRarityMeta(item.rarity);
+  const selected = selectedInventoryItemId === item.id ? "selected" : "";
+  const important = item.isImportant ? `<span class="inventory-status-badge">важливе</span>` : "";
+  const story = item.isStoryItem ? `<span class="inventory-status-badge story">сюжетне</span>` : "";
+  const pending = item.pendingReview ? `<span class="inventory-status-badge pending">на перевірці</span>` : "";
+  const origin = item.origin || item.acquiredFrom || item.location || item.source || "походження не вказано";
+  return `<button type="button" class="inventory-card rarity-${escapeAttr(item.rarity || "common")} ${selected}" data-inventory-select="${escapeAttr(item.id)}">
+    <span class="inventory-type-icon">${escapeHtml(type.icon)}</span>
+    <span class="inventory-card-main">
+      <strong>${escapeHtml(item.name || item.item)}</strong>
+      <small>${escapeHtml(type.label)} · ${escapeHtml(rarity.label)} · x${escapeHtml(String(item.count ?? 1))}</small>
+      <em>${escapeHtml(origin)}</em>
+    </span>
+    <span class="inventory-card-badges">${important}${story}${pending}</span>
+  </button>`;
+}
+
+function inventoryEmptyStateHtml(){
+  if(appSession.role === "gm"){
+    return `<div class="inventory-empty">У цього гравця поки немає предметів.<br>Можна додати стартове спорядження або передати лут.</div>`;
+  }
+  return `<div class="inventory-empty">Інвентар порожній.<br>КПК не зафіксував жодного предмета. Знайди щось у Зоні або дочекайся, поки Майстер додасть спорядження.</div>`;
+}
+
+function inventoryHistoryHtml(item){
+  const history = Array.isArray(item.history) ? item.history : [];
+  if(!history.length) return `<li>історія ще не записана</li>`;
+  return history.slice(-6).reverse().map(h => `<li><span>${escapeHtml(h.time || "")}</span>${escapeHtml(h.text || "")}<small>${escapeHtml(h.by || "")}</small></li>`).join("");
+}
+
+function inventoryDetailHtml(item){
+  if(!item) return `<div class="inventory-detail-empty">Натисни предмет, щоб відкрити його картку.</div>`;
+  const type = itemTypeMeta(item.type);
+  const rarity = itemRarityMeta(item.rarity);
+  const gmFields = appSession.role === "gm" ? `
+    <div class="inventory-gm-fields">
+      <h4>GM-поля</h4>
+      <label>Прихована нотатка<textarea rows="2" data-inventory-edit="${escapeAttr(item.id)}" data-field="gmOnlyNote">${escapeHtml(item.gmOnlyNote || "")}</textarea></label>
+      <label>Джерело<input data-inventory-edit="${escapeAttr(item.id)}" data-field="source" value="${escapeAttr(item.source || "")}"></label>
+      <label>Додав<input data-inventory-edit="${escapeAttr(item.id)}" data-field="addedBy" value="${escapeAttr(item.addedBy || "")}"></label>
+      <div class="button-row">
+        <button class="metal-btn mini" data-inventory-toggle-important="${escapeAttr(item.id)}">${item.isImportant ? "Зняти важливість" : "Позначити важливим"}</button>
+        <button class="metal-btn mini" data-inventory-toggle-story="${escapeAttr(item.id)}">${item.isStoryItem ? "Зняти сюжетність" : "Позначити сюжетним"}</button>
+        <button class="metal-btn mini danger" data-inventory-delete="${escapeAttr(item.id)}">Списати</button>
+      </div>
+    </div>` : "";
+  return `<article class="inventory-detail-card rarity-${escapeAttr(item.rarity || "common")}">
+    <div class="inventory-detail-head">
+      <span class="inventory-type-icon large">${escapeHtml(type.icon)}</span>
+      <div>
+        <h4>${escapeHtml(item.name || item.item)}</h4>
+        <p>${escapeHtml(type.label)} · ${escapeHtml(rarity.label)} · x${escapeHtml(String(item.count ?? 1))}</p>
+      </div>
+    </div>
+    <div class="inventory-detail-grid">
+      <div><span>Стан</span><strong>${escapeHtml(item.condition || "звичайний")}</strong></div>
+      <div><span>Локація</span><strong>${escapeHtml(item.location || "невідома")}</strong></div>
+      <div><span>Отримано</span><strong>${escapeHtml(item.acquiredAt || "не вказано")}</strong></div>
+      <div><span>Від кого</span><strong>${escapeHtml(item.acquiredFrom || "не вказано")}</strong></div>
+    </div>
+    <p class="inventory-description">${escapeHtml(item.description || item.note || "Опис ще не додано.")}</p>
+    ${item.note ? `<p class="inventory-note">${escapeHtml(item.note)}</p>` : ""}
+    <p class="inventory-origin"><strong>Походження:</strong> ${escapeHtml(item.origin || item.source || "не вказано")}</p>
+    <ul class="inventory-history">${inventoryHistoryHtml(item)}</ul>
+    ${gmFields}
+  </article>`;
+}
+
+function renderInventoryScreen(){
+  const ownerId = activeInventoryPlayerId();
+  const owner = playerById(ownerId);
+  const hero = qs("#inventoryHero");
+  const controls = qs("#inventoryControls");
+  const list = qs("#inventoryList");
+  const detail = qs("#inventoryDetail");
+  if(hero) hero.innerHTML = inventoryHeroHtml(owner);
+  if(controls) controls.innerHTML = inventoryControlsHtml();
+  const items = inventoryItemsForDisplay();
+  if(list) list.innerHTML = items.length ? items.map(inventoryItemCard).join("") : inventoryEmptyStateHtml();
+  const selected = items.find(item => item.id === selectedInventoryItemId) || items[0] || null;
+  if(selected && !selectedInventoryItemId) selectedInventoryItemId = selected.id;
+  if(detail) detail.innerHTML = inventoryDetailHtml(selected);
+}
+
+function addInventoryItemFromForm(){
+  const name = qs("#inventoryNewName")?.value?.trim();
+  if(!name){
+    showToast("Введи назву предмета.");
+    return;
+  }
+  const playerId = activeInventoryPlayerId();
+  const item = addInventoryItemForPlayer(playerId, {
+    name,
+    item: name,
+    type: qs("#inventoryNewType")?.value || "other",
+    count: Math.max(1, Number(qs("#inventoryNewCount")?.value || 1)),
+    rarity: qs("#inventoryNewRarity")?.value || "common",
+    description: qs("#inventoryNewDescription")?.value?.trim() || "",
+    note: qs("#inventoryNewNote")?.value?.trim() || "",
+    source: appSession.role === "gm" ? "gm manual" : "player manual",
+    origin: appSession.role === "gm" ? "додано Майстром" : "додано гравцем",
+    location: currentSceneLocation(),
+    acquiredAt: new Date().toISOString(),
+    acquiredFrom: appSession.role === "gm" ? "Майстер" : (currentPlayer().name || currentPlayerId()),
+    addedBy: appSession.role === "gm" ? "gm" : "player",
+    pendingReview: appSession.role !== "gm",
+    confirmedByGM: appSession.role === "gm"
+  }, 1, "", { historyText: appSession.role === "gm" ? "Майстер додав предмет" : "гравець додав предмет", addedBy: appSession.role === "gm" ? "gm" : "player" });
+  selectedInventoryItemId = item?.id || "";
+  addLog(`${playerById(playerId).name || playerId} отримав предмет: ${name}.`, appSession.role === "gm" ? "public" : "gm");
+  pdaFeedback("item_received");
+  render();
+}
+
+function findInventoryItemForPlayer(playerId, itemId){
+  const inv = inventoryForPlayer(playerId);
+  return inv.find(item => normalizeInventoryItem(item).id === itemId) || null;
+}
+
+function updateInventoryItemField(itemId, field, value){
+  if(appSession.role !== "gm") return;
+  const playerId = activeInventoryPlayerId();
+  const item = findInventoryItemForPlayer(playerId, itemId);
+  if(!item) return;
+  item[field] = value;
+  item.history = normalizeItemHistory(item.history);
+  item.history.push(createInventoryHistoryEntry(`Майстер змінив поле: ${field}`, "gm"));
+  saveAndRenderPreserveScroll();
+}
+
+function deleteInventoryItem(itemId){
+  if(appSession.role !== "gm") return;
+  const playerId = activeInventoryPlayerId();
+  const inv = inventoryForPlayer(playerId);
+  const idx = inv.findIndex(item => normalizeInventoryItem(item).id === itemId);
+  if(idx < 0) return;
+  const removed = normalizeInventoryItem(inv[idx]);
+  inv.splice(idx, 1);
+  if(selectedInventoryItemId === itemId) selectedInventoryItemId = "";
+  addLog(`Майстер списав предмет ${removed.name || removed.item} з інвентаря ${playerById(playerId).name || playerId}.`, "gm");
+  render();
+}
+
+function toggleInventoryItemFlag(itemId, field){
+  if(appSession.role !== "gm") return;
+  const item = findInventoryItemForPlayer(activeInventoryPlayerId(), itemId);
+  if(!item) return;
+  item[field] = !item[field];
+  if(field === "isStoryItem" && item[field]) item.rarity = "story";
+  item.history = normalizeItemHistory(item.history);
+  item.history.push(createInventoryHistoryEntry(field === "isStoryItem" ? "Майстер оновив сюжетний статус" : "Майстер оновив важливість", "gm"));
+  pdaFeedback(field === "isImportant" ? "item_marked_important" : "tap_soft");
+  render();
 }
 
 // =============================
@@ -5986,6 +6735,7 @@ function escapeAttr(str){ return escapeHtml(str).replace(/"/g, "&quot;");}
 
 function switchScreen(target){
   if(target === "master" && appSession.role !== "gm") target = "state";
+  if(target === "enemies" && appSession.role !== "gm") target = "state";
   const previous = activeScreenName();
   if(previous !== target) closeUiForScreenChange();
 
@@ -5997,6 +6747,15 @@ function switchScreen(target){
   });
 
   qsa(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.target === target));
+  const soundMap = {
+    state: "tab_state",
+    environment: "tab_environment",
+    inventory: "tab_inventory",
+    journal: "tab_journal",
+    enemies: "tab_enemies",
+    master: "tab_master"
+  };
+  if(previous && previous !== target && pdaFeedbackArmed) pdaFeedback(soundMap[target] || "panel_open");
   window.scrollTo({top:0, behavior:"smooth"});
 }
 
@@ -6040,19 +6799,71 @@ function weaponCatalogKeyFromName(name){
   return "";
 }
 
-function normalizeInventoryItem(item){
+function inferInventoryType(name, item={}){
+  if(item.type && ITEM_TYPE_META[item.type]) return item.type;
+  const value = String(name || "").toLowerCase();
+  if(item.damage || weaponCatalogKeyFromName(name)) return "weapon";
+  if(value.includes("набо") || value.includes("патрон")) return "ammo";
+  if(value.includes("аптеч") || value.includes("антирад") || value.includes("бинт")) return "med";
+  if(value.includes("консер") || value.includes("їжа") || value.includes("хліб")) return "food";
+  if(value.includes("болт")) return "tool";
+  if(value.includes("документ") || value.includes("запис")) return "document";
+  if(value.includes("ключ")) return "key";
+  if(value.includes("артефакт") || value.includes("аномал")) return "artifact";
+  if(value.includes("лут:") || value.includes("ікло") || value.includes("троф")) return "trophy";
+  return item.type || "other";
+}
+
+function normalizeItemHistory(history, fallbackText="", by="system"){
+  if(Array.isArray(history) && history.length){
+    return history.map(h => ({
+      time: h.time || nowTime(),
+      text: h.text || fallbackText || "запис інвентаря",
+      by: h.by || by
+    }));
+  }
+  return fallbackText ? [{ time: nowTime(), text: fallbackText, by }] : [];
+}
+
+function normalizeInventoryItem(item={}){
   const rawName = item.name || item.item || item.id || "Предмет";
   const isLootNote = String(rawName || "").trim().toLowerCase().startsWith("лут:");
   const guessedWeapon = item.type === "weapon" ? (item.id || weaponCatalogKeyFromName(rawName)) : (isLootNote ? "" : weaponCatalogKeyFromName(rawName));
   const isWeapon = item.type === "weapon" || !!guessedWeapon;
-  const id = String(item.id || (isWeapon ? guessedWeapon : rawName));
+  const stableNameId = String(rawName || "item").toLowerCase().replace(/[^a-zа-яіїєґ0-9_-]+/giu, "_").replace(/^_+|_+$/g, "") || "item";
+  const id = String(item.id || (isWeapon ? guessedWeapon : stableNameId));
+  const type = isWeapon ? "weapon" : inferInventoryType(rawName, item);
+  const acquiredAt = item.acquiredAt || item.createdAt || "";
+  const source = item.source || (isLootNote ? "enemy loot" : "");
+  const location = item.location || "";
+  const origin = item.origin || (source ? `${source}: ${rawName}` : "");
+  const history = normalizeItemHistory(item.history, item.history ? "" : (origin || item.note ? "предмет додано до інвентаря" : ""), item.addedBy || "system");
   return {
     ...item,
     id,
-    type: isWeapon ? "weapon" : (item.type || "item"),
+    type,
     name: item.name || item.item || id,
     item: item.item || item.name || id,
     count: Number(item.count ?? 1),
+    description: item.description || "",
+    note: item.note || "",
+    origin,
+    source,
+    location,
+    acquiredAt,
+    acquiredFrom: item.acquiredFrom || "",
+    addedBy: item.addedBy || "",
+    condition: item.condition || (isWeapon ? "робочий стан" : "звичайний"),
+    rarity: ITEM_RARITY_META[item.rarity] ? item.rarity : (item.isStoryItem ? "story" : "common"),
+    tags: Array.isArray(item.tags) ? item.tags : [],
+    isEquipped: !!(item.isEquipped ?? item.equipped),
+    isActive: !!item.isActive,
+    isImportant: !!item.isImportant,
+    isStoryItem: !!item.isStoryItem,
+    pendingReview: !!item.pendingReview,
+    confirmedByGM: !!item.confirmedByGM,
+    gmOnlyNote: item.gmOnlyNote || "",
+    history,
     damage: item.damage || (WEAPON_CATALOG[guessedWeapon]?.far?.dice ? `${WEAPON_CATALOG[guessedWeapon].far.dice}${WEAPON_CATALOG[guessedWeapon].far.bonus ? (WEAPON_CATALOG[guessedWeapon].far.bonus > 0 ? "+" : "") + WEAPON_CATALOG[guessedWeapon].far.bonus : ""}` : ""),
     range: item.range || (guessedWeapon === "obrez" ? "near" : "far"),
     ammoType: item.ammoType || (isWeapon ? "ammo" : ""),
@@ -7603,6 +8414,107 @@ document.addEventListener("click", e => {
     return;
   }
 
+  const soundTest = e.target.closest("[data-sound-test]");
+  if(soundTest){
+    const eventName = soundTest.dataset.soundTest;
+    enablePdaAudio().then(() => pdaFeedback(eventName, { toast:true }));
+    return;
+  }
+
+  if(e.target.closest("[data-open-avatar-picker]")){
+    avatarPickerOpen = true;
+    renderAvatarPickerPanel();
+    pdaFeedback("panel_open");
+    return;
+  }
+
+  if(e.target.closest("#closeAvatarPicker")){
+    avatarPickerOpen = false;
+    renderAvatarPickerPanel();
+    pdaFeedback("panel_close");
+    return;
+  }
+
+  const requestAvatar = e.target.closest("[data-request-avatar]");
+  if(requestAvatar){
+    requestPlayerAvatar(requestAvatar.dataset.requestAvatar);
+    return;
+  }
+
+  const approveAvatar = e.target.closest("[data-approve-avatar]");
+  if(approveAvatar){
+    approvePlayerAvatar(approveAvatar.dataset.approveAvatar, true);
+    return;
+  }
+
+  const rejectAvatar = e.target.closest("[data-reject-avatar]");
+  if(rejectAvatar){
+    approvePlayerAvatar(rejectAvatar.dataset.rejectAvatar, false);
+    return;
+  }
+
+  const toggleGmDock = e.target.closest("[data-toggle-gm-command-dock]");
+  if(toggleGmDock){
+    gmCommandDockOpen = !gmCommandDockOpen;
+    renderGmCommandDock();
+    pdaFeedback(gmCommandDockOpen ? "panel_open" : "panel_close");
+    return;
+  }
+
+  const gmDockOpen = e.target.closest("[data-gm-dock-open]");
+  if(gmDockOpen){
+    switchScreen(gmDockOpen.dataset.gmDockOpen);
+    return;
+  }
+
+  const combatDockToggle = e.target.closest("[data-toggle-combat-dock]");
+  if(combatDockToggle){
+    gmCombatDockCollapsed = !gmCombatDockCollapsed;
+    renderGmCombatStickyBar();
+    pdaFeedback(gmCombatDockCollapsed ? "panel_close" : "panel_open");
+    return;
+  }
+
+  const inventoryFilterBtn = e.target.closest("[data-inventory-filter]");
+  if(inventoryFilterBtn){
+    inventoryFilter = inventoryFilterBtn.dataset.inventoryFilter || "all";
+    selectedInventoryItemId = "";
+    pdaFeedback("inventory_filter");
+    renderInventoryScreen();
+    return;
+  }
+
+  const inventorySelect = e.target.closest("[data-inventory-select]");
+  if(inventorySelect){
+    selectedInventoryItemId = inventorySelect.dataset.inventorySelect;
+    pdaFeedback("item_open");
+    renderInventoryScreen();
+    return;
+  }
+
+  if(e.target.closest("#playerAddInventoryItem") || e.target.closest("#gmAddInventoryItem")){
+    addInventoryItemFromForm();
+    return;
+  }
+
+  const inventoryDelete = e.target.closest("[data-inventory-delete]");
+  if(inventoryDelete){
+    if(confirm("Списати цей предмет з інвентаря?")) deleteInventoryItem(inventoryDelete.dataset.inventoryDelete);
+    return;
+  }
+
+  const toggleImportant = e.target.closest("[data-inventory-toggle-important]");
+  if(toggleImportant){
+    toggleInventoryItemFlag(toggleImportant.dataset.inventoryToggleImportant, "isImportant");
+    return;
+  }
+
+  const toggleStory = e.target.closest("[data-inventory-toggle-story]");
+  if(toggleStory){
+    toggleInventoryItemFlag(toggleStory.dataset.inventoryToggleStory, "isStoryItem");
+    return;
+  }
+
   const closePanel = e.target.closest("[data-close-panel]");
   if(closePanel){
     if(closePanelById(closePanel.dataset.closePanel)) pdaFeedback("panel_close");
@@ -7725,6 +8637,13 @@ if(e.target.closest("#journalPostPublic")){
   const forbiddenMasterNav = e.target.closest('.nav-btn[data-target="master"]');
   if(forbiddenMasterNav && appSession.role !== "gm"){
     showToast?.("Панель Майстра доступна тільки Майстру.");
+    return;
+  }
+
+  const forbiddenEnemiesNav = e.target.closest('.nav-btn[data-target="enemies"]');
+  if(forbiddenEnemiesNav && appSession.role !== "gm"){
+    showToast?.("Окрема вкладка ворогів доступна тільки Майстру. Видимі цілі лишаються у Стані.");
+    switchScreen("state");
     return;
   }
 
@@ -8009,7 +8928,7 @@ const enemyStep = e.target.closest("[data-enemy-step]");
       } else if(data.players[clean]){
         showToast("Такий гравець уже існує.");
       } else {
-        data.players[clean] = {id: clean, name: clean, hp: 10, hpMax: 10, fatigue: 0, infection: 0, ammo: 10, weapon: "pm", range: "far", weaponCondition: "normal", weaponJammed: false, defense: 12, defenseMax: 12, armor: 0, activeEffects: [], stats: { endurance: 0, accuracy: 0, agility: 0, perception: 0, intuition: 0, charisma: 0 }, inventory: clone(defaultRoomData.players.fox.inventory)};
+        data.players[clean] = {id: clean, name: clean, avatarEmoji: "", avatarId: "", avatarUrl: "", avatarKey: clean, avatarStyle: "portrait", avatarStatus: "", avatarPendingId: "", avatarPendingUrl: "", avatarRequestedAt: "", avatarApprovedBy: "", hp: 10, hpMax: 10, fatigue: 0, infection: 0, ammo: 10, weapon: "pm", range: "far", weaponCondition: "normal", weaponJammed: false, defense: 12, defenseMax: 12, armor: 0, activeEffects: [], stats: { endurance: 0, accuracy: 0, agility: 0, perception: 0, intuition: 0, charisma: 0 }, inventory: clone(defaultRoomData.players.fox.inventory)};
         data.meta.activePlayerId = clean;
         addLog(`Майстер додав гравця: ${clean}.`, "public");
         render();
@@ -8269,9 +9188,23 @@ const enemyStep = e.target.closest("[data-enemy-step]");
     } else {
       const pid = targetPlayerId();
       const p = playerById(pid);
-      inventoryForPlayer(pid).push({item, count, note});
+      addInventoryItemForPlayer(pid, {
+        name: item,
+        item,
+        count,
+        note,
+        description: note,
+        type: inferInventoryType(item, {}),
+        source: "gm custom loot",
+        origin: "ручна видача Майстра",
+        location: currentSceneLocation(),
+        acquiredAt: new Date().toISOString(),
+        acquiredFrom: "Майстер",
+        addedBy: "gm",
+        rarity: "useful"
+      }, count, note, { historyText: "Майстер додав предмет вручну", addedBy: "gm" });
       addLog(`Майстер додав предмет для ${p.name || pid}: ${item} x${count}.`, "public");
-      pdaFeedback("loot_received");
+      pdaFeedback("item_received");
       qs("#customLootName").value = "";
       qs("#customLootCount").value = 1;
       qs("#customLootNote").value = "";
@@ -8327,6 +9260,25 @@ document.addEventListener("change", e => {
     return;
   }
 
+  const pdaVolume = e.target.closest("[data-pda-volume]");
+  if(pdaVolume){
+    setPdaVolume(pdaVolume.value);
+    return;
+  }
+
+  if(e.target.id === "inventoryGmPlayer"){
+    inventoryGmPlayerId = e.target.value;
+    selectedInventoryItemId = "";
+    renderInventoryScreen();
+    return;
+  }
+
+  const inventoryEdit = e.target.closest("[data-inventory-edit]");
+  if(inventoryEdit){
+    updateInventoryItemField(inventoryEdit.dataset.inventoryEdit, inventoryEdit.dataset.field, inventoryEdit.value);
+    return;
+  }
+
   const livingPlayerField = e.target.closest("[data-player]");
   if(livingPlayerField && ["avatarEmoji","avatarUrl","avatarStyle","avatarKey"].includes(livingPlayerField.dataset.field)){
     const pid = livingPlayerField.dataset.player;
@@ -8353,6 +9305,22 @@ document.addEventListener("change", e => {
 });
 
 document.addEventListener("input", e => {
+  const pdaVolume = e.target.closest("[data-pda-volume]");
+  if(pdaVolume){
+    const settings = currentPdaSettings();
+    data.pdaSettings = normalizePdaSettings({ ...settings, masterVolume: clamp(Number(pdaVolume.value) / 100, 0, 1) });
+    saveLocalPdaSettings(data.pdaSettings);
+    const label = pdaVolume.closest(".pda-volume")?.querySelector("strong");
+    if(label) label.textContent = `${Math.round(Number(data.pdaSettings.masterVolume || 0) * 100)}%`;
+    return;
+  }
+
+  if(e.target.id === "inventorySearch"){
+    inventorySearch = e.target.value || "";
+    selectedInventoryItemId = "";
+    renderInventoryScreen();
+    return;
+  }
 
 
   if(e.target.id === "lootTargetPlayer"){
